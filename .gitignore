@@ -35,3 +35,15 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Secrets ###
+# PG 연동키 등 비밀값은 절대 커밋하지 않는다 (요구사항 v.06 / PG 키 보안 규칙)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+### Frontend ###
+node_modules/
+dist/
