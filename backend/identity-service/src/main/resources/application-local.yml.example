@@ -1,0 +1,8 @@
+jwt:
+  secret: 여기에_JWT_SECRET_값
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:13306/identity
+    username: root
+    password: 여기에_DB_비밀번호

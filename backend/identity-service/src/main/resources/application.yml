@@ -4,3 +4,5 @@ server:
 spring:
   application:
     name: identity-service
+  profiles:
+    active: local
