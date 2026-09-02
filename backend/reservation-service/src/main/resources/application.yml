@@ -4,3 +4,34 @@ server:
 spring:
   application:
     name: reservation-service
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:13306}/reservation?characterEncoding=UTF-8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+    username: ${DB_USER:root}
+
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+
+expo-service:
+  base-url: ${EXPO_SERVICE_URL:http://localhost:8082}
+  connect-timeout: 2s
+  read-timeout: 3s
+
+internal:
+  token: ${INTERNAL_TOKEN:local-dev-internal-token}
+
