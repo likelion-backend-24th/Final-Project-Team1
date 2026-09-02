@@ -41,8 +41,6 @@ out/
 .env
 .env.*
 !.env.example
-application-local.yml
-!application-local.yml.example
 *.pem
 *.key
 

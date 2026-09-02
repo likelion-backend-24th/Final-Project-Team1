@@ -4,5 +4,3 @@ server:
 spring:
   application:
     name: reservation-service
-  profiles:
-    active: local

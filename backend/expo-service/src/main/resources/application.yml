@@ -4,5 +4,3 @@ server:
 spring:
   application:
     name: expo-service
-  profiles:
-    active: local
