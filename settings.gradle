@@ -1,0 +1,5 @@
+rootProject.name = 'Final-Project-Team1'
+
+include 'identity-service'
+include 'expo-service'
+include 'reservation-service'
