@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -54,5 +55,17 @@ public class User {
 
     public static User create(String email, String passwordHash, String name, Role role, LocalDateTime now) {
         return new User(email, passwordHash, name, role, now);
+    }
+
+    /*
+     * 계약서의 JWT 클레임 role은 단수다. Sprint 1은 1인 1Role이지만
+     * 여러 개가 부여된 경우에도 결과가 흔들리지 않도록 가장 강한 Role을 고른다.
+     * (enum 선언 순서: USER < ORGANIZER < SUPER_ADMIN)
+     */
+    public Role primaryRole() {
+        return roles.stream()
+                .map(GrantedRole::getRole)
+                .max(Comparator.comparingInt(Enum::ordinal))
+                .orElseThrow(() -> new IllegalStateException("Role이 없는 사용자입니다. id=" + id));
     }
 }
