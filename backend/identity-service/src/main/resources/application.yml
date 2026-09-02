@@ -5,10 +5,8 @@ spring:
   application:
     name: identity-service
 
-  datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/identity?characterEncoding=UTF-8
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:team1local}
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
 
   jpa:
     hibernate:
@@ -23,8 +21,7 @@ spring:
     enabled: true
     placeholders:
       superAdminEmail: ${SUPER_ADMIN_EMAIL:admin@team1.local}
-      superAdminPasswordHash: ${SUPER_ADMIN_PASSWORD_HASH}
+      superAdminPasswordHash: ${SUPER_ADMIN_PASSWORD_HASH:}
 
 jwt:
-  secret: ${JWT_SECRET}
   access-token-expiration: 3600000
