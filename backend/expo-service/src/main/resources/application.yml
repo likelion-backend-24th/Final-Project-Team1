@@ -4,3 +4,9 @@ server:
 spring:
   application:
     name: expo-service
+  profiles:
+    active: local
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: UTC
