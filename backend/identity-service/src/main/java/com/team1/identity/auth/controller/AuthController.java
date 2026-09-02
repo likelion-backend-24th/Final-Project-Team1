@@ -1,5 +1,7 @@
 package com.team1.identity.auth.controller;
 
+import com.team1.identity.auth.dto.LoginRequest;
+import com.team1.identity.auth.dto.LoginResponse;
 import com.team1.identity.auth.dto.SignUpRequest;
 import com.team1.identity.auth.dto.SignUpResponse;
 import com.team1.identity.auth.service.AuthService;
@@ -24,5 +26,10 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<SignUpResponse> signUp(@Valid @RequestBody SignUpRequest request) {
         return ApiResponse.ok(authService.signUp(request));
+    }
+
+    @PostMapping("/login")
+    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ApiResponse.ok(authService.login(request));
     }
 }
