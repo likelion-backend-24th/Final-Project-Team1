@@ -23,5 +23,12 @@ spring:
       superAdminEmail: ${SUPER_ADMIN_EMAIL:admin@team1.local}
       superAdminPasswordHash: ${SUPER_ADMIN_PASSWORD_HASH:}
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
 jwt:
   access-token-expiration: 3600000
