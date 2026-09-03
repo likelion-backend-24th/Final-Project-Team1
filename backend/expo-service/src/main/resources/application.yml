@@ -19,3 +19,8 @@ reservation-service:
   base-url: ${RESERVATION_SERVICE_URL:http://localhost:8083}
   connect-timeout: 2s
   read-timeout: 3s
+
+scheduler:
+  auto-close:
+    cron: "0 */10 * * * *"
+    limit: 500
