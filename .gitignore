@@ -43,6 +43,7 @@ out/
 !.env.example
 *.pem
 *.key
+application-local.yml
 
 ### Frontend ###
 node_modules/
