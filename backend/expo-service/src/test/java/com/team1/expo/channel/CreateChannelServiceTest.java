@@ -1,15 +1,20 @@
 package com.team1.expo.channel;
 
+import com.team1.expo.domain.channel.ChannelRepository;
 import com.team1.expo.support.ApiTestSupport;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CreateChannelServiceTest extends ApiTestSupport {
+
+    @Autowired
+    private ChannelRepository channelRepository;
 
     @Test
     @DisplayName("ORGANIZER가 채널을 생성하면 201과 채널 ID를 반환한다")
@@ -70,6 +75,39 @@ class CreateChannelServiceTest extends ApiTestSupport {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(errorCode(response)).isEqualTo("FORBIDDEN");
+    }
+
+    @Test
+    @DisplayName("중복 채널명 실패 시 DB 채널 건수가 늘어나지 않는다")
+    void 중복_채널명_실패_시_DB_건수_불변() {
+        String token = jwtFor(1L, "ORGANIZER");
+        String name = uniqueName();
+
+        post("/api/v1/channels", """
+                {"name":"%s","description":"첫번째"}
+                """.formatted(name), token);
+
+        long before = channelRepository.count();
+        post("/api/v1/channels", """
+                {"name":"%s","description":"두번째"}
+                """.formatted(name), token);
+        long after = channelRepository.count();
+
+        assertThat(after).isEqualTo(before);
+    }
+
+    @Test
+    @DisplayName("권한 없는 요청 실패 시 DB 채널 건수가 늘어나지 않는다")
+    void 권한_없는_요청_실패_시_DB_건수_불변() {
+        String userToken = jwtFor(3L, "USER");
+
+        long before = channelRepository.count();
+        post("/api/v1/channels", """
+                {"name":"%s"}
+                """.formatted(uniqueName()), userToken);
+        long after = channelRepository.count();
+
+        assertThat(after).isEqualTo(before);
     }
 
     @Test
