@@ -38,7 +38,7 @@ public class RoundService {
 
     @Transactional
     public Round create(Long expoId, AuthenticatedUser user, CreateRoundRequest request) {
-        // 입력 검증(400)을 먼저 한다. 잘못된 입력 때문에 내부 호출을 낭비하지 않는다.
+
         Round round = Round.create(
                 expoId,
                 request.startsAt(),
@@ -55,7 +55,7 @@ public class RoundService {
     @Transactional(readOnly = true)
     public List<Round> listForOrganizer(Long expoId, AuthenticatedUser user) {
         requireOwnership(expoId, user);
-        // HIDDEN 상태 박람회의 회차도 소유 주최자에게는 반환한다.
+
         return rounds.findByExpoIdOrderByStartsAtAsc(expoId);
     }
 

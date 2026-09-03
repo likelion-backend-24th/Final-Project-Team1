@@ -19,13 +19,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
-/**
- * /internal/v1/** 는 Gateway 를 거치지 않는 Service 간 호출이므로
- * 환경 변수로 주입한 Bearer Token 으로 허용된 호출 Service 인지 확인한다.
- *
- * JWT 와는 다른 인증 수단이므로, common-security 의 JwtAuthenticationFilter 는
- * SecurityConfig 에서 /api/* 로만 등록해 이 경로와 겹치지 않게 한다.
- */
+
 @Component
 @Order(2)
 public class InternalAuthFilter extends OncePerRequestFilter {

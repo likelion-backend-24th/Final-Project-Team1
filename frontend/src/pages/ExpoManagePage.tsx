@@ -29,7 +29,8 @@ export default function ExpoManagePage() {
     try {
       const res = await expoApi.createExpo(channelId, form)
       toast('박람회가 등록되었습니다 (HIDDEN)', 'success')
-      navigate(`/host/expos/${res.data.id}/rounds`)
+      // HIDDEN 박람회는 GET /expos/{id} 로 다시 못 읽으므로(404) 등록 응답을 그대로 넘긴다.
+      navigate(`/host/expos/${res.data.id}/rounds`, { state: { expo: res.data } })
     } catch (err: unknown) {
       const e = err as { status?: number }
       if (e.status === 403) setError('해당 채널의 소유자만 등록할 수 있습니다.')
