@@ -13,3 +13,9 @@ spring:
 
 internal:
   token: ${INTERNAL_TOKEN}
+
+# reservation-service 내부 호출(#24 회차 존재 확인, #26 회차 목록 병합)용. 재시도 없음.
+reservation-service:
+  base-url: ${RESERVATION_SERVICE_URL:http://localhost:8083}
+  connect-timeout: 2s
+  read-timeout: 3s
