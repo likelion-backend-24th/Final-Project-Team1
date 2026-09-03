@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { expoApi } from '../api/expo'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
+import { expoKey } from '../types'
 import type { Channel, Expo } from '../types'
 
 export default function HostChannelPage() {
@@ -24,9 +25,10 @@ export default function HostChannelPage() {
   const [loadingEx, setLoadingEx] = useState(false)
 
   useEffect(() => {
+    // GET /channels/my 는 Spring Data Page 를 그대로 준다. data 가 배열이 아니라 { content: [...] }.
     expoApi.listMyChannels()
       .then(res => {
-        const list = res.data ?? []
+        const list = res.data?.content ?? []
         setChannels(list)
         if (list.length > 0) pickChannel(list[0])
       })
@@ -34,11 +36,16 @@ export default function HostChannelPage() {
       .finally(() => setLoadingCh(false))
   }, [])
 
+  /*
+   * 주최자용 "내 채널의 박람회 목록" API 는 Sprint 1 에 없다.
+   * 공개 목록(GET /expos)을 받아 channelId 로 걸러서 대신 보여준다.
+   * 따라서 아직 공개하지 않은 HIDDEN 박람회는 여기 나오지 않는다.
+   */
   function pickChannel(ch: Channel) {
     setSelected(ch)
     setLoadingEx(true)
-    expoApi.listMyExpos(ch.id)
-      .then(res => setExpos(res.data ?? []))
+    expoApi.listPublished({ size: 100 })
+      .then(res => setExpos((res.data ?? []).filter(e => e.channelId === ch.id)))
       .catch(() => toast('박람회 목록을 불러오지 못했습니다', 'error'))
       .finally(() => setLoadingEx(false))
   }
@@ -105,6 +112,10 @@ export default function HostChannelPage() {
                     </button>
                   </div>
 
+                  <div className="alert alert-warning" style={{ marginBottom: 16 }}>
+                    ⚑ 공개(PUBLISHED)된 박람회만 표시됩니다. 비공개 박람회 목록 조회는 Sprint 2 범위입니다.
+                  </div>
+
                   {loadingEx ? (
                     <p style={{ color: 'var(--sub)', padding: '40px 0' }}>불러오는 중...</p>
                   ) : expos.length === 0 ? (
@@ -123,9 +134,11 @@ export default function HostChannelPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {expos.map(expo => (
                         <ExpoRow
-                          key={expo.id}
+                          key={expoKey(expo)}
                           expo={expo}
-                          onManage={() => navigate(`/host/expos/${expo.id}/rounds`)}
+                          onManage={() =>
+                            navigate(`/host/expos/${expoKey(expo)}/rounds`, { state: { expo } })
+                          }
                         />
                       ))}
                     </div>
@@ -161,8 +174,8 @@ function ExpoRow({ expo, onManage }: { expo: Expo; onManage: () => void }) {
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-          <span className={`badge badge-${expo.status.toLowerCase()}`}>
-            {expo.status === 'PUBLISHED' ? '● 공개중' : expo.status === 'HIDDEN' ? '○ HIDDEN' : '● 종료'}
+          <span className={`badge badge-${(expo.status ?? 'PUBLISHED').toLowerCase()}`}>
+            {(expo.status ?? 'PUBLISHED') === 'PUBLISHED' ? '● 공개중' : expo.status === 'HIDDEN' ? '○ HIDDEN' : '● 종료'}
           </span>
           <span className="badge badge-blue">{expo.category}</span>
         </div>
