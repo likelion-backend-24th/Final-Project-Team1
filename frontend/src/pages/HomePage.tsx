@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { expoApi } from '../api/expo'
+import { expoKey } from '../types'
 import type { Expo } from '../types'
 
 const CATS = [
@@ -28,25 +29,18 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [category, setCategory] = useState('전체')
-  const [input, setInput] = useState('')
-  const [keyword, setKeyword] = useState('')
 
   useEffect(() => {
     setLoading(true)
     setError(false)
+    // 백엔드는 region · category · page · size 만 받는다. keyword 검색은 Sprint 2.
     expoApi.listPublished({
       category: category === '전체' ? undefined : category,
-      keyword: keyword || undefined,
     })
       .then(res => setExpos(res.data ?? []))
       .catch(() => setError(true))
       .finally(() => setLoading(false))
-  }, [category, keyword])
-
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault()
-    setKeyword(input)
-  }
+  }, [category])
 
   const catIcon = (label: string) => CATS.find(c => c.label === label)?.icon ?? '🏷️'
 
@@ -61,15 +55,7 @@ export default function HomePage() {
             <em>지금 바로</em> 찾아보세요
           </h1>
           <p>IT·식품·패션·문화까지, 다양한 분야의 박람회가 모여있습니다</p>
-          <form className="search-box" onSubmit={handleSearch}>
-            <input
-              type="text"
-              placeholder="박람회명, 장소, 주최자 검색..."
-              value={input}
-              onChange={e => setInput(e.target.value)}
-            />
-            <button type="submit">🔍 검색</button>
-          </form>
+          {/* 키워드 검색은 Sprint 2 에서 열린다. 카테고리 필터로 대체. */}
         </div>
       </section>
 
@@ -82,7 +68,7 @@ export default function HomePage() {
             <button
               key={c.label}
               className={`cat-chip ${category === c.label ? 'active' : ''}`}
-              onClick={() => { setCategory(c.label); setInput(''); setKeyword('') }}
+              onClick={() => setCategory(c.label)}
             >
               <span className="cat-icon">{c.icon}</span>
               {c.label}
@@ -109,18 +95,18 @@ export default function HomePage() {
           <>
             <div className="section-header">
               <span className="section-title">
-                {keyword ? `"${keyword}" 검색 결과` : category === '전체' ? '전체 박람회' : category}
+                {category === '전체' ? '전체 박람회' : category}
                 <span className="section-count">{expos.length}개</span>
               </span>
             </div>
             <div className="expo-grid">
               {expos.map(expo => (
                 <ExpoCard
-                  key={expo.id}
+                  key={expoKey(expo)}
                   expo={expo}
-                  colors={THUMB_COLORS[expo.id % THUMB_COLORS.length]}
+                  colors={THUMB_COLORS[expoKey(expo) % THUMB_COLORS.length]}
                   catIcon={catIcon(expo.category)}
-                  onClick={() => navigate(`/expos/${expo.id}`)}
+                  onClick={() => navigate(`/expos/${expoKey(expo)}`)}
                 />
               ))}
             </div>
@@ -165,12 +151,6 @@ function ExpoCard({ expo, colors, catIcon, onClick }: {
             <div className="expo-card-meta-row">
               <span className="expo-card-meta-icon">📍</span>
               <span>{expo.region}</span>
-            </div>
-          )}
-          {expo.channelName && (
-            <div className="expo-card-meta-row">
-              <span className="expo-card-meta-icon">📢</span>
-              <span>{expo.channelName}</span>
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { authApi } from '../api/auth'
+import { authApi, decodeJwt } from '../api/auth'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 
@@ -26,8 +26,16 @@ export default function AuthPage() {
     setLoading(true)
     try {
       const res = await authApi.login(loginForm)
-      const d = res.data
-      login({ id: d.userId, name: d.name, role: d.role, token: d.accessToken })
+      // 백엔드 LoginResponse 는 accessToken·tokenType·expiresAt 만 준다.
+      // userId 와 role 은 Token 의 sub·role 클레임에서 꺼낸다.
+      const token = res.data.accessToken
+      const claims = decodeJwt(token)
+      login({
+        id: Number(claims.sub),
+        name: loginForm.email.split('@')[0],
+        role: claims.role,
+        token,
+      })
       toast('로그인되었습니다 👋', 'success')
       navigate('/')
     } catch (err: unknown) {
@@ -54,7 +62,7 @@ export default function AuthPage() {
     } catch (err: unknown) {
       const e = err as { status?: number }
       if (e.status === 409) setError('이미 사용 중인 이메일 주소입니다.')
-      else if (e.status === 400) setError('입력값을 확인해주세요. (비밀번호 8자 이상, 영문+숫자+특수문자)')
+      else if (e.status === 400) setError('입력값을 확인해주세요. (비밀번호 8~64자, 영문과 숫자 각각 1자 이상)')
       else setError('회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.')
     } finally {
       setLoading(false)
@@ -162,7 +170,7 @@ export default function AuthPage() {
                 onChange={e => setSignupForm(p => ({ ...p, password: e.target.value }))}
                 required
               />
-              <p className="form-hint">영문, 숫자, 특수문자를 포함해 8자 이상</p>
+              <p className="form-hint">영문과 숫자를 포함해 8~64자</p>
             </div>
             <div className="form-group" style={{ marginBottom: 24 }}>
               <label className="form-label">비밀번호 확인 <span className="req">*</span></label>

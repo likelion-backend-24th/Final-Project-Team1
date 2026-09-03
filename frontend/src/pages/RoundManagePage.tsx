@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { expoApi } from '../api/expo'
 import { roundApi } from '../api/round'
 import { useToast } from '../components/Toast'
@@ -16,10 +16,15 @@ function fmt(dt: string) {
 export default function RoundManagePage() {
   const { expoId } = useParams<{ expoId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const toast = useToast()
   const id = Number(expoId)
 
-  const [expo, setExpo] = useState<Expo | null>(null)
+  // GET /expos/{id} 는 PUBLISHED 만 내려준다(HIDDEN 은 404).
+  // 방금 등록한 HIDDEN 박람회를 관리하려면 이동할 때 넘겨받은 값을 먼저 쓰고,
+  // 없으면(새로고침 등) 공개 조회로 보완한다.
+  const passed = (location.state as { expo?: Expo } | null)?.expo ?? null
+  const [expo, setExpo] = useState<Expo | null>(passed)
   const [rounds, setRounds] = useState<Round[]>([])
   const [publishing, setPublishing] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -30,17 +35,24 @@ export default function RoundManagePage() {
   const tmrwEnd = new Date(tmrw); tmrwEnd.setHours(18, 0, 0, 0)
 
   const [form, setForm] = useState({
-    startAt: toLocal(tmrw),
-    endAt: toLocal(tmrwEnd),
+    startsAt: toLocal(tmrw),
+    endsAt: toLocal(tmrwEnd),
     capacity: 100,
-    price: 0,
+    fee: 0,
   })
   const [addLoading, setAddLoading] = useState(false)
   const [addError, setAddError] = useState('')
 
   useEffect(() => {
-    expoApi.getExpo(id).then(r => setExpo(r.data)).catch(() => navigate('/host/channel'))
-    roundApi.listByExpo(id).then(r => setRounds(r.data ?? []))
+    if (!passed) {
+      expoApi.getExpo(id)
+        .then(r => setExpo(r.data))
+        .catch(() => toast('박람회 정보를 불러오지 못했습니다 (비공개 박람회는 주최자 센터에서 들어와주세요)', 'error'))
+    }
+    // 주최자용 회차 목록. 채널 소유자만 조회된다.
+    roundApi.listByExpo(id)
+      .then(r => setRounds(r.data ?? []))
+      .catch(() => toast('회차 목록을 불러오지 못했습니다', 'error'))
   }, [id])
 
   async function handleAddRound(e: React.FormEvent) {
@@ -50,30 +62,22 @@ export default function RoundManagePage() {
     setAddLoading(true)
     try {
       const r = await roundApi.createRound(id, {
-        startAt: new Date(form.startAt).toISOString(),
-        endAt: new Date(form.endAt).toISOString(),
+        startsAt: new Date(form.startsAt).toISOString(),
+        endsAt: new Date(form.endsAt).toISOString(),
         capacity: form.capacity,
-        price: form.price,
+        fee: form.fee,
       })
       setRounds(prev => [...prev, r.data])
       toast('회차가 등록되었습니다 ✓', 'success')
       setShowForm(false)
     } catch (err: unknown) {
       const e = err as { status?: number }
-      setAddError(e.status === 400 ? '입력값을 확인해주세요. (정원 1↑, 종료 > 시작)' : '회차 등록에 실패했습니다.')
+      if (e.status === 400) setAddError('입력값을 확인해주세요. (시작은 미래, 종료 > 시작, 정원 1 이상)')
+      else if (e.status === 403) setAddError('이 박람회의 주최자만 회차를 등록할 수 있습니다.')
+      else if (e.status === 503) setAddError('박람회 정보를 확인할 수 없어 등록하지 못했습니다. (expo-service 응답 없음)')
+      else setAddError('회차 등록에 실패했습니다.')
     } finally {
       setAddLoading(false)
-    }
-  }
-
-  async function handleDelete(roundId: number) {
-    if (!confirm('이 회차를 삭제하시겠습니까?')) return
-    try {
-      await roundApi.deleteRound(id, roundId)
-      setRounds(prev => prev.filter(r => r.id !== roundId))
-      toast('회차가 삭제되었습니다', 'success')
-    } catch {
-      toast('삭제 실패 — 예약이 존재하는 회차는 삭제할 수 없습니다', 'error')
     }
   }
 
@@ -81,14 +85,16 @@ export default function RoundManagePage() {
     if (!confirm('박람회를 공개하시겠습니까? 방문자에게 즉시 노출됩니다.')) return
     setPublishing(true)
     try {
+      // 응답은 { expoId, status } 뿐이라 기존 정보를 유지한 채 상태만 갈아끼운다.
       const r = await expoApi.publishExpo(id)
-      setExpo(r.data)
+      setExpo(prev => (prev ? { ...prev, status: r.data.status } : prev))
       toast('박람회가 공개되었습니다! 🎉', 'success')
     } catch (err: unknown) {
-      const e = err as { status?: number; body?: { data?: { code?: string } } }
-      const code = e.body?.data?.code
-      if (e.status === 409 && code === 'ALREADY_PUBLISHED') toast('이미 공개된 박람회입니다', 'info')
-      else if (e.status === 409) toast('회차를 먼저 등록해주세요', 'error')
+      const e = err as { status?: number }
+      if (e.status === 400) toast('회차를 먼저 등록해야 공개할 수 있습니다', 'error')
+      else if (e.status === 403) toast('이 박람회의 주최자만 공개할 수 있습니다', 'error')
+      else if (e.status === 409) toast('이미 종료된 박람회는 다시 공개할 수 없습니다', 'error')
+      else if (e.status === 503) toast('회차 확인에 실패해 공개하지 못했습니다 (reservation-service 응답 없음)', 'error')
       else toast('공개 처리에 실패했습니다', 'error')
     } finally {
       setPublishing(false)
@@ -112,7 +118,7 @@ export default function RoundManagePage() {
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
                 <div>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                    <span className={`badge badge-${expo.status.toLowerCase()}`}>
+                    <span className={`badge badge-${(expo.status ?? 'HIDDEN').toLowerCase()}`}>
                       {isPublished ? '● 공개중' : isClosed ? '● 종료' : '○ HIDDEN'}
                     </span>
                     <span className="badge badge-blue">{expo.category}</span>
@@ -171,8 +177,8 @@ export default function RoundManagePage() {
                       <input
                         className="form-input"
                         type="datetime-local"
-                        value={form.startAt}
-                        onChange={e => setForm(p => ({ ...p, startAt: e.target.value }))}
+                        value={form.startsAt}
+                        onChange={e => setForm(p => ({ ...p, startsAt: e.target.value }))}
                         required
                       />
                     </div>
@@ -181,8 +187,8 @@ export default function RoundManagePage() {
                       <input
                         className="form-input"
                         type="datetime-local"
-                        value={form.endAt}
-                        onChange={e => setForm(p => ({ ...p, endAt: e.target.value }))}
+                        value={form.endsAt}
+                        onChange={e => setForm(p => ({ ...p, endsAt: e.target.value }))}
                         required
                       />
                     </div>
@@ -206,8 +212,8 @@ export default function RoundManagePage() {
                         className="form-input"
                         type="number"
                         min={0}
-                        value={form.price}
-                        onChange={e => setForm(p => ({ ...p, price: Number(e.target.value) }))}
+                        value={form.fee}
+                        onChange={e => setForm(p => ({ ...p, fee: Number(e.target.value) }))}
                       />
                       <p className="form-hint">0원 = 무료</p>
                     </div>
@@ -234,19 +240,18 @@ export default function RoundManagePage() {
             ) : (
               <div>
                 {rounds.map(r => (
-                  <div key={r.id} className="round-card">
+                  <div key={r.roundId} className="round-card">
                     <div style={{ fontSize: 20, flexShrink: 0 }}>📅</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
-                        {fmt(r.startAt)} – {fmt(r.endAt)}
+                        {fmt(r.startsAt)} – {fmt(r.endsAt)}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--sub)' }}>
                         정원 {r.capacity}명 · 잔여 {r.remaining}명
+                        {r.fee !== undefined && ` · ${r.fee === 0 ? '무료' : `${r.fee.toLocaleString()}원`}`}
                       </div>
                     </div>
-                    <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(r.id)}>
-                      삭제
-                    </button>
+                    {/* 회차 삭제는 Sprint 2 (예약 존재 시 정책 미확정) */}
                   </div>
                 ))}
               </div>

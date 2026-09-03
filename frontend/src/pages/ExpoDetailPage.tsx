@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { expoApi } from '../api/expo'
-import { roundApi } from '../api/round'
 import { useAuth } from '../context/AuthContext'
 import type { Expo, Round } from '../types'
 
@@ -33,21 +32,26 @@ export default function ExpoDetailPage() {
 
   useEffect(() => {
     if (!expoId) return
-    const id = Number(expoId)
-    expoApi.getExpo(id)
-      .then(res => setExpo(res.data))
+    // 회차는 별도 API 로 가져오지 않는다.
+    // GET /expos/{id} 응답에 expo-service 가 reservation-service 의 내부 API 를
+    // 호출해 병합한 rounds 가 이미 들어 있다.
+    // 그 호출이 실패하면 박람회 정보는 200 으로 내려오고 roundsAvailable=false 가 된다(부분 실패 허용).
+    expoApi.getExpo(Number(expoId))
+      .then(res => {
+        setExpo(res.data)
+        setRounds(res.data.rounds ?? [])
+        setRoundsError(res.data.roundsAvailable === false)
+      })
       .catch(() => navigate('/'))
       .finally(() => setExpoLoading(false))
-    roundApi.listByExpo(id)
-      .then(res => setRounds(res.data ?? []))
-      .catch(() => setRoundsError(true))
-  }, [expoId])
+  }, [expoId, navigate])
 
   if (expoLoading) return (
     <div style={{ textAlign: 'center', padding: '120px 0', color: 'var(--sub)' }}>불러오는 중...</div>
   )
   if (!expo) return null
 
+  const status = expo.status ?? 'PUBLISHED'
   const colors = THUMB_COLORS[expo.category] ?? ['#1A1A2E', '#374151']
   const catIcon = { 'IT·전자': '💻', '식품·음료': '🍽️', '패션·뷰티': '👗', '교육·취업': '🎓', '문화·예술': '🎨', '기타': '📦' }[expo.category] ?? '🎪'
 
@@ -79,8 +83,8 @@ export default function ExpoDetailPage() {
           {/* ─── Left: Info ─── */}
           <div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-              <span className={`badge badge-${expo.status.toLowerCase()}`}>
-                {expo.status === 'PUBLISHED' ? '● 공개중' : expo.status === 'HIDDEN' ? '비공개' : '종료'}
+              <span className={`badge badge-${status.toLowerCase()}`}>
+                {status === 'PUBLISHED' ? '● 공개중' : status === 'HIDDEN' ? '비공개' : '종료'}
               </span>
               <span className="badge badge-blue">{expo.category}</span>
             </div>
@@ -98,11 +102,6 @@ export default function ExpoDetailPage() {
               {expo.venue && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: 'var(--sub)' }}>
                   <span>🏛</span><span>{expo.venue}</span>
-                </div>
-              )}
-              {expo.channelName && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: 'var(--sub)' }}>
-                  <span>📢</span><span>{expo.channelName}</span>
                 </div>
               )}
             </div>
@@ -140,7 +139,7 @@ export default function ExpoDetailPage() {
                     const pct = Math.round((r.remaining / r.capacity) * 100)
                     return (
                       <div
-                        key={r.id}
+                        key={r.roundId}
                         style={{
                           padding: '16px',
                           border: `1.5px solid ${isFull ? 'var(--border)' : 'var(--border)'}`,
@@ -150,10 +149,10 @@ export default function ExpoDetailPage() {
                         }}
                       >
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                          {fmtDate(r.startAt)}
+                          {fmtDate(r.startsAt)}
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 10 }}>
-                          {fmtTime(r.startAt)} – {fmtTime(r.endAt)}
+                          {fmtTime(r.startsAt)} – {fmtTime(r.endsAt)}
                         </div>
 
                         {/* Capacity bar */}
