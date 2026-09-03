@@ -14,7 +14,7 @@ public class SecurityConfig {
     public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilter(@Value("${jwt.secret}") String secret) {
         FilterRegistrationBean<JwtAuthenticationFilter> bean = new FilterRegistrationBean<>();
         bean.setFilter(new JwtAuthenticationFilter(new JwtValidator(secret)));
-        bean.addUrlPatterns("/*");
+        bean.addUrlPatterns("/api/*");
         return bean;
     }
 }
