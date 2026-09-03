@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -81,6 +82,30 @@ class LoginServiceTest extends IntegrationTestSupport {
                 new LoginRequest(email.toUpperCase(), "password123"));
 
         assertThat(response.accessToken()).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("응답의 expiresAt은 Token의 exp 클레임과 정확히 같은 시각이다")
+    void 만료시각이_exp와_일치한다() {
+        String email = uniqueEmail();
+        authService.signUp(new SignUpRequest(email, "password123", "테스터"));
+
+        LoginResponse response = authService.login(new LoginRequest(email, "password123"));
+
+        long exp = expClaim(response.accessToken());
+
+        assertThat(response.expiresAt().getEpochSecond()).isEqualTo(exp);
+        assertThat(response.expiresAt().getNano())
+                .as("초 미만 단위가 남아 있으면 exp와 어긋난다")
+                .isZero();
+    }
+
+    private long expClaim(String token) {
+        String payload = new String(Base64.getUrlDecoder().decode(token.split("\\.")[1]));
+        int start = payload.indexOf("\"exp\":") + 6;
+        int end = payload.indexOf('}', start);
+        String value = payload.substring(start, end).replaceAll("[^0-9]", "");
+        return Long.parseLong(value);
     }
 
     private BusinessException catchBusinessException(Runnable action) {
