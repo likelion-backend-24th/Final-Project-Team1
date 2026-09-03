@@ -2,6 +2,7 @@ package com.team1.expo.client;
 
 import com.team1.expo.expo.dto.RoundView;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -15,4 +16,7 @@ public interface RoundClient {
 
     /** GET /internal/v1/rounds?expoId= — 박람회 상세의 회차·잔여 정원 병합용. */
     List<RoundView> listByExpo(Long expoId);
+
+    /** GET /internal/v1/rounds/finished-expos?before= — 자동 마감 대상 expoId 목록. */
+    List<Long> finishedExpoIds(Instant before, int limit);
 }

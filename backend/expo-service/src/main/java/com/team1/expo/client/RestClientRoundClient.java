@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.time.Instant;
 import java.util.List;
 
 @Component
@@ -62,6 +63,22 @@ public class RestClientRoundClient implements RoundClient {
             return rounds == null ? List.of() : List.of(rounds);
         } catch (Exception e) {
             log.warn("listRoundsByExpo 호출 실패 expoId={} traceId={}", expoId, TraceId.get(), e);
+            throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        }
+    }
+
+    @Override
+    public List<Long> finishedExpoIds(Instant before, int limit) {
+        try {
+            Long[] ids = restClient.get()
+                    .uri("/internal/v1/rounds/finished-expos?before={before}&limit={limit}", before, limit)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + internalToken)
+                    .header(TraceId.HEADER, TraceId.get())
+                    .retrieve()
+                    .body(Long[].class);
+            return ids == null ? List.of() : List.of(ids);
+        } catch (Exception e) {
+            log.warn("finishedExpoIds 호출 실패 traceId={}", TraceId.get(), e);
             throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
         }
     }
