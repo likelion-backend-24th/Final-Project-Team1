@@ -1,5 +1,6 @@
 package com.team1.identity.auth.dto;
 
+import com.team1.identity.common.util.EmailNormalizer;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -23,6 +24,11 @@ public record SignUpRequest(
         @Size(max = 100)
         String name
 ) {
+
+    /* 검증(@Email 등)보다 먼저 실행되도록 compact 생성자에서 정규화한다. */
+    public SignUpRequest {
+        email = EmailNormalizer.normalize(email);
+    }
 
     @Override
     public String toString() {

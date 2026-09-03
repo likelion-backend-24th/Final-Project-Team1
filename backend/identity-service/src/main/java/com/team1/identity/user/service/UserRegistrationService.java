@@ -2,6 +2,7 @@ package com.team1.identity.user.service;
 
 import com.team1.identity.common.exception.BusinessException;
 import com.team1.identity.common.exception.ErrorCode;
+import com.team1.identity.common.util.EmailNormalizer;
 import com.team1.identity.user.entity.Role;
 import com.team1.identity.user.entity.User;
 import com.team1.identity.user.repository.UserRepository;
@@ -29,7 +30,7 @@ public class UserRegistrationService {
     @Transactional
     public User register(String email, String rawPassword, String name, Role role) {
         User user = User.create(
-                email,
+                EmailNormalizer.normalize(email),
                 passwordEncoder.encode(rawPassword),
                 name,
                 role,
