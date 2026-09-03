@@ -10,6 +10,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 
 @Component
@@ -31,7 +32,11 @@ public class JwtTokenProvider {
     }
 
     public IssuedToken issue(Long userId, Role role) {
-        Instant issuedAt = clock.instant();
+        /*
+         * JWT의 iat·exp는 초 단위 정수다(RFC 7519). 나노초를 그대로 두면
+         * 응답의 expiresAt과 Token의 exp가 최대 1초 어긋나므로 미리 잘라낸다.
+         */
+        Instant issuedAt = clock.instant().truncatedTo(ChronoUnit.SECONDS);
         Instant expiresAt = issuedAt.plusMillis(expirationMillis);
 
         String token = Jwts.builder()
