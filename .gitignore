@@ -37,13 +37,17 @@ out/
 .vscode/
 
 ### Secrets ###
-# PG 연동키 등 비밀값은 절대 커밋하지 않는다 (요구사항 v.06 / PG 키 보안 규칙)
+# PG 연동키, DB 비밀번호, JWT 시크릿은 절대 커밋하지 않는다
 .env
 .env.*
 !.env.example
 *.pem
 *.key
 application-local.yml
+
+### Local profile (secrets) ###
+application-local.yml
+application-local.yaml
 
 ### Frontend ###
 node_modules/
