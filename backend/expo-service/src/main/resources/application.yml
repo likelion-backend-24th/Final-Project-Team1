@@ -5,14 +5,29 @@ spring:
   application:
     name: expo-service
   profiles:
-    active: local
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:13306}/expo?characterEncoding=UTF-8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+    username: ${DB_USER:root}
+    # password는 시크릿이므로 application-local.yml(또는 환경변수)에서 채운다
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
   jackson:
     serialization:
       write-dates-as-timestamps: false
     time-zone: UTC
 
 internal:
-  token: ${INTERNAL_TOKEN}
+  token: ${INTERNAL_TOKEN:local-dev-internal-token}
 
 # reservation-service 내부 호출(#24 회차 존재 확인, #26 회차 목록 병합)용. 재시도 없음.
 reservation-service:
