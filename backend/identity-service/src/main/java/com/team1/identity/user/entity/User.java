@@ -62,6 +62,15 @@ public class User {
      * 여러 개가 부여된 경우에도 결과가 흔들리지 않도록 가장 강한 Role을 고른다.
      * (enum 선언 순서: USER < ORGANIZER < SUPER_ADMIN)
      */
+    /*
+     * 비밀번호 Hash가 Log에 새지 않도록 표시할 필드를 명시한다.
+     * 누군가 나중에 @ToString을 붙여도 이 메서드가 우선한다.
+     */
+    @Override
+    public String toString() {
+        return "User[id=" + id + ", email=" + email + ", name=" + name + "]";
+    }
+
     public Role primaryRole() {
         return roles.stream()
                 .map(GrantedRole::getRole)

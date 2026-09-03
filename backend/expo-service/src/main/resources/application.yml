@@ -10,3 +10,6 @@ spring:
     serialization:
       write-dates-as-timestamps: false
     time-zone: UTC
+
+internal:
+  token: ${INTERNAL_TOKEN}

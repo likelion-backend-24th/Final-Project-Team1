@@ -8,6 +8,7 @@ import com.team1.identity.auth.jwt.IssuedToken;
 import com.team1.identity.auth.jwt.JwtTokenProvider;
 import com.team1.identity.common.exception.BusinessException;
 import com.team1.identity.common.exception.ErrorCode;
+import com.team1.identity.common.util.EmailNormalizer;
 import com.team1.identity.user.entity.Role;
 import com.team1.identity.user.entity.User;
 import com.team1.identity.user.repository.UserRepository;
@@ -39,7 +40,7 @@ public class AuthService {
          * 존재하지 않는 이메일과 틀린 비밀번호는 같은 예외 · 같은 코드 · 같은 메시지여야 한다.
          * 응답이 달라지면 공격자가 어떤 이메일이 가입돼 있는지 알아낼 수 있다.
          */
-        User user = userRepository.findByEmail(request.email())
+        User user = userRepository.findByEmail(EmailNormalizer.normalize(request.email()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {

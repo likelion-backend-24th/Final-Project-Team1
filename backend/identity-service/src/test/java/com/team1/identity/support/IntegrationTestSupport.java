@@ -23,11 +23,15 @@ public abstract class IntegrationTestSupport {
     protected static final String TEST_JWT_SECRET =
             "test-secret-0123456789abcdef0123456789abcdef0123456789abcdef";
 
-    /** SuperAdmin123! 의 BCrypt(work factor 12) 해시 */
-    protected static final String SEED_PASSWORD = "SuperAdmin123!";
+    /*
+     * Test 전용 자격 증명이다. 개발자 로컬(application-local.yml)의 실제 Seed 계정과
+     * 반드시 다른 값을 쓴다. Test는 Repository에 커밋되므로 실계정 비밀번호를 여기 두면
+     * 그대로 공개된다.
+     */
     protected static final String SEED_EMAIL = "admin@team1.local";
+    protected static final String SEED_PASSWORD = "TestOnlyAdmin7391!";
     private static final String SEED_PASSWORD_HASH =
-            "$2a$12$T1OrTODtKp.xHMSuWN4o9enQusIrD/Ol0b.qEd3ZQUxkJXxkKY4lS";
+            "$2a$12$akw5sgKZGTR0BC/sR8yaAugDAco4yrxIyR74ewJ20BZ/dDlNSwpGG";
 
     private static final MySQLContainer<?> MYSQL =
             new MySQLContainer<>("mysql:8.0").withDatabaseName("identity");

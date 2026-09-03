@@ -67,6 +67,33 @@ class SignUpServiceTest extends IntegrationTestSupport {
         assertThat(countByEmail(email)).isEqualTo(1);
     }
 
+    @Test
+    @DisplayName("이메일은 공백을 제거하고 소문자로 정규화해 저장한다")
+    void 이메일_정규화() {
+        String email = uniqueEmail();
+
+        SignUpResponse response = authService.signUp(
+                new SignUpRequest("  " + email.toUpperCase() + "  ", "password123", "테스터"));
+
+        assertThat(response.email()).isEqualTo(email);
+        assertThat(userRepository.findByEmail(email)).isPresent();
+    }
+
+    @Test
+    @DisplayName("대소문자만 다른 같은 이메일은 중복으로 거절된다")
+    void 대소문자만_다른_이메일_중복() {
+        String email = uniqueEmail();
+        authService.signUp(new SignUpRequest(email, "password123", "테스터"));
+
+        assertThatThrownBy(() -> authService.signUp(
+                new SignUpRequest(email.toUpperCase(), "password123", "다른사람")))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.DUPLICATE_EMAIL);
+
+        assertThat(countByEmail(email)).isEqualTo(1);
+    }
+
     private long countByEmail(String email) {
         return userRepository.findAll().stream()
                 .filter(u -> u.getEmail().equals(email))

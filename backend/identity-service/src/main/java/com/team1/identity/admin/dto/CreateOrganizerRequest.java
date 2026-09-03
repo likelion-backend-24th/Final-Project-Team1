@@ -1,5 +1,6 @@
 package com.team1.identity.admin.dto;
 
+import com.team1.identity.common.util.EmailNormalizer;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -23,6 +24,10 @@ public record CreateOrganizerRequest(
         @Size(max = 100)
         String name
 ) {
+
+    public CreateOrganizerRequest {
+        email = EmailNormalizer.normalize(email);
+    }
 
     @Override
     public String toString() {
