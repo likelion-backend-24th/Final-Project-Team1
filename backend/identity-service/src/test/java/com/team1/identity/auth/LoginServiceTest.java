@@ -71,6 +71,18 @@ class LoginServiceTest extends IntegrationTestSupport {
         assertThat(unknownEmail.getMessage()).isEqualTo(wrongPassword.getMessage());
     }
 
+    @Test
+    @DisplayName("가입할 때와 대소문자가 달라도 로그인된다")
+    void 대소문자_무관_로그인() {
+        String email = uniqueEmail();
+        authService.signUp(new SignUpRequest(email, "password123", "테스터"));
+
+        LoginResponse response = authService.login(
+                new LoginRequest(email.toUpperCase(), "password123"));
+
+        assertThat(response.accessToken()).isNotBlank();
+    }
+
     private BusinessException catchBusinessException(Runnable action) {
         try {
             action.run();
