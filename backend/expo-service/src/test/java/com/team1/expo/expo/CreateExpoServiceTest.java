@@ -28,7 +28,7 @@ class CreateExpoServiceTest extends ApiTestSupport {
     @Test
     @DisplayName("ORGANIZER가 자기 채널에 박람회를 등록하면 201과 expoId를 반환한다")
     void 박람회_등록_성공() {
-        ResponseEntity<JsonNode> response = post("/api/v1/expos", body(channelId), ownerToken);
+        ResponseEntity<JsonNode> response = post(expoUrl(channelId), body(), ownerToken);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().path("success").asBoolean()).isTrue();
@@ -41,7 +41,7 @@ class CreateExpoServiceTest extends ApiTestSupport {
     void 타인_채널_등록_거절() {
         String otherToken = jwtFor(999L, "ORGANIZER");
 
-        ResponseEntity<JsonNode> response = post("/api/v1/expos", body(channelId), otherToken);
+        ResponseEntity<JsonNode> response = post(expoUrl(channelId), body(), otherToken);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
@@ -49,7 +49,7 @@ class CreateExpoServiceTest extends ApiTestSupport {
     @Test
     @DisplayName("존재하지 않는 채널 ID로 등록하면 403이 반환된다")
     void 없는_채널_등록_거절() {
-        ResponseEntity<JsonNode> response = post("/api/v1/expos", body(99999L), ownerToken);
+        ResponseEntity<JsonNode> response = post(expoUrl(99999L), body(), ownerToken);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
@@ -57,7 +57,7 @@ class CreateExpoServiceTest extends ApiTestSupport {
     @Test
     @DisplayName("JWT 없이 요청하면 401이 반환된다")
     void 인증_없이_거절() {
-        ResponseEntity<JsonNode> response = post("/api/v1/expos", body(channelId), null);
+        ResponseEntity<JsonNode> response = post(expoUrl(channelId), body(), null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
@@ -67,32 +67,46 @@ class CreateExpoServiceTest extends ApiTestSupport {
     void USER_역할_거절() {
         String userToken = jwtFor(ownerId, "USER");
 
-        ResponseEntity<JsonNode> response = post("/api/v1/expos", body(channelId), userToken);
+        ResponseEntity<JsonNode> response = post(expoUrl(channelId), body(), userToken);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
-    @DisplayName("필수 필드 누락 시 400이 반환된다")
-    void 필수_필드_누락_거절() {
-        ResponseEntity<JsonNode> response = post("/api/v1/expos",
+    @DisplayName("허용되지 않는 카테고리로 등록하면 400이 반환된다")
+    void 잘못된_카테고리_거절() {
+        ResponseEntity<JsonNode> response = post(expoUrl(channelId),
                 """
-                {"channelId":%d}
-                """.formatted(channelId), ownerToken);
+                {"title":"테스트","category":"잘못된카테고리"}
+                """, ownerToken);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
-    private String body(long channelId) {
+    @Test
+    @DisplayName("필수 필드 누락 시 400이 반환된다")
+    void 필수_필드_누락_거절() {
+        ResponseEntity<JsonNode> response = post(expoUrl(channelId),
+                """
+                {"title":"제목만있음"}
+                """, ownerToken);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    private String expoUrl(long channelId) {
+        return "/api/v1/channels/" + channelId + "/expos";
+    }
+
+    private String body() {
         return """
                 {
-                  "channelId": %d,
                   "title": "테스트 박람회",
-                  "category": "IT",
+                  "category": "IT·전자",
                   "description": "설명",
                   "venue": "코엑스",
                   "region": "서울"
                 }
-                """.formatted(channelId);
+                """;
     }
 }

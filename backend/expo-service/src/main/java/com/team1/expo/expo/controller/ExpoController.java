@@ -14,7 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/expos")
+@RequestMapping("/api/v1/channels/{channelId}/expos")
 @RequiredArgsConstructor
 public class ExpoController {
 
@@ -22,9 +22,11 @@ public class ExpoController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<ExpoResponse> createExpo(@Valid @RequestBody CreateExpoRequest request) {
+    public ApiResponse<ExpoResponse> createExpo(
+            @PathVariable Long channelId,
+            @Valid @RequestBody CreateExpoRequest request) {
         AuthenticatedUser user = getOrganizer();
-        return ApiResponse.ok(expoService.create(user.userId(), request));
+        return ApiResponse.ok(expoService.create(user.userId(), channelId, request));
     }
 
     private AuthenticatedUser getOrganizer() {

@@ -19,13 +19,13 @@ public class ExpoService {
     private final ChannelRepository channelRepository;
 
     @Transactional
-    public ExpoResponse create(Long requesterId, CreateExpoRequest request) {
-        channelRepository.findById(request.channelId())
+    public ExpoResponse create(Long requesterId, Long channelId, CreateExpoRequest request) {
+        channelRepository.findById(channelId)
                 .filter(c -> c.getOwnerId().equals(requesterId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN));
 
         Expo expo = Expo.create(
-                request.channelId(),
+                channelId,
                 request.title(),
                 request.description(),
                 request.venue(),
