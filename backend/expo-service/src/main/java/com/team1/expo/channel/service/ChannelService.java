@@ -7,8 +7,6 @@ import com.team1.expo.common.exception.ErrorCode;
 import com.team1.expo.domain.channel.Channel;
 import com.team1.expo.domain.channel.ChannelRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,9 +29,10 @@ public class ChannelService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ChannelResponse> listMy(Long ownerId, Pageable pageable) {
-        return channelRepository.findByOwnerId(ownerId, pageable)
-                .map(ChannelResponse::from);
+    public ChannelResponse getMyChannel(Long ownerId) {
+        return channelRepository.findByOwnerId(ownerId)
+                .map(ChannelResponse::from)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
     }
 
     @Transactional(readOnly = true)
