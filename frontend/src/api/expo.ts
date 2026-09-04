@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { ApiResponse, Expo, Channel, Page } from '../types'
+import type { ApiResponse, Expo, Channel } from '../types'
 
 export interface PublicationResponse {
   expoId: number
@@ -37,8 +37,8 @@ export const expoApi = {
   createChannel: (data: { name: string; description?: string }) =>
     api.post<ApiResponse<Channel>>('/channels', data),
 
-  // GET /api/v1/channels/my — 경로가 /me 가 아니라 /my 이고, Page 로 감싸여 온다.
-  listMyChannels: () => api.get<ApiResponse<Page<Channel>>>('/channels/my'),
+  // GET /api/v1/channels/my — 채널이 없으면 404
+  getMyChannel: () => api.get<ApiResponse<Channel>>('/channels/my'),
 
   // POST /api/v1/channels/{channelId}/expos — 생성 직후 상태는 HIDDEN
   createExpo: (

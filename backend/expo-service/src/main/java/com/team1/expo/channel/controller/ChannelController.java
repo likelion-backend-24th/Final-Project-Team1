@@ -10,13 +10,8 @@ import com.team1.security.AuthContext;
 import com.team1.security.AuthenticatedUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/channels")
@@ -34,12 +29,9 @@ public class ChannelController {
     }
 
     @GetMapping("/my")
-    public ApiResponse<Page<ChannelResponse>> listMyChannels(
-            @PageableDefault(size = 20) Pageable pageable) {
+    public ApiResponse<ChannelResponse> getMyChannel() {
         AuthenticatedUser user = getCurrentOrganizer();
-        Page<ChannelResponse> result = channelService.listMy(user.userId(), pageable);
-        return ApiResponse.ok(result, Map.of("totalElements", result.getTotalElements(),
-                "totalPages", result.getTotalPages()));
+        return ApiResponse.ok(channelService.getMyChannel(user.userId()));
     }
 
     @GetMapping("/{channelId}")
