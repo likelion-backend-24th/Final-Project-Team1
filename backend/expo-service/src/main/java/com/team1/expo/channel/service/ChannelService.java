@@ -20,6 +20,9 @@ public class ChannelService {
 
     @Transactional
     public ChannelResponse create(Long ownerId, CreateChannelRequest request) {
+        if (channelRepository.existsByOwnerId(ownerId)) {
+            throw new BusinessException(ErrorCode.CHANNEL_ALREADY_EXISTS);
+        }
         if (channelRepository.existsByName(request.name())) {
             throw new BusinessException(ErrorCode.DUPLICATE_CHANNEL_NAME);
         }
