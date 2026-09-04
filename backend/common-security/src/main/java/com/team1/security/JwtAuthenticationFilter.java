@@ -34,7 +34,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } catch (InvalidTokenException e) {
             response.setHeader("WWW-Authenticate", "Bearer");
             response.setStatus(401);
-            response.setContentType("application/json");
+            response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write(
                 "{\"success\":false,\"data\":{\"code\":\"UNAUTHENTICATED\"},\"meta\":null,\"message\":\"인증이 필요합니다\"}"
             );

@@ -60,6 +60,19 @@ class TokenRejectionTest extends ApiTestSupport {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
+    @Test
+    @DisplayName("401 응답의 한글 메시지가 깨지지 않는다")
+    void 한글_에러_메시지가_깨지지_않는다() {
+        // common-security의 JwtAuthenticationFilter가 401을 직접 쓸 때 charset을 지정하지 않으면
+        // Servlet 스펙 기본값(ISO-8859-1)으로 인코딩되어 한글 message가 "?"로 깨진다.
+        ResponseEntity<JsonNode> response = post("/api/v1/admin/organizers", body(), "not-a-jwt");
+
+        assertThat(response.getHeaders().getContentType().toString())
+                .contains("charset=UTF-8");
+        assertThat(response.getBody().path("message").asText())
+                .isEqualTo("인증이 필요합니다");
+    }
+
     private String token(String secret, Instant issuedAt, Instant expiresAt) {
         return Jwts.builder()
                 .subject("999")
