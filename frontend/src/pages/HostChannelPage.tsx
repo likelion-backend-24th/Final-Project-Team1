@@ -31,7 +31,10 @@ export default function HostChannelPage() {
           loadExpos(res.data.id)
         }
       })
-      .catch(() => setLoadingCh(false))
+      .catch((err: { status?: number }) => {
+        // 404 = 아직 채널 없음, 오류가 아님
+        if (err.status !== 404) toast('채널 정보를 불러오지 못했습니다', 'error')
+      })
       .finally(() => setLoadingCh(false))
   }, [])
 
