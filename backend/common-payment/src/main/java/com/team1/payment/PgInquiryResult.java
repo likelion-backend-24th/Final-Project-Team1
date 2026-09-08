@@ -5,6 +5,8 @@ public record PgInquiryResult(
         Integer amount,
         String pgTransactionId,
         String responseCode,
-        String failureReason
+        String failureReason,
+        String storeId,
+        String channelKey
 ) {
 }
