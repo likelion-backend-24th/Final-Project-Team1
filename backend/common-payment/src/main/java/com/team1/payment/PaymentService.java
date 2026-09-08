@@ -4,6 +4,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
+import java.util.Objects;
 
 @Service
 public class PaymentService {
@@ -57,7 +58,7 @@ public class PaymentService {
             return switch (result.status()) {
 
                 case PAID -> {
-                    if (!result.amount().equals(paymentTransaction.getAmount())) {
+                    if (!Objects.equals(result.amount(), paymentTransaction.getAmount())) {
                         // 상태를 바꾸지 않는다 — PG는 PAID라고 했으니 FAILED로 기록하면 안 되고,
                         // 금액이 안 맞으니 PAID로 확정할 수도 없다. 사람이 확인할 때까지 그대로 둔다.
                         yield PaymentApprovalResult.amountMismatch();
