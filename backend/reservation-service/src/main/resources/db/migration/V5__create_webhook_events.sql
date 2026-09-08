@@ -9,8 +9,8 @@ CREATE TABLE webhook_events
     payment_id   VARCHAR(100) NOT NULL COMMENT 'payment_transactions.payment_id 논리 참조',
     event_type   VARCHAR(50)  NOT NULL COMMENT '예: Transaction.Paid, Transaction.Cancelled',
     status       VARCHAR(20)  NOT NULL DEFAULT 'RECEIVED' COMMENT 'RECEIVED, PROCESSED, IGNORED',
-    received_at  DATETIME(6)  NOT NULL COMMENT 'KST',
-    processed_at DATETIME(6)  NULL COMMENT 'KST',
+    received_at  DATETIME(6)  NOT NULL COMMENT 'UTC',
+    processed_at DATETIME(6)  NULL COMMENT 'UTC',
     PRIMARY KEY (id),
     CONSTRAINT uk_webhook_events_webhook_id UNIQUE (webhook_id),
     CONSTRAINT ck_webhook_events_status CHECK (status IN ('RECEIVED', 'PROCESSED', 'IGNORED'))
