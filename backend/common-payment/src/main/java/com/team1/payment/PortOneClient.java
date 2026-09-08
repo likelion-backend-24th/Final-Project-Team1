@@ -47,6 +47,7 @@ public class PortOneClient implements PgClient {
         try {
             restClient.post()
                     .uri("/payments/{paymentId}/pre-register", paymentId)
+                    .header("Idempotency-Key", paymentId)
                     .body(new PreRegisterRequest(storeId, amount.longValue(), "KRW"))
                     .retrieve()
                     .toBodilessEntity();
@@ -97,6 +98,7 @@ public class PortOneClient implements PgClient {
         try {
             restClient.post()
                     .uri("/payments/{paymentId}/cancel", paymentId)
+                    .header("Idempotency-Key", paymentId)
                     .body(new CancelRequest(amount, reason))
                     .retrieve()
                     .toBodilessEntity();
