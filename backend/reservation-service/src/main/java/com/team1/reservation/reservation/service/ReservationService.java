@@ -48,15 +48,9 @@ public class ReservationService {
         this.clock = clock;
     }
 
-    /**
-     * 예약 신청. 정원 차감과 예약 저장을 한 Transaction 으로 묶는다.
-     *
-     * <p>순서가 중요하다. 중복 검사를 정원 차감보다 먼저 한다 - 차감부터 하면 중복으로 거절할 때
-     * 이미 줄어든 정원을 되돌려야 하고, 그 되돌리기가 실패하면 자리가 영구히 새어 나간다.
-     *
-     * <p>박람회 상태 조회가 실패하면 예약을 만들지 않고 503 을 그대로 올린다(fail-closed).
-     * 쓰기 작업이므로 "확인 못 했지만 일단 진행" 은 허용하지 않는다.
-     */
+
+     //예약 신청. 정원 차감과 예약 저장을 한 Transaction 으로 묶는다.
+
     @Transactional
     public Reservation create(Long roundId, AuthenticatedUser user, CreateReservationRequest request) {
         requireMember(user);

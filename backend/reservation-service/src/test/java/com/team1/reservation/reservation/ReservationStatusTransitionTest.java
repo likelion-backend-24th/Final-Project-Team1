@@ -79,14 +79,16 @@ class ReservationStatusTransitionTest {
     }
 
     @Test
-    @DisplayName("만료 시각이 지난 예약은 결제 승인을 거절한다")
-    void rejectsConfirmAfterExpiry() {
+    @DisplayName("만료 시각이 지났어도 아직 PENDING 이면 결제 승인을 받아들인다")
+    void allowsConfirmWhileStillPending() {
+        // PENDING 이라는 것은 만료 스케줄러가 아직 정리하지 않았다는 뜻이고, 그러면 정원도
+        // 여전히 잡혀 있다. 여기서 거절하면 돈은 받고 자리는 주지 않는 결과가 된다.
         Reservation reservation = pending();
 
-        assertThatThrownBy(() -> reservation.confirm(AFTER_EXPIRY))
-                .isInstanceOfSatisfying(ApiException.class,
-                        e -> assertThat(e.code()).isEqualTo(ErrorCode.INVALID_REQUEST));
-        assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.PENDING);
+        reservation.confirm(AFTER_EXPIRY);
+
+        assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
+        assertThat(reservation.getConfirmedAt()).isEqualTo(AFTER_EXPIRY);
     }
 
     @Test

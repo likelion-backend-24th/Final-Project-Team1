@@ -18,27 +18,14 @@ import java.util.regex.Pattern;
 
 /**
  * 예약 Aggregate Root.
- *
  * <p>상태 전이 규칙을 Service 가 아니라 이 클래스 안에 둔다. 예약은 결제·만료 스케줄러·사용자 취소
  * 세 경로에서 상태가 바뀌는데, 규칙이 Service 에 흩어지면 경로마다 조건이 어긋나기 쉽다.
- *
- * <p>허용 전이는 네 가지뿐이다.
- * <pre>
- *   PENDING   → CONFIRMED   결제 승인
- *   PENDING   → CANCELLED   결제 실패
- *   PENDING   → EXPIRED     결제 대기 시간 초과
- *   CONFIRMED → CANCELLED   사용자 취소
- * </pre>
- * 종료 상태(CANCELLED·EXPIRED)에서 나가는 전이는 없다.
- *
- * <p>시각은 전부 UTC {@link Instant} 이며 {@code now} 를 파라미터로 받는다.
- * Test 에서 시간을 고정할 수 있어야 하기 때문이고, {@code Round} 와 같은 방식이다.
  */
 @Entity
 @Table(name = "reservations")
 public class Reservation {
 
-    /** 결제 대기 시간. 이 시간이 지나면 #77 의 스케줄러가 EXPIRED 로 바꾸고 정원을 되돌린다. */
+
     public static final Duration PAYMENT_WINDOW = Duration.ofMinutes(10);
 
     /**
@@ -135,12 +122,9 @@ public class Reservation {
                 contactName, contactPhone, headcount, amount, now);
     }
 
-    /** 결제 승인. 결제 대기 시간이 이미 지난 예약은 승인하지 않는다. */
+
     public void confirm(Instant now) {
         requireStatus(ReservationStatus.PENDING, "confirm");
-        if (!now.isBefore(expiresAt)) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST, "payment window has already passed");
-        }
         this.status = ReservationStatus.CONFIRMED;
         this.confirmedAt = now;
     }
@@ -155,12 +139,7 @@ public class Reservation {
         this.cancelledAt = now;
     }
 
-    /**
-     * 결제 대기 만료. 만료 시각이 아직 지나지 않았으면 거절한다 —
-     * 스케줄러가 조회 조건을 잘못 짜서 살아 있는 예약을 지우는 사고를 엔티티에서 한 번 더 막는다.
-     *
-     * <p>{@code cancelledAt} 은 채우지 않는다. EXPIRED 의 종료 시각은 {@code expiresAt} 이다.
-     */
+
     public void expire(Instant now) {
         requireStatus(ReservationStatus.PENDING, "expire");
         if (now.isBefore(expiresAt)) {
@@ -232,10 +211,7 @@ public class Reservation {
         return cancelledAt;
     }
 
-    /**
-     * 예약자 이름·연락처를 제외한다. 예외 Log 나 Debug 출력에 개인정보가 남지 않게 하기 위해서이며,
-     * Sprint 1 의 {@code LoginRequest}·{@code SignUpRequest} 와 같은 방식이다.
-     */
+
     @Override
     public String toString() {
         return "Reservation{id=" + id

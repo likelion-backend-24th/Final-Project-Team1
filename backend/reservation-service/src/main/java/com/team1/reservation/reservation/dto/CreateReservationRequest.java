@@ -28,10 +28,7 @@ public record CreateReservationRequest(
         return contactPhone == null ? null : contactPhone.replaceAll("\\D", "");
     }
 
-    /**
-     * 예약자 이름·연락처를 제외한다. Validation 실패나 요청 Log 에 개인정보가 남지 않게 하기
-     * 위해서이며, Sprint 1 의 {@code LoginRequest}·{@code SignUpRequest} 와 같은 방식이다.
-     */
+
     @Override
     public String toString() {
         return "CreateReservationRequest{headcount=" + headcount + '}';

@@ -32,10 +32,7 @@ public class Round {
     @Column(name = "capacity", nullable = false)
     private int capacity;
 
-    /**
-     * PENDING·CONFIRMED 예약 인원의 합. 조건부 UPDATE(RoundRepository#reserve, #release)로만 바뀐다.
-     * setter 를 두지 않는 이유는, 여기서 값을 바꾸면 정원 초과 판정이 DB 밖으로 새기 때문이다.
-     */
+
     @Column(name = "reserved_count", nullable = false)
     private int reservedCount;
 

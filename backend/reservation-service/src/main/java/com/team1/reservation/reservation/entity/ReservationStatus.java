@@ -1,8 +1,7 @@
 package com.team1.reservation.reservation.entity;
 
 /**
- * 예약 상태. DB 에는 VARCHAR(20) + CHECK 제약으로 저장한다(팀 컨벤션 — ENUM 타입을 쓰지 않는다).
- *
+ * 예약 상태. DB 에는 VARCHAR(20) + CHECK 제약으로 저장한다.
  * <p>결제 실패는 {@link #CANCELLED}, 미결제 만료는 {@link #EXPIRED} 로 구분한다.
  * 둘 다 "예약이 성립하지 않음" 이지만 화면에 사유를 다르게 보여줘야 하기 때문이다.
  */
