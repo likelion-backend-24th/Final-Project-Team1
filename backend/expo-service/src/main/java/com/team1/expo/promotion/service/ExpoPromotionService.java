@@ -8,6 +8,7 @@ import com.team1.expo.domain.promotion.*;
 import com.team1.expo.promotion.dto.ActivePromotionResponse;
 import com.team1.expo.promotion.dto.ApplyPromotionRequest;
 import com.team1.expo.promotion.dto.ApplyPromotionResponse;
+import com.team1.payment.PaymentIdGenerator;
 import com.team1.payment.PaymentTransaction;
 import com.team1.payment.PgCancelResult;
 import com.team1.payment.PgClient;
@@ -18,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +31,7 @@ public class ExpoPromotionService {
     private final ExpoRepository expoRepository;
     private final ChannelRepository channelRepository;
     private final PgClient pgClient;
+    private final PaymentIdGenerator paymentIdGenerator;
     private final Clock clock;
 
     @Transactional
@@ -45,7 +46,7 @@ public class ExpoPromotionService {
         ExpoPromotion promotion = promotionRepository.save(
                 ExpoPromotion.create(request.expoId(), BANNER_PRICE, clock));
 
-        String paymentId = "BE24-D-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
+        String paymentId = paymentIdGenerator.generate();
         paymentTransactionRepository.save(
                 PaymentTransaction.create(promotion.getId(), paymentId, BANNER_PRICE, clock.instant()));
 

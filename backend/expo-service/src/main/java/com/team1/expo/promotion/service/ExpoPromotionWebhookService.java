@@ -2,8 +2,15 @@ package com.team1.expo.promotion.service;
 
 import com.team1.expo.common.exception.BusinessException;
 import com.team1.expo.common.exception.ErrorCode;
-import com.team1.expo.domain.promotion.*;
-import com.team1.payment.*;
+import com.team1.expo.domain.promotion.ExpoPromotion;
+import com.team1.expo.domain.promotion.ExpoPromotionRepository;
+import com.team1.expo.domain.promotion.PaymentTransactionRepository;
+import com.team1.expo.domain.promotion.WebhookEventRepository;
+import com.team1.payment.PgCommunicationException;
+import com.team1.payment.PgClient;
+import com.team1.payment.PgInquiryResult;
+import com.team1.payment.PaymentTransaction;
+import com.team1.payment.WebhookEvent;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

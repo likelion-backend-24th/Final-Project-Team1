@@ -65,7 +65,7 @@ class ExpoPromotionApiTest extends ApiTestSupport {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().path("success").asBoolean()).isTrue();
         assertThat(response.getBody().path("data").path("promotionId").asLong()).isPositive();
-        assertThat(response.getBody().path("data").path("paymentId").asText()).startsWith("BE24-D-");
+        assertThat(response.getBody().path("data").path("paymentId").asText()).startsWith("BE24-01-");
         assertThat(response.getBody().path("data").path("amount").asInt()).isEqualTo(9_900);
         assertThat(response.getBody().path("data").path("status").asText()).isEqualTo("PENDING");
     }
@@ -227,7 +227,7 @@ class ExpoPromotionApiTest extends ApiTestSupport {
     void 웹훅_알수없는_paymentId_무시() {
         ResponseEntity<JsonNode> response = post("/api/v1/expo-promotions/webhooks/portone",
                 """
-                {"webhook_id":"wh-unknown-123","payment_id":"BE24-D-NOTEXIST","status":"paid"}
+                {"webhook_id":"wh-unknown-123","payment_id":"BE24-01-NOTEXIST","status":"paid"}
                 """, null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -244,7 +244,7 @@ class ExpoPromotionApiTest extends ApiTestSupport {
         promotionRepository.save(promotion);
 
         paymentTransactionRepository.save(
-                PaymentTransaction.create(promotion.getId(), "BE24-D-" + promotion.getId(), 9_900, Instant.now()));
+                PaymentTransaction.create(promotion.getId(), "BE24-01-TEST" + promotion.getId(), 9_900, Instant.now()));
 
         return promotion.getId();
     }
