@@ -35,3 +35,9 @@ expo-service:
 internal:
   token: ${INTERNAL_TOKEN:local-dev-internal-token}
 
+portone:
+  store-id: ${PORTONE_STORE_ID:}
+  channel-key: ${PORTONE_CHANNEL_KEY:}
+  api-secret: ${PORTONE_API_SECRET:}
+  webhook-secret: ${PORTONE_WEBHOOK_SECRET:}
+
