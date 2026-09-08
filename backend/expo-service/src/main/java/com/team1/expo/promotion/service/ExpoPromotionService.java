@@ -27,7 +27,7 @@ public class ExpoPromotionService {
     static final int BANNER_PRICE = 9_900;
 
     private final ExpoPromotionRepository promotionRepository;
-    private final PaymentTransactionRepository paymentTransactionRepository;
+    private final ExpoPaymentTransactionRepository paymentTransactionRepository;
     private final ExpoRepository expoRepository;
     private final ChannelRepository channelRepository;
     private final PgClient pgClient;
