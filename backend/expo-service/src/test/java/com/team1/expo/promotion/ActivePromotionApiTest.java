@@ -111,7 +111,7 @@ class ActivePromotionApiTest extends ApiTestSupport {
         promotion.confirm(Clock.fixed(paidAt, java.time.ZoneOffset.UTC));
         promotionRepository.save(promotion);
         paymentTransactionRepository.save(
-                PaymentTransaction.create(promotion.getId(), "BE24-D-" + promotion.getId(), 9_900, paidAt));
+                PaymentTransaction.create(promotion.getId(), "BE24-01-TEST" + promotion.getId(), 9_900, paidAt));
         return promotion.getId();
     }
 }
