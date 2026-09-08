@@ -39,3 +39,10 @@ scheduler:
   auto-close:
     cron: "0 */10 * * * *"
     limit: 500
+
+app:
+  base-url: ${APP_BASE_URL:http://localhost:8082}
+
+portone:
+  stub: ${PORTONE_STUB:true}
+  webhook-secret: ${PORTONE_WEBHOOK_SECRET:}
