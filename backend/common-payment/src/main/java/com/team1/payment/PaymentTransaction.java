@@ -6,14 +6,16 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "payment_transactions")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PaymentTransaction {
+
+    private static final ZoneId ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -59,7 +61,7 @@ public class PaymentTransaction {
         p.paymentId = paymentId;
         p.amount = amount;
         p.status = PaymentStatus.PENDING;
-        LocalDateTime now = LocalDateTime.now(Clock.systemUTC());
+        LocalDateTime now = LocalDateTime.now(ZONE);
         p.createdAt = now;
         p.updatedAt = now;
         return p;
@@ -69,7 +71,7 @@ public class PaymentTransaction {
         this.pgTransactionId = pgTransactionId;
         this.pgResponseCode = pgResponseCode;
         this.status = PaymentStatus.PAID;
-        this.paidAt = LocalDateTime.now(Clock.systemUTC());
+        this.paidAt = LocalDateTime.now(ZONE);
         this.updatedAt = this.paidAt;
     }
 
@@ -77,18 +79,18 @@ public class PaymentTransaction {
         this.pgResponseCode = pgResponseCode;
         this.failureReason = failureReason;
         this.status = PaymentStatus.FAILED;
-        this.updatedAt = LocalDateTime.now(Clock.systemUTC());
+        this.updatedAt = LocalDateTime.now(ZONE);
     }
 
     public void markCancelled() {
         this.status = PaymentStatus.CANCELLED;
-        this.cancelledAt = LocalDateTime.now(Clock.systemUTC());
+        this.cancelledAt = LocalDateTime.now(ZONE);
         this.updatedAt = this.cancelledAt;
     }
 
     public void markRefundFailed(String failureReason) {
         this.failureReason = failureReason;
         this.status = PaymentStatus.REFUND_FAILED;
-        this.updatedAt = LocalDateTime.now(Clock.systemUTC());
+        this.updatedAt = LocalDateTime.now(ZONE);
     }
 }
