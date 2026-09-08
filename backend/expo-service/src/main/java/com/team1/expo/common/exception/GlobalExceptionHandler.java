@@ -4,8 +4,10 @@ import com.team1.expo.common.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -34,8 +36,20 @@ public class GlobalExceptionHandler {
         return build(ErrorCode.INVALID_REQUEST, "요청 본문을 읽을 수 없습니다.");
     }
 
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<ApiResponse.ErrorData>> handleUnexpected(Exception e) {
+        if (e instanceof ErrorResponse errorResponse && errorResponse.getStatusCode().is4xxClientError()) {
+            HttpStatusCode status = errorResponse.getStatusCode();
+            ErrorCode errorCode = status.value() == HttpStatus.NOT_FOUND.value()
+                    ? ErrorCode.NOT_FOUND
+                    : ErrorCode.INVALID_REQUEST;
+
+            log.warn("클라이언트 오류 status={} {}", status.value(), e.getMessage());
+            return ResponseEntity.status(status)
+                    .body(ApiResponse.error(errorCode.name(), errorCode.getMessage()));
+        }
+
         log.error("처리되지 않은 예외", e);
         return build(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.getMessage());
     }
