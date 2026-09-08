@@ -13,6 +13,7 @@ public enum ErrorCode {
     DUPLICATE_CHANNEL_NAME(HttpStatus.CONFLICT, "이미 사용 중인 채널명입니다."),
     CHANNEL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 채널을 보유하고 있습니다."),
     INVALID_STATE_TRANSITION(HttpStatus.CONFLICT, "허용되지 않는 상태 변경입니다."),
+    PROMOTION_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 진행 중인 VIP 배너가 있습니다."),
     DEPENDENCY_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "일시적으로 처리할 수 없습니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
 

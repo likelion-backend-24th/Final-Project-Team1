@@ -52,42 +52,41 @@ public class PaymentTransaction {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    public static PaymentTransaction create(Long refId, String paymentId, Integer amount) {
+    public static PaymentTransaction create(Long refId, String paymentId, Integer amount, Instant now) {
         PaymentTransaction p = new PaymentTransaction();
         p.refId = refId;
         p.paymentId = paymentId;
         p.amount = amount;
         p.status = PaymentStatus.PENDING;
-        Instant now = Instant.now();
         p.createdAt = now;
         p.updatedAt = now;
         return p;
     }
 
-    public void markPaid(String pgTransactionId, String pgResponseCode) {
+    public void markPaid(String pgTransactionId, String pgResponseCode, Instant now) {
         this.pgTransactionId = pgTransactionId;
         this.pgResponseCode = pgResponseCode;
         this.status = PaymentStatus.PAID;
-        this.paidAt = Instant.now();
-        this.updatedAt = this.paidAt;
+        this.paidAt = now;
+        this.updatedAt = now;
     }
 
-    public void markFailed(String pgResponseCode, String failureReason) {
+    public void markFailed(String pgResponseCode, String failureReason, Instant now) {
         this.pgResponseCode = pgResponseCode;
         this.failureReason = failureReason;
         this.status = PaymentStatus.FAILED;
-        this.updatedAt = Instant.now();
+        this.updatedAt = now;
     }
 
-    public void markCancelled() {
+    public void markCancelled(Instant now) {
         this.status = PaymentStatus.CANCELLED;
-        this.cancelledAt = Instant.now();
-        this.updatedAt = this.cancelledAt;
+        this.cancelledAt = now;
+        this.updatedAt = now;
     }
 
-    public void markRefundFailed(String failureReason) {
+    public void markRefundFailed(String failureReason, Instant now) {
         this.failureReason = failureReason;
         this.status = PaymentStatus.REFUND_FAILED;
-        this.updatedAt = Instant.now();
+        this.updatedAt = now;
     }
 }

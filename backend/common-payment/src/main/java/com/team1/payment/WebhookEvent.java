@@ -35,26 +35,24 @@ public class WebhookEvent {
     @Column(name = "processed_at")
     private Instant processedAt;
 
-    public static  WebhookEvent receive(String webhookId, String paymentId, String eventType){
+    public static WebhookEvent receive(String webhookId, String paymentId, String eventType, Instant now) {
         WebhookEvent webhookEvent = new WebhookEvent();
         webhookEvent.webhookId = webhookId;
         webhookEvent.paymentId = paymentId;
         webhookEvent.eventType = eventType;
         webhookEvent.status = WebhookEventStatus.RECEIVED;
-        webhookEvent.receivedAt = Instant.now();
+        webhookEvent.receivedAt = now;
 
-        return  webhookEvent;
+        return webhookEvent;
     }
 
-    public void markProcessed(){
+    public void markProcessed(Instant now) {
         this.status = WebhookEventStatus.PROCESSED;
-        this.processedAt = Instant.now();
+        this.processedAt = now;
     }
 
-    public void markIgnored(){
+    public void markIgnored(Instant now) {
         this.status = WebhookEventStatus.IGNORED;
-        this.processedAt = Instant.now();
+        this.processedAt = now;
     }
-
-
 }
