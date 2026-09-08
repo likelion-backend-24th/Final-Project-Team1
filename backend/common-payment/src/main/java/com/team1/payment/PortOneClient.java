@@ -59,16 +59,17 @@ public class PortOneClient implements PgClient {
 
     private PgInquiryResult toInquiryResult(PortOnePaymentResponse response) {
         Integer amount = response.amount() != null ? response.amount().total().intValue() : null;
+        String channelKey = response.channel() !=null ? response.channel().key() : null;
 
         return switch (response.status()) {
             case "PAID" -> new PgInquiryResult(
-                    PgPaymentStatus.PAID, amount, response.pgTxId(), response.pgResponse(), null);
+                    PgPaymentStatus.PAID, amount, response.pgTxId(), response.pgResponse(), null, response.storeId(),channelKey);
             case "FAILED" -> {
                 String reason = response.failure() != null ? response.failure().reason() : null;
                 String pgCode = response.failure() != null ? response.failure().pgCode() : null;
-                yield new PgInquiryResult(PgPaymentStatus.FAILED, amount, response.pgTxId(), pgCode, reason);
+                yield new PgInquiryResult(PgPaymentStatus.FAILED, amount, response.pgTxId(), pgCode, reason,response.storeId(), channelKey);
             }
-            default -> new PgInquiryResult(PgPaymentStatus.NOT_FOUND, amount, response.pgTxId(), null, null);
+            default -> new PgInquiryResult(PgPaymentStatus.NOT_FOUND, amount, response.pgTxId(), null, null,response.storeId(), channelKey);
         };
     }
 
@@ -81,13 +82,15 @@ public class PortOneClient implements PgClient {
                     .body(PortOnePaymentResponse.class);
 
             if (response == null){
-                return  new PgInquiryResult(PgPaymentStatus.NOT_FOUND, null, null,null,null);
+                return  new PgInquiryResult(PgPaymentStatus.NOT_FOUND, null,
+                        null,null,null,null,null);
             }
 
             return toInquiryResult(response);
 
         } catch (HttpClientErrorException.NotFound e) {
-            return new PgInquiryResult(PgPaymentStatus.NOT_FOUND, null, null, null, null);
+            return new PgInquiryResult(PgPaymentStatus.NOT_FOUND, null,
+                    null, null, null,null,null);
         } catch (RestClientException e) {
             throw new PgCommunicationException("PortOne 단건조회 실패: " + paymentId, e);
         }
@@ -120,12 +123,16 @@ public class PortOneClient implements PgClient {
     private record PaymentFailure(String reason, String pgCode) {
     }
 
+    private record SelectedChannel(String key){}
+
     private record PortOnePaymentResponse(
             String status,
             PaymentAmount amount,
             String pgTxId,
             String pgResponse,
-            PaymentFailure failure
+            PaymentFailure failure,
+            String storeId,
+            SelectedChannel channel
     ) {
     }
 
