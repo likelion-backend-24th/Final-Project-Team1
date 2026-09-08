@@ -1,8 +1,7 @@
 package com.team1.reservation.reservation.service;
 
-import com.team1.payment.PgClient;
-import com.team1.payment.PgCommunicationException;
-import com.team1.payment.PgInquiryResult;
+import com.team1.payment.PaymentApprovalResult;
+import com.team1.payment.PaymentService;
 import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.common.TraceId;
@@ -20,6 +19,14 @@ import java.util.Objects;
 
 /**
  * 결제 결과를 받아 예약 상태를 전이시킨다.
+ *
+ * <p>경계가 분명하다. <b>결제 자체의 상태는 이 Service 가 관리하지 않는다</b> —
+ * PortOne 호출, 금액 검증, {@code payment_transactions} 의 상태 전이, 이중결제 방지는 전부
+ * {@link PaymentService}(파트 B)의 몫이다. 여기서는 모듈이 돌려준 네 가지 결과를 받아
+ * {@link Reservation} 만 전이시킨다.
+ *
+ * <p>웹훅 수신 엔드포인트도 {@link #applyPaymentResult} 를 그대로 재사용한다. 확정 경로가
+ * 둘로 갈라지면 한쪽만 고치는 사고가 반드시 난다.
  */
 @Service
 public class ReservationPaymentService {
@@ -30,22 +37,22 @@ public class ReservationPaymentService {
 
     private final ReservationRepository reservations;
     private final RoundRepository rounds;
-    private final PgClient pgClient;
+    private final PaymentService paymentService;
     private final Clock clock;
 
     public ReservationPaymentService(ReservationRepository reservations,
                                      RoundRepository rounds,
-                                     PgClient pgClient,
+                                     PaymentService paymentService,
                                      Clock clock) {
         this.reservations = reservations;
         this.rounds = rounds;
-        this.pgClient = pgClient;
+        this.paymentService = paymentService;
         this.clock = clock;
     }
 
     /** 외부 API 진입점. 인증·소유권을 확인한 뒤 공통 확정 로직으로 넘긴다. */
     @Transactional
-    public Reservation confirm(Long reservationId, AuthenticatedUser user, String paymentId) {
+    public Reservation confirm(Long reservationId, AuthenticatedUser user) {
         if (user == null) {
             throw new ApiException(ErrorCode.UNAUTHENTICATED, "authentication required");
         }
@@ -62,14 +69,14 @@ public class ReservationPaymentService {
             throw new ApiException(ErrorCode.FORBIDDEN, "not the owner of reservation " + reservationId);
         }
 
-        return applyPaymentResult(reservation, paymentId);
+        return applyPaymentResult(reservation);
     }
 
     /**
-     * 확정 로직 본체. 웹훅 엔드포인트가 인증을 거친 뒤 같은 메서드를 부른다.
+     * 확정 로직 본체. 웹훅 엔드포인트가 서명검증을 거친 뒤 같은 메서드를 부른다.
      */
     @Transactional
-    public Reservation applyPaymentResult(Reservation reservation, String paymentId) {
+    public Reservation applyPaymentResult(Reservation reservation) {
         switch (reservation.getStatus()) {
             case CONFIRMED -> {
                 return reservation;
@@ -81,57 +88,40 @@ public class ReservationPaymentService {
             }
         }
 
-        PgInquiryResult result = inquire(paymentId, reservation.getId());
+        PaymentApprovalResult result = paymentService.confirm(reservation.getId());
 
-        return switch (result.status()) {
-            case PAID -> confirmPaid(reservation, result);
-            case FAILED -> cancelFailed(reservation, result);
+        return switch (result.outcome()) {
+            case SUCCESS -> {
+                reservation.confirm(clock.instant());
+                // 티켓 발급 통지(#79)가 여기에 붙는다. 실패해도 확정을 되돌리지 않는 fail-open 이라
+                // 이 Transaction 밖에서 트리거해야 한다.
+                yield reservation;
+            }
 
-            // "거래 없음" 은 실패가 아니라 모름이다. 결제창은 통과했는데 PG 쪽 반영이 아직
-            // 안 됐을 수 있어서, 여기서 취소해버리면 실제로 결제된 건을 날리게 된다.
-            case NOT_FOUND -> throw unavailable(paymentId, reservation.getId(), "not found at PG yet");
+            case FAILED_CONFIRMED -> cancelFailed(reservation, result);
+
+            // 금액이 다르면 확정도 취소도 하지 않는다. 자동 취소하면 참가비 설정 실수 하나로
+            // 정상 결제가 사라지므로, 사람이 확인할 여지를 남긴다.
+            case AMOUNT_MISMATCH -> {
+                log.warn("payment amount mismatch reservationId={} expected={} traceId={}",
+                        reservation.getId(), reservation.getAmount(), TraceId.get());
+                throw new ApiException(ErrorCode.PAYMENT_AMOUNT_MISMATCH,
+                        "verified amount does not match the reservation amount");
+            }
+
+            // 모름. 확정하면 돈 안 낸 사람에게 자리를 주고, 취소하면 돈 낸 사람의 자리를 뺏는다.
+            // 아무것도 하지 않는 것이 유일하게 안전한 선택이다(fail-closed).
+            case UNKNOWN -> {
+                log.warn("payment result unknown reservationId={} traceId={}",
+                        reservation.getId(), TraceId.get());
+                throw new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "payment result unknown");
+            }
         };
     }
 
-    private PgInquiryResult inquire(String paymentId, Long reservationId) {
-        try {
-            return pgClient.inquire(paymentId);
-        } catch (PgCommunicationException e) {
-            log.warn("payment inquiry failed reservationId={} traceId={}", reservationId, TraceId.get(), e);
-            throw unavailable(paymentId, reservationId, "payment gateway unavailable");
-        }
-    }
-
-    /**
-     * 모름. 예약 상태도 정원도 건드리지 않는다(fail-closed). 재시도로 풀리거나,
-     * 풀리지 않으면 10분 만료 스케줄러(#77)가 PG 를 다시 확인하고 정리한다.
-     */
-    private ApiException unavailable(String paymentId, Long reservationId, String reason) {
-        log.warn("payment result unknown reservationId={} paymentId={} reason={} traceId={}",
-                reservationId, paymentId, reason, TraceId.get());
-        return new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "payment result unknown: " + reason);
-    }
-
-    private Reservation confirmPaid(Reservation reservation, PgInquiryResult result) {
-        // 금액은 PG 응답과 DB 를 대조한다. 금액이 다르면 확정하지 않고 상태도 그대로 둔다 -
-        // 자동으로 취소해버리면 단순 설정 오류로 정상 결제가 사라진다. 사람이 볼 문제다.
-        if (result.amount() == null || result.amount() != reservation.getAmount()) {
-            log.warn("payment amount mismatch reservationId={} expected={} actual={} traceId={}",
-                    reservation.getId(), reservation.getAmount(), result.amount(), TraceId.get());
-            throw new ApiException(ErrorCode.PAYMENT_AMOUNT_MISMATCH,
-                    "verified amount does not match the reservation amount");
-        }
-
-        reservation.confirm(clock.instant());
-
-        // 티켓 발급 통지(#79)가 여기에 붙는다. 실패해도 확정을 되돌리지 않는 fail-open 이라
-        // 이 Transaction 밖에서 트리거해야 한다.
-        return reservation;
-    }
-
-    private Reservation cancelFailed(Reservation reservation, PgInquiryResult result) {
-        log.info("payment failed reservationId={} code={} reason={} traceId={}",
-                reservation.getId(), result.responseCode(), result.failureReason(), TraceId.get());
+    private Reservation cancelFailed(Reservation reservation, PaymentApprovalResult result) {
+        log.info("payment failed reservationId={} reason={} traceId={}",
+                reservation.getId(), result.failureReason(), TraceId.get());
 
         // 순서가 중요하다. cancel() 이 먼저다 - PENDING 이 아니면 여기서 예외가 나고
         // 정원 반환은 실행되지 않는다. 그래서 반환은 상태 전이당 정확히 1회다.

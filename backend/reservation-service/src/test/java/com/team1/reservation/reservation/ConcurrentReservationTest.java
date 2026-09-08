@@ -1,6 +1,8 @@
 package com.team1.reservation.reservation;
 
 import com.team1.reservation.client.ExpoClient;
+import com.team1.payment.PaymentService;
+import com.team1.payment.PaymentTransaction;
 import com.team1.reservation.client.ExpoSummary;
 import com.team1.reservation.reservation.dto.CreateReservationRequest;
 import com.team1.reservation.reservation.entity.Reservation;
@@ -25,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +52,13 @@ class ConcurrentReservationTest extends IntegrationTestSupport {
     @MockitoBean
     private ExpoClient expoClient;
 
+    /*
+     * 결제 모듈은 실제 PortOne 을 부르므로 Test 에서는 대체한다. 여기서 검증하려는 것은
+     * 정원 차감과 중복 판정이지 결제가 아니다.
+     */
+    @MockitoBean
+    private PaymentService paymentService;
+
     private Long roundId;
 
     @BeforeEach
@@ -61,6 +71,9 @@ class ConcurrentReservationTest extends IntegrationTestSupport {
         roundId = rounds.save(round).getId();
 
         when(expoClient.getExpo(anyLong())).thenReturn(new ExpoSummary(1L, 99L, "PUBLISHED"));
+        when(paymentService.createPending(any(), any())).thenAnswer(call ->
+                PaymentTransaction.create(call.getArgument(0), "BE24-01-01JABCDEF",
+                        call.getArgument(1), Instant.now()));
     }
 
     @Test

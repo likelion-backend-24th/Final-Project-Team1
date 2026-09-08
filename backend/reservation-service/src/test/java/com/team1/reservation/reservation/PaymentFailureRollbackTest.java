@@ -1,7 +1,6 @@
 package com.team1.reservation.reservation;
 
-import com.team1.payment.PgInquiryResult;
-import com.team1.payment.PgPaymentStatus;
+import com.team1.payment.PaymentApprovalResult;
 import com.team1.reservation.reservation.entity.Reservation;
 import com.team1.reservation.reservation.entity.ReservationStatus;
 import com.team1.reservation.reservation.support.PaymentTestFixture;
@@ -11,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -23,8 +23,8 @@ class PaymentFailureRollbackTest extends PaymentTestFixture {
     @BeforeEach
     void setUp() {
         initMocks();
-        when(pgClient.inquire(PAYMENT_ID)).thenReturn(
-                new PgInquiryResult(PgPaymentStatus.FAILED, null, null, "F001", "카드 한도 초과"));
+        when(paymentService.confirm(any()))
+                .thenReturn(PaymentApprovalResult.failedConfirmed("카드 한도 초과"));
     }
 
     @Test
@@ -32,7 +32,7 @@ class PaymentFailureRollbackTest extends PaymentTestFixture {
     void cancelsAndReleasesCapacity() {
         Reservation reservation = given(pending());
 
-        Reservation result = service.confirm(RESERVATION_ID, MEMBER, PAYMENT_ID);
+        Reservation result = service.confirm(RESERVATION_ID, MEMBER);
 
         assertThat(result.getStatus()).isEqualTo(ReservationStatus.CANCELLED);
         assertThat(result.getCancelledAt()).isEqualTo(NOW);
@@ -46,9 +46,9 @@ class PaymentFailureRollbackTest extends PaymentTestFixture {
     void releasesCapacityExactlyOnce() {
         given(pending());
 
-        service.confirm(RESERVATION_ID, MEMBER, PAYMENT_ID);
+        service.confirm(RESERVATION_ID, MEMBER);
 
-        assertThatThrownBy(() -> service.confirm(RESERVATION_ID, MEMBER, PAYMENT_ID))
+        assertThatThrownBy(() -> service.confirm(RESERVATION_ID, MEMBER))
                 .hasMessageContaining("already");
 
         verify(rounds, times(1)).release(ROUND_ID, HEADCOUNT);

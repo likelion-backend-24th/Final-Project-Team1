@@ -5,7 +5,7 @@ import com.team1.reservation.common.ApiResponse;
 import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.reservation.dto.CreateReservationRequest;
 import com.team1.reservation.reservation.dto.ReservationResponse;
-import com.team1.reservation.reservation.entity.Reservation;
+import com.team1.reservation.reservation.service.ReservationCreation;
 import com.team1.reservation.reservation.service.ReservationService;
 import com.team1.security.AuthContext;
 import com.team1.security.AuthenticatedUser;
@@ -34,11 +34,11 @@ public class ReservationController {
             @PathVariable Long roundId,
             @Valid @RequestBody CreateReservationRequest request) {
 
-        Reservation saved = reservationService.create(roundId, currentUser(), request);
+        ReservationCreation created = reservationService.create(roundId, currentUser(), request);
 
         return ResponseEntity
-                .created(URI.create("/api/v1/reservations/" + saved.getId()))
-                .body(ApiResponse.ok(ReservationResponse.from(saved)));
+                .created(URI.create("/api/v1/reservations/" + created.reservation().getId()))
+                .body(ApiResponse.ok(ReservationResponse.from(created)));
     }
 
     private AuthenticatedUser currentUser() {

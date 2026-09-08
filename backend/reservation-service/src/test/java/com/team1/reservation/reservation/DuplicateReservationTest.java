@@ -1,6 +1,8 @@
 package com.team1.reservation.reservation;
 
 import com.team1.reservation.client.ExpoClient;
+import com.team1.payment.PaymentService;
+import com.team1.payment.PaymentTransaction;
 import com.team1.reservation.client.ExpoSummary;
 import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
@@ -22,6 +24,7 @@ import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 
@@ -45,6 +48,13 @@ class DuplicateReservationTest extends IntegrationTestSupport {
     @MockitoBean
     private ExpoClient expoClient;
 
+    /*
+     * 결제 모듈은 실제 PortOne 을 부르므로 Test 에서는 대체한다. 여기서 검증하려는 것은
+     * 정원 차감과 중복 판정이지 결제가 아니다.
+     */
+    @MockitoBean
+    private PaymentService paymentService;
+
     private Long roundId;
 
     @BeforeEach
@@ -53,9 +63,12 @@ class DuplicateReservationTest extends IntegrationTestSupport {
         rounds.deleteAll();
 
         Instant now = Instant.now();
-        roundId = rounds.save(Round.create(1L, now.plusSeconds(86400), now.plusSeconds(90000), 50, 0, now))
+        roundId = rounds.save(Round.create(1L, now.plusSeconds(86400), now.plusSeconds(90000), 50, 10000, now))
                 .getId();
         when(expoClient.getExpo(anyLong())).thenReturn(new ExpoSummary(1L, 99L, "PUBLISHED"));
+        when(paymentService.createPending(any(), any())).thenAnswer(call ->
+                PaymentTransaction.create(call.getArgument(0), "BE24-01-01JABCDEF",
+                        call.getArgument(1), Instant.now()));
     }
 
     private CreateReservationRequest request() {
@@ -77,12 +90,12 @@ class DuplicateReservationTest extends IntegrationTestSupport {
     @Test
     @DisplayName("취소한 예약은 재예약을 막지 않는다")
     void allowsRebookingAfterCancel() {
-        Reservation first = reservationService.create(roundId, MEMBER, request());
+        Reservation first = reservationService.create(roundId, MEMBER, request()).reservation();
 
         first.cancel(Instant.now());
         reservations.save(first);
 
-        Reservation second = reservationService.create(roundId, MEMBER, request());
+        Reservation second = reservationService.create(roundId, MEMBER, request()).reservation();
 
         assertThat(second.getId()).isNotEqualTo(first.getId());
         assertThat(reservations.findAll()).hasSize(2);
@@ -100,7 +113,7 @@ class DuplicateReservationTest extends IntegrationTestSupport {
     @Test
     @DisplayName("연락처는 하이픈을 제거해 저장한다")
     void storesPhoneWithoutHyphen() {
-        Reservation saved = reservationService.create(roundId, MEMBER, request());
+        Reservation saved = reservationService.create(roundId, MEMBER, request()).reservation();
 
         assertThat(saved.getContactPhone()).isEqualTo("01012345678");
     }

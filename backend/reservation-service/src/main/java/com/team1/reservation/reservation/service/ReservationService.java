@@ -1,9 +1,13 @@
 package com.team1.reservation.reservation.service;
 
+import com.team1.payment.PaymentService;
+import com.team1.payment.PaymentTransaction;
+import com.team1.payment.PgCommunicationException;
 import com.team1.reservation.client.ExpoClient;
 import com.team1.reservation.client.ExpoSummary;
 import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
+import com.team1.reservation.common.TraceId;
 import com.team1.reservation.reservation.dto.CreateReservationRequest;
 import com.team1.reservation.reservation.entity.Reservation;
 import com.team1.reservation.reservation.entity.ReservationStatus;
@@ -11,6 +15,8 @@ import com.team1.reservation.reservation.repository.ReservationRepository;
 import com.team1.reservation.round.entity.Round;
 import com.team1.reservation.round.repository.RoundRepository;
 import com.team1.security.AuthenticatedUser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +27,8 @@ import java.util.Set;
 
 @Service
 public class ReservationService {
+
+    private static final Logger log = LoggerFactory.getLogger(ReservationService.class);
 
     static final String ROLE_MEMBER = "USER";
 
@@ -33,26 +41,29 @@ public class ReservationService {
     private final ReservationRepository reservations;
     private final RoundRepository rounds;
     private final ExpoClient expoClient;
+    private final PaymentService paymentService;
     private final ReservationNoGenerator reservationNos;
     private final Clock clock;
 
     public ReservationService(ReservationRepository reservations,
                               RoundRepository rounds,
                               ExpoClient expoClient,
+                              PaymentService paymentService,
                               ReservationNoGenerator reservationNos,
                               Clock clock) {
         this.reservations = reservations;
         this.rounds = rounds;
         this.expoClient = expoClient;
+        this.paymentService = paymentService;
         this.reservationNos = reservationNos;
         this.clock = clock;
     }
 
-
-     //예약 신청. 정원 차감과 예약 저장을 한 Transaction 으로 묶는다.
-
+    /**
+     * 예약 신청. 정원 차감·예약 저장·결제 사전등록을 한 Transaction 으로 묶는다.
+     */
     @Transactional
-    public Reservation create(Long roundId, AuthenticatedUser user, CreateReservationRequest request) {
+    public ReservationCreation create(Long roundId, AuthenticatedUser user, CreateReservationRequest request) {
         requireMember(user);
 
         Instant now = clock.instant();
@@ -86,18 +97,34 @@ public class ReservationService {
                     "not enough capacity on round " + roundId + " for " + headcount);
         }
 
-        Reservation reservation = Reservation.create(
-                reservationNos.generate(),
-                roundId,
-                expoId,
-                user.userId(),
-                request.normalizedName(),
-                request.normalizedPhone(),
-                headcount,
-                amount,
-                now);
+        Reservation saved = reservations.save(Reservation.create(
+                reservationNos.generate(), roundId, expoId, user.userId(),
+                request.normalizedName(), request.normalizedPhone(),
+                headcount, amount, now));
 
-        return reservations.save(reservation);
+        if (amount == 0) {
+            // 무료 회차는 결제할 것이 없다. PENDING 으로 두면 결제도 못 하는 예약이 10분 뒤
+            // 만료되면서 자리만 잃는다. 결제 단계를 건너뛰고 바로 확정한다.
+            saved.confirm(now);
+            return new ReservationCreation(saved, null);
+        }
+
+        return new ReservationCreation(saved, registerPayment(saved, amount));
+    }
+
+    /**
+     * 결제 사전등록. PG 가 무응답이면 예약을 만들지 않는다.
+     */
+    private String registerPayment(Reservation reservation, int amount) {
+        try {
+            PaymentTransaction payment = paymentService.createPending(reservation.getId(), amount);
+            return payment.getPaymentId();
+
+        } catch (PgCommunicationException e) {
+            log.warn("payment registration failed reservationNo={} traceId={}",
+                    reservation.getReservationNo(), TraceId.get(), e);
+            throw new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "payment registration unavailable");
+        }
     }
 
     private void requireMember(AuthenticatedUser user) {

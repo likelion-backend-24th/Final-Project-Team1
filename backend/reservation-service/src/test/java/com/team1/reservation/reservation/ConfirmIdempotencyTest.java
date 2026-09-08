@@ -33,13 +33,13 @@ class ConfirmIdempotencyTest extends PaymentTestFixture {
         reservation.confirm(NOW);
         given(reservation);
 
-        Reservation result = service.confirm(RESERVATION_ID, MEMBER, PAYMENT_ID);
+        Reservation result = service.confirm(RESERVATION_ID, MEMBER);
 
         assertThat(result.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
         assertThat(result.getConfirmedAt()).isEqualTo(NOW);
 
         // PG 를 다시 조회하면 불필요한 왕복이 생기고, 그 사이 응답이 흔들리면 확정을 뒤집을 수도 있다.
-        verifyNoInteractions(pgClient);
+        verifyNoInteractions(paymentService);
     }
 
     @Test
@@ -50,7 +50,7 @@ class ConfirmIdempotencyTest extends PaymentTestFixture {
         reservation.confirm(webhookTime);
         given(reservation);
 
-        Reservation result = service.confirm(RESERVATION_ID, MEMBER, PAYMENT_ID);
+        Reservation result = service.confirm(RESERVATION_ID, MEMBER);
 
         assertThat(result.getConfirmedAt()).isEqualTo(webhookTime);
     }
@@ -62,11 +62,11 @@ class ConfirmIdempotencyTest extends PaymentTestFixture {
         reservation.cancel(NOW);
         given(reservation);
 
-        assertThatThrownBy(() -> service.confirm(RESERVATION_ID, MEMBER, PAYMENT_ID))
+        assertThatThrownBy(() -> service.confirm(RESERVATION_ID, MEMBER))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.INVALID_STATE_TRANSITION));
 
-        verifyNoInteractions(pgClient);
+        verifyNoInteractions(paymentService);
     }
 
     @Test
@@ -76,10 +76,10 @@ class ConfirmIdempotencyTest extends PaymentTestFixture {
         reservation.expire(NOW.plus(Reservation.PAYMENT_WINDOW));
         given(reservation);
 
-        assertThatThrownBy(() -> service.confirm(RESERVATION_ID, MEMBER, PAYMENT_ID))
+        assertThatThrownBy(() -> service.confirm(RESERVATION_ID, MEMBER))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.INVALID_STATE_TRANSITION));
 
-        verifyNoInteractions(pgClient);
+        verifyNoInteractions(paymentService);
     }
 }

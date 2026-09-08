@@ -1,6 +1,6 @@
 package com.team1.reservation.reservation.support;
 
-import com.team1.payment.PgClient;
+import com.team1.payment.PaymentService;
 import com.team1.reservation.reservation.entity.Reservation;
 import com.team1.reservation.reservation.repository.ReservationRepository;
 import com.team1.reservation.reservation.service.ReservationPaymentService;
@@ -28,20 +28,19 @@ public abstract class PaymentTestFixture {
     protected static final Long USER_ID = 100L;
     protected static final int HEADCOUNT = 2;
     protected static final int AMOUNT = 20000;
-    protected static final String PAYMENT_ID = "BE24-T1-01JABCDEF";
 
     protected static final AuthenticatedUser MEMBER = new AuthenticatedUser(USER_ID, "USER");
 
     protected ReservationRepository reservations;
     protected RoundRepository rounds;
-    protected PgClient pgClient;
+    protected PaymentService paymentService;
     protected ReservationPaymentService service;
 
     protected void initMocks() {
         reservations = mock(ReservationRepository.class);
         rounds = mock(RoundRepository.class);
-        pgClient = mock(PgClient.class);
-        service = new ReservationPaymentService(reservations, rounds, pgClient,
+        paymentService = mock(PaymentService.class);
+        service = new ReservationPaymentService(reservations, rounds, paymentService,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

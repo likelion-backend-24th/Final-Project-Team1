@@ -6,6 +6,7 @@ import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.reservation.controller.ReservationController;
 import com.team1.reservation.reservation.dto.CreateReservationRequest;
 import com.team1.reservation.reservation.entity.Reservation;
+import com.team1.reservation.reservation.service.ReservationCreation;
 import com.team1.reservation.reservation.service.ReservationService;
 import com.team1.security.AuthContext;
 import com.team1.security.AuthenticatedUser;
@@ -70,7 +71,8 @@ class ReservationControllerTest {
     void createsReservation() throws Exception {
         Reservation created = Reservation.create("R-4K7Q-W2M8", 7L, 1L, 100L,
                 "홍길동", "01012345678", 2, 20000, NOW);
-        when(reservationService.create(eq(7L), any(), any())).thenReturn(created);
+        when(reservationService.create(eq(7L), any(), any()))
+                .thenReturn(new ReservationCreation(created, "BE24-01-01JABCDEF"));
 
         mockMvc.perform(post("/api/v1/rounds/{roundId}/reservations", 7L)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -90,7 +92,8 @@ class ReservationControllerTest {
     void responseOmitsContact() throws Exception {
         Reservation created = Reservation.create("R-4K7Q-W2M8", 7L, 1L, 100L,
                 "홍길동", "01012345678", 1, 0, NOW);
-        when(reservationService.create(eq(7L), any(), any())).thenReturn(created);
+        when(reservationService.create(eq(7L), any(), any()))
+                .thenReturn(new ReservationCreation(created, "BE24-01-01JABCDEF"));
 
         mockMvc.perform(post("/api/v1/rounds/{roundId}/reservations", 7L)
                         .contentType(MediaType.APPLICATION_JSON)
