@@ -32,6 +32,13 @@ public class Round {
     @Column(name = "capacity", nullable = false)
     private int capacity;
 
+    /**
+     * PENDING·CONFIRMED 예약 인원의 합. 조건부 UPDATE(RoundRepository#reserve, #release)로만 바뀐다.
+     * setter 를 두지 않는 이유는, 여기서 값을 바꾸면 정원 초과 판정이 DB 밖으로 새기 때문이다.
+     */
+    @Column(name = "reserved_count", nullable = false)
+    private int reservedCount;
+
     @Column(name = "fee", nullable = false)
     private int fee;
 
@@ -67,8 +74,9 @@ public class Round {
         return new Round(expoId, startsAt, endsAt, capacity, fee, now);
     }
 
+    /** 잔여 정원. 조건부 UPDATE 가 갱신한 reserved_count 를 그대로 반영한다. */
     public int remaining() {
-        return capacity;
+        return capacity - reservedCount;
     }
 
     public Long getId() {
@@ -89,6 +97,10 @@ public class Round {
 
     public int getCapacity() {
         return capacity;
+    }
+
+    public int getReservedCount() {
+        return reservedCount;
     }
 
     public int getFee() {

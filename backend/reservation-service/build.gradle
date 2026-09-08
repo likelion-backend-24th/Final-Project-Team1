@@ -12,4 +12,10 @@ dependencies {
     runtimeOnly 'com.mysql:mysql-connector-j'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+    // 동시성 Test 는 실제 MySQL 이 있어야 의미가 있다. H2 는 조건부 UPDATE 의 행 락 동작이
+    // MySQL 과 달라 정원 초과를 재현하지 못한다. expo-service 와 같은 구성이다.
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:mysql'
+    testImplementation 'org.testcontainers:junit-jupiter'
 }
