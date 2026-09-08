@@ -9,6 +9,7 @@ import org.testcontainers.containers.MySQLContainer;
 
 import java.util.Date;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -47,5 +48,11 @@ public abstract class IntegrationTestSupport {
 
     protected static String uniqueName() {
         return "channel-" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    private static final AtomicLong USER_ID_SEQ = new AtomicLong(1000L);
+
+    protected static long uniqueUserId() {
+        return USER_ID_SEQ.getAndIncrement();
     }
 }
