@@ -3,8 +3,11 @@ package com.team1.reservation.common;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -53,6 +56,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<ApiResponse.ErrorBody>> handleUnexpected(Exception e) {
+        if (e instanceof ErrorResponse errorResponse && errorResponse.getStatusCode().is4xxClientError()) {
+            HttpStatusCode status = errorResponse.getStatusCode();
+            boolean notFound = status.value() == HttpStatus.NOT_FOUND.value();
+            ErrorCode code = notFound ? ErrorCode.NOT_FOUND : ErrorCode.INVALID_REQUEST;
+
+            log.warn("client error status={} traceId={} {}", status.value(), TraceId.get(), e.getMessage());
+            return ResponseEntity.status(status)
+                    .body(ApiResponse.fail(code, TraceId.get(), notFound ? "not found" : "invalid request"));
+        }
+
         // 내부 예외 내용은 Log 에만 남기고 응답에는 노출하지 않는다.
         log.error("unhandled exception traceId={}", TraceId.get(), e);
         return build(ErrorCode.INTERNAL_ERROR, "unexpected error");

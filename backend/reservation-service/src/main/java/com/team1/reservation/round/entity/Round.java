@@ -32,6 +32,10 @@ public class Round {
     @Column(name = "capacity", nullable = false)
     private int capacity;
 
+
+    @Column(name = "reserved_count", nullable = false)
+    private int reservedCount;
+
     @Column(name = "fee", nullable = false)
     private int fee;
 
@@ -67,8 +71,9 @@ public class Round {
         return new Round(expoId, startsAt, endsAt, capacity, fee, now);
     }
 
+    /** 잔여 정원. 조건부 UPDATE 가 갱신한 reserved_count 를 그대로 반영한다. */
     public int remaining() {
-        return capacity;
+        return capacity - reservedCount;
     }
 
     public Long getId() {
@@ -89,6 +94,10 @@ public class Round {
 
     public int getCapacity() {
         return capacity;
+    }
+
+    public int getReservedCount() {
+        return reservedCount;
     }
 
     public int getFee() {

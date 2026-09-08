@@ -3,6 +3,7 @@ package com.team1.reservation.round.repository;
 import com.team1.reservation.round.entity.Round;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -18,4 +19,18 @@ public interface RoundRepository extends JpaRepository<Round, Long> {
 
     @Query("select r.expoId from Round r group by r.expoId having max(r.endsAt) < :before order by r.expoId")
     List<Long> findExpoIdsWithAllRoundsEndedBefore(@Param("before") Instant before, Pageable pageable);
+
+
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Round r set r.reservedCount = r.reservedCount + :headcount "
+            + "where r.id = :roundId and r.reservedCount + :headcount <= r.capacity")
+    int reserve(@Param("roundId") Long roundId, @Param("headcount") int headcount);
+
+
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Round r set r.reservedCount = r.reservedCount - :headcount "
+            + "where r.id = :roundId and r.reservedCount - :headcount >= 0")
+    int release(@Param("roundId") Long roundId, @Param("headcount") int headcount);
 }
