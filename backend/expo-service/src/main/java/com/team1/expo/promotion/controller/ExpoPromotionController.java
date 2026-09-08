@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team1.expo.common.exception.BusinessException;
 import com.team1.expo.common.exception.ErrorCode;
 import com.team1.expo.common.response.ApiResponse;
+import com.team1.expo.promotion.dto.ActivePromotionResponse;
 import com.team1.expo.promotion.dto.ApplyPromotionRequest;
 import com.team1.expo.promotion.dto.ApplyPromotionResponse;
 import com.team1.expo.promotion.service.ExpoPromotionService;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/expo-promotions")
@@ -27,6 +29,11 @@ public class ExpoPromotionController {
     private final ExpoPromotionService promotionService;
     private final ExpoPromotionWebhookService webhookService;
     private final ObjectMapper objectMapper;
+
+    @GetMapping("/active")
+    public ApiResponse<List<ActivePromotionResponse>> getActive() {
+        return ApiResponse.ok(promotionService.getActive());
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

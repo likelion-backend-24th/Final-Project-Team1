@@ -4,6 +4,6 @@ public record ApplyPromotionResponse(
         Long promotionId,
         Long expoId,
         int amount,
-        String pgTransactionId,
+        String paymentId,
         String status
 ) {}

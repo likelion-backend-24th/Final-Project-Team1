@@ -5,6 +5,7 @@ import com.team1.expo.common.exception.ErrorCode;
 import com.team1.expo.domain.channel.ChannelRepository;
 import com.team1.expo.domain.expo.ExpoRepository;
 import com.team1.expo.domain.promotion.*;
+import com.team1.expo.promotion.dto.ActivePromotionResponse;
 import com.team1.expo.promotion.dto.ApplyPromotionRequest;
 import com.team1.expo.promotion.dto.ApplyPromotionResponse;
 import com.team1.payment.PaymentTransaction;
@@ -83,6 +84,12 @@ public class ExpoPromotionService {
             tx.markRefundFailed("PG 통신 실패: " + e.getMessage(), clock.instant());
             throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<ActivePromotionResponse> getActive() {
+        return promotionRepository.findByStatusOrderByPaidAtAsc(ExpoPromotionStatus.ACTIVE)
+                .stream().map(ActivePromotionResponse::from).toList();
     }
 
     private void verifyOwnership(Long expoId, Long requesterId) {
