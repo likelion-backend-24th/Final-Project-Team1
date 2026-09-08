@@ -37,7 +37,7 @@ class ExpoAutoCloseSchedulerTest extends IntegrationTestSupport {
     @Test
     @DisplayName("모든 회차가 종료된 PUBLISHED 박람회는 CLOSED로 전이된다")
     void PUBLISHED_박람회_자동_마감() {
-        Channel channel = channelRepository.save(Channel.create("auto-close-ch-1", 1L, "desc"));
+        Channel channel = channelRepository.save(Channel.create(uniqueName(), uniqueUserId(), "desc"));
         Expo expo = expoRepository.save(publishedExpo(channel.getId()));
 
         when(roundClient.finishedExpoIds(any(Instant.class), anyInt()))
@@ -53,7 +53,7 @@ class ExpoAutoCloseSchedulerTest extends IntegrationTestSupport {
     @Test
     @DisplayName("HIDDEN 박람회는 finishedExpoIds에 포함되더라도 CLOSED로 전이되지 않는다")
     void HIDDEN_박람회_마감_제외() {
-        Channel channel = channelRepository.save(Channel.create("auto-close-ch-2", 2L, "desc"));
+        Channel channel = channelRepository.save(Channel.create(uniqueName(), uniqueUserId(), "desc"));
         Expo expo = expoRepository.save(hiddenExpo(channel.getId()));
 
         when(roundClient.finishedExpoIds(any(Instant.class), anyInt()))
@@ -69,7 +69,7 @@ class ExpoAutoCloseSchedulerTest extends IntegrationTestSupport {
     @Test
     @DisplayName("스케줄러를 두 번 실행해도 closed_at이 변경되지 않는다 (멱등성)")
     void 멱등성_보장() {
-        Channel channel = channelRepository.save(Channel.create("auto-close-ch-3", 3L, "desc"));
+        Channel channel = channelRepository.save(Channel.create(uniqueName(), uniqueUserId(), "desc"));
         Expo expo = expoRepository.save(publishedExpo(channel.getId()));
 
         when(roundClient.finishedExpoIds(any(Instant.class), anyInt()))

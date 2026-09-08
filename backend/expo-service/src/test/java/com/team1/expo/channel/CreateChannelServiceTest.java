@@ -19,7 +19,7 @@ class CreateChannelServiceTest extends ApiTestSupport {
     @Test
     @DisplayName("ORGANIZER가 채널을 생성하면 201과 채널 ID를 반환한다")
     void 채널_생성_성공() {
-        String token = jwtFor(1L, "ORGANIZER");
+        String token = jwtFor(uniqueUserId(), "ORGANIZER");
         String name = uniqueName();
 
         ResponseEntity<JsonNode> response = post("/api/v1/channels",
@@ -36,17 +36,16 @@ class CreateChannelServiceTest extends ApiTestSupport {
     @Test
     @DisplayName("같은 이름으로 두 번 생성하면 409 DUPLICATE_CHANNEL_NAME이 반환된다")
     void 중복_채널명_거절() {
-        String token = jwtFor(1L, "ORGANIZER");
+        // 주최자당 채널 1개 제약으로, 다른 주최자가 같은 채널명 시도해야 이름 중복 검증 가능
         String name = uniqueName();
-
         post("/api/v1/channels", """
                 {"name":"%s","description":"첫번째"}
-                """.formatted(name), token);
+                """.formatted(name), jwtFor(uniqueUserId(), "ORGANIZER"));
 
         ResponseEntity<JsonNode> response = post("/api/v1/channels",
                 """
                 {"name":"%s","description":"두번째"}
-                """.formatted(name), token);
+                """.formatted(name), jwtFor(uniqueUserId(), "ORGANIZER"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(errorCode(response)).isEqualTo("DUPLICATE_CHANNEL_NAME");
