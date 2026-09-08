@@ -15,4 +15,7 @@ public record PaymentApprovalResult(
         return new PaymentApprovalResult(PaymentApprovalOutcome.UNKNOWN,null,null);
 
     }
+    public static PaymentApprovalResult amountMismatch(){
+        return new PaymentApprovalResult(PaymentApprovalOutcome.AMOUNT_MISMATCH,null,null);
+    }
 }
