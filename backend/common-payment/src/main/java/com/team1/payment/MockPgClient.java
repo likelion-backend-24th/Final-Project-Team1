@@ -10,6 +10,11 @@ import org.springframework.stereotype.Component;
 public class MockPgClient implements PgClient {
 
     @Override
+    public PgCreateResult create(String paymentId, Integer amount) {
+        return new PgCreateResult(true, "0000");
+    }
+
+    @Override
     public PgInquiryResult inquire(String paymentId) {
         return new PgInquiryResult(PgPaymentStatus.PAID, null, "mock-" + paymentId, "0000", null);
     }
