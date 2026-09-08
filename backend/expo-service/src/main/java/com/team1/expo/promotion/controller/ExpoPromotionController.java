@@ -9,7 +9,6 @@ import com.team1.expo.promotion.dto.ApplyPromotionRequest;
 import com.team1.expo.promotion.dto.ApplyPromotionResponse;
 import com.team1.expo.promotion.service.ExpoPromotionService;
 import com.team1.expo.promotion.service.ExpoPromotionWebhookService;
-import com.team1.expo.promotion.service.ExpoPromotionWebhookService.PortOneWebhookPayload;
 import com.team1.security.AuthContext;
 import com.team1.security.AuthenticatedUser;
 import jakarta.validation.Valid;
@@ -43,28 +42,26 @@ public class ExpoPromotionController {
         return ApiResponse.ok(null);
     }
 
+    // 웹훅은 JWT 아님 — PG 서명 검증은 common-payment가 추가 구현하면 위임 예정
     @PostMapping("/webhooks/portone")
     public void portoneWebhook(
             @RequestHeader(value = "webhook-id", required = false) String webhookId,
-            @RequestHeader(value = "webhook-signature", required = false) String signature,
             @RequestBody String rawBodyStr) throws IOException {
 
-        byte[] rawBody = rawBodyStr.getBytes(StandardCharsets.UTF_8);
-        JsonNode node = objectMapper.readTree(rawBody);
+        JsonNode node = objectMapper.readTree(rawBodyStr.getBytes(StandardCharsets.UTF_8));
 
         String resolvedWebhookId = webhookId != null ? webhookId
                 : node.path("webhook_id").asText(null);
-        String pgTransactionId = node.path("pg_transaction_id").asText(
-                node.path("imp_uid").asText(null));
+        String paymentId = node.path("payment_id").asText(
+                node.path("paymentId").asText(null));
         String eventType = node.path("status").asText(
                 node.path("event_type").asText("unknown"));
 
-        if (resolvedWebhookId == null || pgTransactionId == null) {
+        if (resolvedWebhookId == null || paymentId == null) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
 
-        webhookService.handle(rawBody, signature,
-                new PortOneWebhookPayload(resolvedWebhookId, pgTransactionId, eventType));
+        webhookService.handle(resolvedWebhookId, paymentId, eventType);
     }
 
     private AuthenticatedUser requireOrganizer() {

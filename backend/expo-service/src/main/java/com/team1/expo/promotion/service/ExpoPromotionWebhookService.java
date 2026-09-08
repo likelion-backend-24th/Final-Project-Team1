@@ -1,9 +1,9 @@
 package com.team1.expo.promotion.service;
 
-import com.team1.expo.client.PortOneClient;
 import com.team1.expo.common.exception.BusinessException;
 import com.team1.expo.common.exception.ErrorCode;
 import com.team1.expo.domain.promotion.*;
+import com.team1.payment.*;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,58 +21,59 @@ public class ExpoPromotionWebhookService {
     private final ExpoPromotionRepository promotionRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final WebhookEventRepository webhookEventRepository;
-    private final PortOneClient portOneClient;
+    private final PgClient pgClient;
     private final Clock clock;
 
     @Transactional
-    public void handle(byte[] rawBody, String signature, PortOneWebhookPayload payload) {
-        if (!portOneClient.verifyWebhookSignature(rawBody, signature)) {
-            throw new BusinessException(ErrorCode.UNAUTHENTICATED);
-        }
-
+    public void handle(String webhookId, String paymentId, String eventType) {
         // 중복 처리 방지 (멱등)
-        if (webhookEventRepository.existsByWebhookId(payload.webhookId())) {
-            log.info("중복 웹훅 무시 webhookId={}", payload.webhookId());
+        if (webhookEventRepository.existsByWebhookId(webhookId)) {
+            log.info("중복 웹훅 무시 webhookId={}", webhookId);
             return;
         }
-
-        PaymentTransaction tx = paymentTransactionRepository.findByPgTransactionId(payload.pgTransactionId())
-                .orElseGet(() -> {
-                    log.warn("웹훅 수신했으나 payment_transaction 없음 pgTransactionId={}", payload.pgTransactionId());
-                    return null;
-                });
 
         WebhookEvent event = webhookEventRepository.save(
-                WebhookEvent.received(payload.webhookId(),
-                        tx != null ? tx.getId() : null,
-                        payload.eventType(), clock));
+                WebhookEvent.receive(webhookId, paymentId, eventType));
+
+        PaymentTransaction tx = paymentTransactionRepository.findByPaymentId(paymentId)
+                .orElse(null);
 
         if (tx == null) {
-            log.warn("처리 불가 웹훅 건너뜀 webhookId={}", payload.webhookId());
+            log.warn("payment_transaction 없음 paymentId={} webhookId={}", paymentId, webhookId);
+            event.markIgnored();
             return;
         }
 
-        ExpoPromotion promotion = promotionRepository.findById(tx.getRefId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+        try {
+            PgInquiryResult inquiry = pgClient.inquire(paymentId);
+            ExpoPromotion promotion = promotionRepository.findById(tx.getRefId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
 
-        switch (payload.eventType()) {
-            case "paid" -> {
-                tx.markPaid(clock);
-                promotion.confirm(clock);
+            switch (inquiry.status()) {
+                case PAID -> {
+                    tx.markPaid(inquiry.pgTransactionId(), inquiry.responseCode());
+                    promotion.confirm(clock);
+                    event.markProcessed();
+                }
+                case FAILED -> {
+                    tx.markFailed(inquiry.responseCode(), inquiry.failureReason());
+                    promotion.cancel(clock);
+                    event.markProcessed();
+                }
+                case NOT_FOUND -> {
+                    log.warn("PG에서 결제 없음 paymentId={} webhookId={}", paymentId, webhookId);
+                    event.markIgnored();
+                }
             }
-            case "cancelled", "failed" -> {
-                tx.markCancelled(clock);
-                promotion.cancel(clock);
-            }
-            default -> log.warn("미지원 이벤트 타입 eventType={} webhookId={}", payload.eventType(), payload.webhookId());
+        } catch (PgCommunicationException e) {
+            log.warn("PG 조회 실패 paymentId={} webhookId={}", paymentId, webhookId, e);
+            event.markIgnored();
         }
-
-        event.markProcessed(clock);
     }
 
     public record PortOneWebhookPayload(
             String webhookId,
-            String pgTransactionId,
+            String paymentId,
             String eventType
     ) {}
 }

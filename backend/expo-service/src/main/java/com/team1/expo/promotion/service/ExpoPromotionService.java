@@ -1,6 +1,5 @@
 package com.team1.expo.promotion.service;
 
-import com.team1.expo.client.PortOneClient;
 import com.team1.expo.common.exception.BusinessException;
 import com.team1.expo.common.exception.ErrorCode;
 import com.team1.expo.domain.channel.ChannelRepository;
@@ -8,13 +7,17 @@ import com.team1.expo.domain.expo.ExpoRepository;
 import com.team1.expo.domain.promotion.*;
 import com.team1.expo.promotion.dto.ApplyPromotionRequest;
 import com.team1.expo.promotion.dto.ApplyPromotionResponse;
+import com.team1.payment.PaymentTransaction;
+import com.team1.payment.PgCancelResult;
+import com.team1.payment.PgClient;
+import com.team1.payment.PgCommunicationException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -26,11 +29,8 @@ public class ExpoPromotionService {
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final ExpoRepository expoRepository;
     private final ChannelRepository channelRepository;
-    private final PortOneClient portOneClient;
+    private final PgClient pgClient;
     private final Clock clock;
-
-    @Value("${app.base-url:http://localhost:8080}")
-    private String baseUrl;
 
     @Transactional
     public ApplyPromotionResponse apply(Long requesterId, ApplyPromotionRequest request) {
@@ -44,17 +44,15 @@ public class ExpoPromotionService {
         ExpoPromotion promotion = promotionRepository.save(
                 ExpoPromotion.create(request.expoId(), BANNER_PRICE, clock));
 
-        String noticeUrl = baseUrl + "/api/v1/expo-promotions/webhooks/portone";
-        String pgTransactionId = portOneClient.createPaymentOrder(BANNER_PRICE, noticeUrl);
-
+        String paymentId = "BE24-D-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
         paymentTransactionRepository.save(
-                PaymentTransaction.pending(promotion.getId(), BANNER_PRICE, pgTransactionId, clock));
+                PaymentTransaction.create(promotion.getId(), paymentId, BANNER_PRICE));
 
         return new ApplyPromotionResponse(
                 promotion.getId(),
                 promotion.getExpoId(),
                 promotion.getAmount(),
-                pgTransactionId,
+                paymentId,
                 promotion.getStatus().name()
         );
     }
@@ -73,10 +71,18 @@ public class ExpoPromotionService {
         PaymentTransaction tx = paymentTransactionRepository.findByRefId(promotionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
 
-        portOneClient.refund(tx.getPgTransactionId(), tx.getAmount());
-
-        tx.markCancelled(clock);
-        promotion.cancel(clock);
+        try {
+            PgCancelResult result = pgClient.cancel(tx.getPaymentId(), tx.getAmount(), "배너 환불");
+            if (result.success()) {
+                tx.markCancelled();
+                promotion.cancel(clock);
+            } else {
+                tx.markRefundFailed("PG 환불 거절 code=" + result.responseCode());
+            }
+        } catch (PgCommunicationException e) {
+            tx.markRefundFailed("PG 통신 실패: " + e.getMessage());
+            throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        }
     }
 
     private void verifyOwnership(Long expoId, Long requesterId) {
