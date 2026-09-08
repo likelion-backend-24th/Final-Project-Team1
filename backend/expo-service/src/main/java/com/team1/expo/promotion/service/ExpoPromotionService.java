@@ -46,7 +46,7 @@ public class ExpoPromotionService {
 
         String paymentId = "BE24-D-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
         paymentTransactionRepository.save(
-                PaymentTransaction.create(promotion.getId(), paymentId, BANNER_PRICE));
+                PaymentTransaction.create(promotion.getId(), paymentId, BANNER_PRICE, clock.instant()));
 
         return new ApplyPromotionResponse(
                 promotion.getId(),
@@ -74,13 +74,13 @@ public class ExpoPromotionService {
         try {
             PgCancelResult result = pgClient.cancel(tx.getPaymentId(), tx.getAmount(), "배너 환불");
             if (result.success()) {
-                tx.markCancelled();
+                tx.markCancelled(clock.instant());
                 promotion.cancel(clock);
             } else {
-                tx.markRefundFailed("PG 환불 거절 code=" + result.responseCode());
+                tx.markRefundFailed("PG 환불 거절 code=" + result.responseCode(), clock.instant());
             }
         } catch (PgCommunicationException e) {
-            tx.markRefundFailed("PG 통신 실패: " + e.getMessage());
+            tx.markRefundFailed("PG 통신 실패: " + e.getMessage(), clock.instant());
             throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
         }
     }

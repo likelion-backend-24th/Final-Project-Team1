@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -26,21 +27,21 @@ public class ExpoPromotionWebhookService {
 
     @Transactional
     public void handle(String webhookId, String paymentId, String eventType) {
-        // 중복 처리 방지 (멱등)
         if (webhookEventRepository.existsByWebhookId(webhookId)) {
             log.info("중복 웹훅 무시 webhookId={}", webhookId);
             return;
         }
 
+        Instant now = clock.instant();
         WebhookEvent event = webhookEventRepository.save(
-                WebhookEvent.receive(webhookId, paymentId, eventType));
+                WebhookEvent.receive(webhookId, paymentId, eventType, now));
 
         PaymentTransaction tx = paymentTransactionRepository.findByPaymentId(paymentId)
                 .orElse(null);
 
         if (tx == null) {
             log.warn("payment_transaction 없음 paymentId={} webhookId={}", paymentId, webhookId);
-            event.markIgnored();
+            event.markIgnored(now);
             return;
         }
 
@@ -49,31 +50,26 @@ public class ExpoPromotionWebhookService {
             ExpoPromotion promotion = promotionRepository.findById(tx.getRefId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
 
+            now = clock.instant();
             switch (inquiry.status()) {
                 case PAID -> {
-                    tx.markPaid(inquiry.pgTransactionId(), inquiry.responseCode());
+                    tx.markPaid(inquiry.pgTransactionId(), inquiry.responseCode(), now);
                     promotion.confirm(clock);
-                    event.markProcessed();
+                    event.markProcessed(now);
                 }
                 case FAILED -> {
-                    tx.markFailed(inquiry.responseCode(), inquiry.failureReason());
+                    tx.markFailed(inquiry.responseCode(), inquiry.failureReason(), now);
                     promotion.cancel(clock);
-                    event.markProcessed();
+                    event.markProcessed(now);
                 }
                 case NOT_FOUND -> {
                     log.warn("PG에서 결제 없음 paymentId={} webhookId={}", paymentId, webhookId);
-                    event.markIgnored();
+                    event.markIgnored(now);
                 }
             }
         } catch (PgCommunicationException e) {
             log.warn("PG 조회 실패 paymentId={} webhookId={}", paymentId, webhookId, e);
-            event.markIgnored();
+            event.markIgnored(clock.instant());
         }
     }
-
-    public record PortOneWebhookPayload(
-            String webhookId,
-            String paymentId,
-            String eventType
-    ) {}
 }
