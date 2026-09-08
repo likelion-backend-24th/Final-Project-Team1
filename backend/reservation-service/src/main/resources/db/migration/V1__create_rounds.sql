@@ -1,3 +1,5 @@
+-- Reservation-Service 소유 스키마: reservation
+-- 회차(Round). 정원(capacity)은 Sprint 2 에서 예약 상태 변경과 같은 Transaction 안에서 증감한다.
 
 CREATE TABLE rounds
 (

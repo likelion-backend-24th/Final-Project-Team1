@@ -4,16 +4,13 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.Instant;
 
 @Entity
 @Table(name = "webhook_events")
 @Getter
 @NoArgsConstructor
 public class WebhookEvent {
-
-    private static final ZoneId ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,10 +30,10 @@ public class WebhookEvent {
     private WebhookEventStatus status;
 
     @Column(name = "received_at", nullable = false)
-    private LocalDateTime receivedAt;
+    private Instant receivedAt;
 
     @Column(name = "processed_at")
-    private LocalDateTime processedAt;
+    private Instant processedAt;
 
     public static  WebhookEvent receive(String webhookId, String paymentId, String eventType){
         WebhookEvent webhookEvent = new WebhookEvent();
@@ -44,19 +41,19 @@ public class WebhookEvent {
         webhookEvent.paymentId = paymentId;
         webhookEvent.eventType = eventType;
         webhookEvent.status = WebhookEventStatus.RECEIVED;
-        webhookEvent.receivedAt = LocalDateTime.now(ZONE);
+        webhookEvent.receivedAt = Instant.now();
 
         return  webhookEvent;
     }
 
     public void markProcessed(){
         this.status = WebhookEventStatus.PROCESSED;
-        this.processedAt = LocalDateTime.now(ZONE);
+        this.processedAt = Instant.now();
     }
 
     public void markIgnored(){
         this.status = WebhookEventStatus.IGNORED;
-        this.processedAt = LocalDateTime.now(ZONE);
+        this.processedAt = Instant.now();
     }
 
 

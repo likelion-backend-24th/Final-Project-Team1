@@ -6,16 +6,13 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.Instant;
 
 @Entity
 @Table(name = "payment_transactions")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PaymentTransaction {
-
-    private static final ZoneId ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,16 +41,16 @@ public class PaymentTransaction {
     private String failureReason;
 
     @Column(name = "paid_at")
-    private LocalDateTime paidAt;
+    private Instant paidAt;
 
     @Column(name = "cancelled_at")
-    private LocalDateTime cancelledAt;
+    private Instant cancelledAt;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     public static PaymentTransaction create(Long refId, String paymentId, Integer amount) {
         PaymentTransaction p = new PaymentTransaction();
@@ -61,7 +58,7 @@ public class PaymentTransaction {
         p.paymentId = paymentId;
         p.amount = amount;
         p.status = PaymentStatus.PENDING;
-        LocalDateTime now = LocalDateTime.now(ZONE);
+        Instant now = Instant.now();
         p.createdAt = now;
         p.updatedAt = now;
         return p;
@@ -71,7 +68,7 @@ public class PaymentTransaction {
         this.pgTransactionId = pgTransactionId;
         this.pgResponseCode = pgResponseCode;
         this.status = PaymentStatus.PAID;
-        this.paidAt = LocalDateTime.now(ZONE);
+        this.paidAt = Instant.now();
         this.updatedAt = this.paidAt;
     }
 
@@ -79,18 +76,18 @@ public class PaymentTransaction {
         this.pgResponseCode = pgResponseCode;
         this.failureReason = failureReason;
         this.status = PaymentStatus.FAILED;
-        this.updatedAt = LocalDateTime.now(ZONE);
+        this.updatedAt = Instant.now();
     }
 
     public void markCancelled() {
         this.status = PaymentStatus.CANCELLED;
-        this.cancelledAt = LocalDateTime.now(ZONE);
+        this.cancelledAt = Instant.now();
         this.updatedAt = this.cancelledAt;
     }
 
     public void markRefundFailed(String failureReason) {
         this.failureReason = failureReason;
         this.status = PaymentStatus.REFUND_FAILED;
-        this.updatedAt = LocalDateTime.now(ZONE);
+        this.updatedAt = Instant.now();
     }
 }
