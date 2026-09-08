@@ -11,5 +11,5 @@ public interface ExpoPromotionRepository extends JpaRepository<ExpoPromotion, Lo
 
     Optional<ExpoPromotion> findByExpoIdAndStatus(Long expoId, ExpoPromotionStatus status);
 
-    boolean existsByExpoIdAndStatus(Long expoId, ExpoPromotionStatus status);
+    boolean existsByExpoIdAndStatusIn(Long expoId, java.util.Collection<ExpoPromotionStatus> statuses);
 }

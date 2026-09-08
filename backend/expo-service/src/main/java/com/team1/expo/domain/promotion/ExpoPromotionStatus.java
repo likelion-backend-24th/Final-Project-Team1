@@ -1,5 +1,5 @@
 package com.team1.expo.domain.promotion;
 
 public enum ExpoPromotionStatus {
-    ACTIVE, CANCELLED
+    PENDING, ACTIVE, CANCELLED
 }

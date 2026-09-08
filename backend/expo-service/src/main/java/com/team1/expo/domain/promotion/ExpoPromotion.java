@@ -38,11 +38,15 @@ public class ExpoPromotion {
     public static ExpoPromotion create(Long expoId, int amount, Clock clock) {
         ExpoPromotion p = new ExpoPromotion();
         p.expoId = expoId;
-        p.status = ExpoPromotionStatus.ACTIVE;
+        p.status = ExpoPromotionStatus.PENDING;
         p.amount = amount;
-        p.paidAt = LocalDateTime.now(clock);
         p.createdAt = LocalDateTime.now(clock);
         return p;
+    }
+
+    public void confirm(Clock clock) {
+        this.status = ExpoPromotionStatus.ACTIVE;
+        this.paidAt = LocalDateTime.now(clock);
     }
 
     public void cancel(Clock clock) {
