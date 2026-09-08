@@ -27,6 +27,14 @@ public abstract class ApiTestSupport extends IntegrationTestSupport {
         return restTemplate.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class);
     }
 
+    protected ResponseEntity<byte[]> getBytes(String path, String bearerToken) {
+        HttpHeaders headers = new HttpHeaders();
+        if (bearerToken != null) {
+            headers.setBearerAuth(bearerToken);
+        }
+        return restTemplate.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), byte[].class);
+    }
+
     protected String errorCode(ResponseEntity<JsonNode> response) {
         return response.getBody().path("data").path("code").asText();
     }
