@@ -1,8 +1,10 @@
 package com.team1.expo.support;
 
+import com.team1.expo.client.ReservationClient;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MySQLContainer;
@@ -16,6 +18,9 @@ import java.util.concurrent.atomic.AtomicLong;
         properties = "spring.profiles.active=test"
 )
 public abstract class IntegrationTestSupport {
+
+    @MockBean
+    protected ReservationClient reservationClient;
 
     protected static final String TEST_JWT_SECRET =
             "test-secret-0123456789abcdef0123456789abcdef0123456789abcdef";

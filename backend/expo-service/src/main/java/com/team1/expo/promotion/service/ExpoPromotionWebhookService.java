@@ -4,7 +4,7 @@ import com.team1.expo.common.exception.BusinessException;
 import com.team1.expo.common.exception.ErrorCode;
 import com.team1.expo.domain.promotion.ExpoPromotion;
 import com.team1.expo.domain.promotion.ExpoPromotionRepository;
-import com.team1.expo.domain.promotion.PaymentTransactionRepository;
+import com.team1.expo.domain.promotion.ExpoPaymentTransactionRepository;
 import com.team1.expo.domain.promotion.WebhookEventRepository;
 import com.team1.payment.PgCommunicationException;
 import com.team1.payment.PgClient;
@@ -27,7 +27,7 @@ public class ExpoPromotionWebhookService {
     private static final Logger log = LoggerFactory.getLogger(ExpoPromotionWebhookService.class);
 
     private final ExpoPromotionRepository promotionRepository;
-    private final PaymentTransactionRepository paymentTransactionRepository;
+    private final ExpoPaymentTransactionRepository paymentTransactionRepository;
     private final WebhookEventRepository webhookEventRepository;
     private final PgClient pgClient;
     private final Clock clock;

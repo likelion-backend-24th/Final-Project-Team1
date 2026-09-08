@@ -3,7 +3,7 @@ package com.team1.expo.promotion;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.team1.expo.domain.promotion.ExpoPromotion;
 import com.team1.expo.domain.promotion.ExpoPromotionRepository;
-import com.team1.expo.domain.promotion.PaymentTransactionRepository;
+import com.team1.expo.domain.promotion.ExpoPaymentTransactionRepository;
 import com.team1.expo.support.ApiTestSupport;
 import com.team1.payment.PaymentTransaction;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,7 +23,7 @@ class ActivePromotionApiTest extends ApiTestSupport {
     @Autowired
     private ExpoPromotionRepository promotionRepository;
     @Autowired
-    private PaymentTransactionRepository paymentTransactionRepository;
+    private ExpoPaymentTransactionRepository paymentTransactionRepository;
 
     private long expoId1;
     private long expoId2;
