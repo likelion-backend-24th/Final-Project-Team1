@@ -17,17 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.util.Objects;
 
-/**
- * 결제 결과를 받아 예약 상태를 전이시킨다.
- *
- * <p>경계가 분명하다. <b>결제 자체의 상태는 이 Service 가 관리하지 않는다</b> —
- * PortOne 호출, 금액 검증, {@code payment_transactions} 의 상태 전이, 이중결제 방지는 전부
- * {@link PaymentService}(파트 B)의 몫이다. 여기서는 모듈이 돌려준 네 가지 결과를 받아
- * {@link Reservation} 만 전이시킨다.
- *
- * <p>웹훅 수신 엔드포인트도 {@link #applyPaymentResult} 를 그대로 재사용한다. 확정 경로가
- * 둘로 갈라지면 한쪽만 고치는 사고가 반드시 난다.
- */
+
+//결제 결과를 받아 예약 상태를 전이시킨다.
+
 @Service
 public class ReservationPaymentService {
 
@@ -38,15 +30,18 @@ public class ReservationPaymentService {
     private final ReservationRepository reservations;
     private final RoundRepository rounds;
     private final PaymentService paymentService;
+    private final TicketIssueNotifier ticketIssueNotifier;
     private final Clock clock;
 
     public ReservationPaymentService(ReservationRepository reservations,
                                      RoundRepository rounds,
                                      PaymentService paymentService,
+                                     TicketIssueNotifier ticketIssueNotifier,
                                      Clock clock) {
         this.reservations = reservations;
         this.rounds = rounds;
         this.paymentService = paymentService;
+        this.ticketIssueNotifier = ticketIssueNotifier;
         this.clock = clock;
     }
 
@@ -91,8 +86,8 @@ public class ReservationPaymentService {
         return switch (result.outcome()) {
             case SUCCESS -> {
                 reservation.confirm(clock.instant());
-                // 티켓 발급 통지(#79)가 여기에 붙는다. 실패해도 확정을 되돌리지 않는 fail-open 이라
-                // 이 Transaction 밖에서 트리거해야 한다.
+                // 실제 전이가 일어난 경로에서만 통지한다. 멱등 재호출은 위에서 이미 빠져나갔다.
+                ticketIssueNotifier.notifyIssued(reservation);
                 yield reservation;
             }
 
