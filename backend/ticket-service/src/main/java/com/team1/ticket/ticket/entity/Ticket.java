@@ -23,7 +23,8 @@ public class Ticket {
     private Long id;
 
     // 다른 Service DB 값에 대한 논리 참조(FK 아님). reservation=reservation.reservations.id 등.
-    @Column(name = "reservation_id", nullable = false)
+    // 예약당 티켓 1건(API 계약 v3 #17). 유일 제약이 멱등의 근거다.
+    @Column(name = "reservation_id", nullable = false, unique = true)
     private Long reservationId;
 
     @Column(name = "expo_id", nullable = false)
@@ -35,6 +36,10 @@ public class Ticket {
     // 티켓 소유 회원(identity.users.id 논리 참조). "내 티켓 조회"에 사용.
     @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    // 이 티켓 1건이 대응하는 예약 인원 수 = 입장 인원. 예약당 1건이므로 코드는 1개지만 N명분이다.
+    @Column(name = "headcount", nullable = false)
+    private int headcount;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -54,23 +59,27 @@ public class Ticket {
     }
 
     private Ticket(Long reservationId, Long expoId, Long roundId, Long userId,
-                   String checkinToken, Instant issuedAt) {
+                   int headcount, String checkinToken, Instant issuedAt) {
         this.reservationId = reservationId;
         this.expoId = expoId;
         this.roundId = roundId;
         this.userId = userId;
+        this.headcount = headcount;
         this.status = TicketStatus.ISSUED;
         this.checkinToken = checkinToken;
         this.issuedAt = issuedAt;
     }
 
     public static Ticket issue(Long reservationId, Long expoId, Long roundId, Long userId,
-                               String checkinToken, Instant now) {
+                               int headcount, String checkinToken, Instant now) {
         if (reservationId == null || expoId == null || roundId == null || userId == null) {
             throw new ApiException(ErrorCode.INVALID_REQUEST,
                     "reservationId, expoId, roundId, userId are required");
         }
-        return new Ticket(reservationId, expoId, roundId, userId, checkinToken, now);
+        if (headcount < 1) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "headcount must be at least 1");
+        }
+        return new Ticket(reservationId, expoId, roundId, userId, headcount, checkinToken, now);
     }
 
     // 예약 취소에 따른 무효화. 이미 사용(USED)된 티켓은 취소하지 않는다.
@@ -99,6 +108,10 @@ public class Ticket {
 
     public Long getUserId() {
         return userId;
+    }
+
+    public int getHeadcount() {
+        return headcount;
     }
 
     public TicketStatus getStatus() {
