@@ -116,6 +116,9 @@ public class ReservationPaymentService {
                         reservation.getId(), TraceId.get());
                 throw new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "payment result unknown");
             }
+
+            case ALREADY_PROCESSED, IGNORED -> throw new IllegalStateException(
+                    "confirm() 은 웹훅 전용 결과를 반환하지 않는다: " + result.outcome());
         };
     }
 
