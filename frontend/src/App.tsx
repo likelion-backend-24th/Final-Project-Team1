@@ -1,6 +1,6 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
-import { ToastProvider } from './components/Toast'
+import { AuthProvider } from './context/AuthProvider'
+import { ToastProvider } from './components/ToastProvider'
 import GNB from './components/GNB'
 import HomePage from './pages/HomePage'
 import AuthPage from './pages/AuthPage'
