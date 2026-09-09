@@ -72,23 +72,21 @@ public class ReservationPaymentService {
         return applyPaymentResult(reservation);
     }
 
-    /**
-     * 확정 로직 본체. 웹훅 엔드포인트가 서명검증을 거친 뒤 같은 메서드를 부른다.
-     */
+    /** 모듈에 결제를 조회해 그 결과를 예약에 반영한다. */
     @Transactional
     public Reservation applyPaymentResult(Reservation reservation) {
-        switch (reservation.getStatus()) {
-            case CONFIRMED -> {
-                return reservation;
-            }
-            case CANCELLED, EXPIRED -> throw new ApiException(ErrorCode.INVALID_STATE_TRANSITION,
-                    "reservation is already " + reservation.getStatus());
-            case PENDING -> {
-                // 아래에서 계속 처리한다
-            }
+        if (alreadyDecided(reservation)) {
+            return reservation;
         }
+        return applyOutcome(reservation, paymentService.confirm(reservation.getId()));
+    }
 
-        PaymentApprovalResult result = paymentService.confirm(reservation.getId());
+    /** 웹훅이 이미 받아 둔 결과를 반영한다. PG 를 다시 조회하지 않는다. */
+    @Transactional
+    public Reservation applyOutcome(Reservation reservation, PaymentApprovalResult result) {
+        if (alreadyDecided(reservation)) {
+            return reservation;
+        }
 
         return switch (result.outcome()) {
             case SUCCESS -> {
@@ -119,6 +117,16 @@ public class ReservationPaymentService {
 
             case ALREADY_PROCESSED, IGNORED -> throw new IllegalStateException(
                     "confirm() 은 웹훅 전용 결과를 반환하지 않는다: " + result.outcome());
+        };
+    }
+
+    /** CONFIRMED 면 true(멱등), CANCELLED·EXPIRED 면 409, PENDING 이면 false. */
+    private boolean alreadyDecided(Reservation reservation) {
+        return switch (reservation.getStatus()) {
+            case CONFIRMED -> true;
+            case CANCELLED, EXPIRED -> throw new ApiException(ErrorCode.INVALID_STATE_TRANSITION,
+                    "reservation is already " + reservation.getStatus());
+            case PENDING -> false;
         };
     }
 
