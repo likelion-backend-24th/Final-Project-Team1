@@ -1,0 +1,14 @@
+# 로컬 실행용 시크릿 템플릿.
+# 이 파일을 같은 디렉터리에 application-local.yml 로 복사한 뒤 실제 값으로 채운다.
+# application-local.yml 은 .gitignore 대상(커밋 금지)이며, 이 .example 만 커밋한다.
+#
+# DB(ticket 스키마)는 application.yml 의 createDatabaseIfNotExist=true 로 자동 생성되므로
+# 별도로 CREATE DATABASE 를 실행할 필요는 없다. 아래 비밀번호만 채우면 기동된다.
+spring:
+  datasource:
+    password: <로컬 MySQL root 비밀번호>
+
+# jwt.secret 은 application.yml 에 개발용 기본값이 있어 로컬 기동에는 필수가 아니다.
+# 필요 시 아래를 주석 해제해 덮어쓴다.
+# jwt:
+#   secret: <64자 이상 hex 시크릿>
