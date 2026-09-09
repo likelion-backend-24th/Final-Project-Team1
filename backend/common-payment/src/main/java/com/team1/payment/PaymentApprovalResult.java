@@ -11,8 +11,8 @@ public record PaymentApprovalResult(
     public static PaymentApprovalResult failedConfirmed(String failureReason){
         return new PaymentApprovalResult(PaymentApprovalOutcome.FAILED_CONFIRMED,null,failureReason);
     }
-    public static PaymentApprovalResult unknown(){
-        return new PaymentApprovalResult(PaymentApprovalOutcome.UNKNOWN,null,null);
+    public static PaymentApprovalResult unknown(String reason){
+        return new PaymentApprovalResult(PaymentApprovalOutcome.UNKNOWN,null,reason);
 
     }
     public static PaymentApprovalResult amountMismatch(){
