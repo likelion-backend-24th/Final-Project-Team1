@@ -68,7 +68,8 @@ public class PortOneClient implements PgClient {
                 String reason = response.failure() != null ? response.failure().reason() : null;
                 String pgCode = response.failure() != null ? response.failure().pgCode() : null;
                 yield new PgInquiryResult(PgPaymentStatus.FAILED, amount, response.pgTxId(), pgCode, reason,response.storeId(), channelKey);
-            }
+            }case "CANCELLED" -> new PgInquiryResult(PgPaymentStatus.CANCELLED,amount,response.pgTxId(),null,null,
+                    response.storeId(),channelKey);
             default -> new PgInquiryResult(PgPaymentStatus.NOT_FOUND, amount, response.pgTxId(), null, null,response.storeId(), channelKey);
         };
     }

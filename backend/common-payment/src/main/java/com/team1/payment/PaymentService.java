@@ -85,11 +85,35 @@ public class PaymentService {
                     yield PaymentApprovalResult.failedConfirmed(result.failureReason());
                 }
 
+                case CANCELLED -> {
+                    paymentTransaction.markCancelled(clock.instant());
+                    yield PaymentApprovalResult.failedConfirmed("결제 취소됨");
+                }
+
                 case NOT_FOUND -> PaymentApprovalResult.unknown("PG 거래없음");
             };
 
         } catch (PgCommunicationException e) {
             return PaymentApprovalResult.unknown("PG 무응답");
-            }
         }
     }
+
+    public void cancel(Long refId, String reason) {
+        PaymentTransaction paymentTransaction = repository.findByRefId(refId).orElseThrow();
+
+        try {
+            PgCancelResult result = pgClient.cancel(paymentTransaction.getPaymentId(), paymentTransaction.getAmount(), reason);
+
+            if (result.success()) {
+                paymentTransaction.markCancelled(clock.instant());
+
+            } else {
+                paymentTransaction.markRefundFailed(result.responseCode(), clock.instant());
+            }
+        } catch (PgCommunicationException e) {
+            paymentTransaction.markRefundFailed(e.getMessage(), clock.instant());
+        }
+    }
+}
+
+
