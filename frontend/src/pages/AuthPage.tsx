@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi, decodeJwt } from '../api/auth'
 import { useAuth } from '../context/AuthContext'
@@ -15,7 +15,11 @@ export default function AuthPage() {
   const navigate = useNavigate()
   const toast = useToast()
 
-  useEffect(() => { setError('') }, [tab])
+  // 탭을 바꿀 때 이전 오류 메시지를 지운다
+  function changeTab(next: 'login' | 'signup') {
+    setTab(next)
+    setError('')
+  }
 
   const [loginForm, setLoginForm] = useState({ email: '', password: '' })
   const [signupForm, setSignupForm] = useState({ name: '', email: '', password: '', confirm: '' })
@@ -57,7 +61,7 @@ export default function AuthPage() {
     try {
       await authApi.signup({ name: signupForm.name, email: signupForm.email, password: signupForm.password })
       toast('가입 완료! 로그인해주세요 🎉', 'success')
-      setTab('login')
+      changeTab('login')
       setLoginForm({ email: signupForm.email, password: '' })
     } catch (err: unknown) {
       const e = err as { status?: number }
@@ -83,8 +87,8 @@ export default function AuthPage() {
 
         {/* Tabs */}
         <div className="auth-tabs">
-          <div className={`auth-tab ${tab === 'login' ? 'active' : ''}`} onClick={() => setTab('login')}>로그인</div>
-          <div className={`auth-tab ${tab === 'signup' ? 'active' : ''}`} onClick={() => setTab('signup')}>회원가입</div>
+          <div className={`auth-tab ${tab === 'login' ? 'active' : ''}`} onClick={() => changeTab('login')}>로그인</div>
+          <div className={`auth-tab ${tab === 'signup' ? 'active' : ''}`} onClick={() => changeTab('signup')}>회원가입</div>
         </div>
 
         {error && (
@@ -128,7 +132,7 @@ export default function AuthPage() {
             <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--sub)' }}>
               계정이 없으신가요?{' '}
               <span
-                onClick={() => setTab('signup')}
+                onClick={() => changeTab('signup')}
                 style={{ color: 'var(--primary)', fontWeight: 700, cursor: 'pointer' }}
               >
                 회원가입
@@ -193,7 +197,7 @@ export default function AuthPage() {
             <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--sub)' }}>
               이미 계정이 있으신가요?{' '}
               <span
-                onClick={() => setTab('login')}
+                onClick={() => changeTab('login')}
                 style={{ color: 'var(--primary)', fontWeight: 700, cursor: 'pointer' }}
               >
                 로그인

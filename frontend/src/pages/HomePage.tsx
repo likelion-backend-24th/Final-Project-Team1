@@ -31,15 +31,16 @@ export default function HomePage() {
   const [category, setCategory] = useState('전체')
 
   useEffect(() => {
-    setLoading(true)
-    setError(false)
+    // 카테고리를 빠르게 바꾸면 이전 요청이 늦게 도착해 최신 결과를 덮을 수 있다
+    let cancelled = false
     // 백엔드는 region · category · page · size 만 받는다. keyword 검색은 Sprint 2.
     expoApi.listPublished({
       category: category === '전체' ? undefined : category,
     })
-      .then(res => setExpos(res.data ?? []))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false))
+      .then(res => { if (!cancelled) { setExpos(res.data ?? []); setError(false) } })
+      .catch(() => { if (!cancelled) setError(true) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [category])
 
   const catIcon = (label: string) => CATS.find(c => c.label === label)?.icon ?? '🏷️'

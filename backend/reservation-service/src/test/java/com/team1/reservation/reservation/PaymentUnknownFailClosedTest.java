@@ -44,7 +44,7 @@ class PaymentUnknownFailClosedTest extends PaymentTestFixture {
     @DisplayName("모름이면 503 이고 예약 상태와 정원이 모두 그대로다")
     void unknownChangesNothing() {
         Reservation reservation = given(pending());
-        when(paymentService.confirm(any())).thenReturn(PaymentApprovalResult.unknown());
+        when(paymentService.confirm(any())).thenReturn(PaymentApprovalResult.unknown("PG 무응답"));
 
         assertThatThrownBy(() -> service.confirm(RESERVATION_ID, MEMBER))
                 .isInstanceOfSatisfying(ApiException.class,
@@ -58,7 +58,7 @@ class PaymentUnknownFailClosedTest extends PaymentTestFixture {
     void retryAfterUnknownSucceeds() {
         Reservation reservation = given(pending());
         when(paymentService.confirm(any()))
-                .thenReturn(PaymentApprovalResult.unknown())
+                .thenReturn(PaymentApprovalResult.unknown("PG 거래없음"))
                 .thenReturn(PaymentApprovalResult.success(AMOUNT));
 
         assertThatThrownBy(() -> service.confirm(RESERVATION_ID, MEMBER))
