@@ -33,10 +33,15 @@ public class WebhookService {
     }
 
     public WebhookProcessResult process(String body, String webhookId,
-                                        String webhookSignature, String webhookTimestamp)
-            throws WebhookVerificationException {
+                                        String webhookSignature, String webhookTimestamp) {
 
-        Webhook webhook = webhookVerifier.verify(body, webhookId, webhookSignature, webhookTimestamp);
+        Webhook webhook;
+        try {
+            webhook = webhookVerifier.verify(body, webhookId, webhookSignature, webhookTimestamp);
+        } catch (WebhookVerificationException e) {
+            // SDK 예외를 모듈 예외로 감싼다. 소비 Service 가 PortOne SDK 를 의존하지 않게 하기 위해서다.
+            throw new WebhookVerificationFailedException("webhook signature verification failed", e);
+        }
 
         if (!(webhook instanceof WebhookTransaction transaction)) {
             return new WebhookProcessResult(null, PaymentApprovalResult.ignored("결제 관련 웹훅 아님"));

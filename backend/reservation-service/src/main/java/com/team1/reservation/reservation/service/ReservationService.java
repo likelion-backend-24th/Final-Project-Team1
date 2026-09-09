@@ -42,6 +42,7 @@ public class ReservationService {
     private final RoundRepository rounds;
     private final ExpoClient expoClient;
     private final PaymentService paymentService;
+    private final TicketIssueNotifier ticketIssueNotifier;
     private final ReservationNoGenerator reservationNos;
     private final Clock clock;
 
@@ -49,12 +50,14 @@ public class ReservationService {
                               RoundRepository rounds,
                               ExpoClient expoClient,
                               PaymentService paymentService,
+                              TicketIssueNotifier ticketIssueNotifier,
                               ReservationNoGenerator reservationNos,
                               Clock clock) {
         this.reservations = reservations;
         this.rounds = rounds;
         this.expoClient = expoClient;
         this.paymentService = paymentService;
+        this.ticketIssueNotifier = ticketIssueNotifier;
         this.reservationNos = reservationNos;
         this.clock = clock;
     }
@@ -106,6 +109,8 @@ public class ReservationService {
             // 무료 회차는 결제할 것이 없다. PENDING 으로 두면 결제도 못 하는 예약이 10분 뒤
             // 만료되면서 자리만 잃는다. 결제 단계를 건너뛰고 바로 확정한다.
             saved.confirm(now);
+            // 무료도 확정은 확정이다. 결제 경로만 통지하면 무료 예약은 티켓이 영영 안 나온다.
+            ticketIssueNotifier.notifyIssued(saved);
             return new ReservationCreation(saved, null);
         }
 

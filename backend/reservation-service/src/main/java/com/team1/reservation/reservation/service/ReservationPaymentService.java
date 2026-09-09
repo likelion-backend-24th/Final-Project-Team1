@@ -17,17 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.util.Objects;
 
-/**
- * 결제 결과를 받아 예약 상태를 전이시킨다.
- *
- * <p>경계가 분명하다. <b>결제 자체의 상태는 이 Service 가 관리하지 않는다</b> —
- * PortOne 호출, 금액 검증, {@code payment_transactions} 의 상태 전이, 이중결제 방지는 전부
- * {@link PaymentService}(파트 B)의 몫이다. 여기서는 모듈이 돌려준 네 가지 결과를 받아
- * {@link Reservation} 만 전이시킨다.
- *
- * <p>웹훅 수신 엔드포인트도 {@link #applyPaymentResult} 를 그대로 재사용한다. 확정 경로가
- * 둘로 갈라지면 한쪽만 고치는 사고가 반드시 난다.
- */
+
+//결제 결과를 받아 예약 상태를 전이시킨다.
+
 @Service
 public class ReservationPaymentService {
 
@@ -38,15 +30,18 @@ public class ReservationPaymentService {
     private final ReservationRepository reservations;
     private final RoundRepository rounds;
     private final PaymentService paymentService;
+    private final TicketIssueNotifier ticketIssueNotifier;
     private final Clock clock;
 
     public ReservationPaymentService(ReservationRepository reservations,
                                      RoundRepository rounds,
                                      PaymentService paymentService,
+                                     TicketIssueNotifier ticketIssueNotifier,
                                      Clock clock) {
         this.reservations = reservations;
         this.rounds = rounds;
         this.paymentService = paymentService;
+        this.ticketIssueNotifier = ticketIssueNotifier;
         this.clock = clock;
     }
 
@@ -72,29 +67,27 @@ public class ReservationPaymentService {
         return applyPaymentResult(reservation);
     }
 
-    /**
-     * 확정 로직 본체. 웹훅 엔드포인트가 서명검증을 거친 뒤 같은 메서드를 부른다.
-     */
+    /** 모듈에 결제를 조회해 그 결과를 예약에 반영한다. */
     @Transactional
     public Reservation applyPaymentResult(Reservation reservation) {
-        switch (reservation.getStatus()) {
-            case CONFIRMED -> {
-                return reservation;
-            }
-            case CANCELLED, EXPIRED -> throw new ApiException(ErrorCode.INVALID_STATE_TRANSITION,
-                    "reservation is already " + reservation.getStatus());
-            case PENDING -> {
-                // 아래에서 계속 처리한다
-            }
+        if (alreadyDecided(reservation)) {
+            return reservation;
         }
+        return applyOutcome(reservation, paymentService.confirm(reservation.getId()));
+    }
 
-        PaymentApprovalResult result = paymentService.confirm(reservation.getId());
+    /** 웹훅이 이미 받아 둔 결과를 반영한다. PG 를 다시 조회하지 않는다. */
+    @Transactional
+    public Reservation applyOutcome(Reservation reservation, PaymentApprovalResult result) {
+        if (alreadyDecided(reservation)) {
+            return reservation;
+        }
 
         return switch (result.outcome()) {
             case SUCCESS -> {
                 reservation.confirm(clock.instant());
-                // 티켓 발급 통지(#79)가 여기에 붙는다. 실패해도 확정을 되돌리지 않는 fail-open 이라
-                // 이 Transaction 밖에서 트리거해야 한다.
+                // 실제 전이가 일어난 경로에서만 통지한다. 멱등 재호출은 위에서 이미 빠져나갔다.
+                ticketIssueNotifier.notifyIssued(reservation);
                 yield reservation;
             }
 
@@ -119,6 +112,16 @@ public class ReservationPaymentService {
 
             case ALREADY_PROCESSED, IGNORED -> throw new IllegalStateException(
                     "confirm() 은 웹훅 전용 결과를 반환하지 않는다: " + result.outcome());
+        };
+    }
+
+    /** CONFIRMED 면 true(멱등), CANCELLED·EXPIRED 면 409, PENDING 이면 false. */
+    private boolean alreadyDecided(Reservation reservation) {
+        return switch (reservation.getStatus()) {
+            case CONFIRMED -> true;
+            case CANCELLED, EXPIRED -> throw new ApiException(ErrorCode.INVALID_STATE_TRANSITION,
+                    "reservation is already " + reservation.getStatus());
+            case PENDING -> false;
         };
     }
 

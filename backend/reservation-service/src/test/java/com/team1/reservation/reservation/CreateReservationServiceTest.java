@@ -5,6 +5,9 @@ import com.team1.payment.PaymentTransaction;
 import com.team1.payment.PgCommunicationException;
 import com.team1.reservation.client.ExpoClient;
 import com.team1.reservation.client.ExpoSummary;
+import com.team1.reservation.client.IssueTicketCommand;
+import com.team1.reservation.client.TicketClient;
+import com.team1.reservation.config.AfterCommitExecutor;
 import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.reservation.dto.CreateReservationRequest;
@@ -14,6 +17,7 @@ import com.team1.reservation.reservation.repository.ReservationRepository;
 import com.team1.reservation.reservation.service.ReservationCreation;
 import com.team1.reservation.reservation.service.ReservationNoGenerator;
 import com.team1.reservation.reservation.service.ReservationService;
+import com.team1.reservation.reservation.service.TicketIssueNotifier;
 import com.team1.reservation.round.entity.Round;
 import com.team1.reservation.round.repository.RoundRepository;
 import com.team1.security.AuthenticatedUser;
@@ -55,6 +59,8 @@ class CreateReservationServiceTest {
     private RoundRepository rounds;
     private ExpoClient expoClient;
     private PaymentService paymentService;
+    protected TicketClient ticketClient;
+    private TicketIssueNotifier notifier;
     private ReservationService service;
 
     @BeforeEach
@@ -63,10 +69,12 @@ class CreateReservationServiceTest {
         rounds = mock(RoundRepository.class);
         expoClient = mock(ExpoClient.class);
         paymentService = mock(PaymentService.class);
+        ticketClient = mock(TicketClient.class);
+        notifier = new TicketIssueNotifier(ticketClient, new AfterCommitExecutor());
         ReservationNoGenerator generator = () -> "R-4K7Q-W2M8";
 
-        service = new ReservationService(reservations, rounds, expoClient, paymentService, generator,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new ReservationService(reservations, rounds, expoClient, paymentService, notifier,
+                generator, Clock.fixed(NOW, ZoneOffset.UTC));
 
         givenRound(10000);
         when(expoClient.getExpo(anyLong())).thenReturn(new ExpoSummary(EXPO_ID, 99L, "PUBLISHED"));
@@ -133,6 +141,27 @@ class CreateReservationServiceTest {
         assertThat(created.reservation().getConfirmedAt()).isEqualTo(NOW);
         assertThat(created.paymentId()).isNull();
         verifyNoInteractions(paymentService);
+    }
+
+    @Test
+    @DisplayName("무료 회차도 티켓 발급을 통지한다 - 무료라서 결제 경로를 안 타도 확정은 확정이다")
+    void freeReservationNotifiesTicketIssue() {
+        givenRound(0);
+
+        service.create(ROUND_ID, MEMBER, request(4));
+
+        ArgumentCaptor<IssueTicketCommand> captor = ArgumentCaptor.forClass(IssueTicketCommand.class);
+        verify(ticketClient).issueTicket(captor.capture());
+        assertThat(captor.getValue().headcount()).isEqualTo(4);
+        assertThat(captor.getValue().expoId()).isEqualTo(EXPO_ID);
+    }
+
+    @Test
+    @DisplayName("유료 회차는 생성 시점에 통지하지 않는다 - 아직 PENDING 이라 확정된 것이 없다")
+    void paidReservationDoesNotNotifyOnCreate() {
+        service.create(ROUND_ID, MEMBER, request(2));
+
+        verifyNoInteractions(ticketClient);
     }
 
     @Test
@@ -211,7 +240,7 @@ class CreateReservationServiceTest {
     @DisplayName("이미 종료된 회차는 404 - 존재 여부를 흘리지 않는다")
     void rejectsFinishedRound() {
         ReservationService late = new ReservationService(reservations, rounds, expoClient, paymentService,
-                () -> "R-4K7Q-W2M8", Clock.fixed(ENDS.plusSeconds(1), ZoneOffset.UTC));
+                notifier, () -> "R-4K7Q-W2M8", Clock.fixed(ENDS.plusSeconds(1), ZoneOffset.UTC));
 
         assertThatThrownBy(() -> late.create(ROUND_ID, MEMBER, request(1)))
                 .isInstanceOfSatisfying(ApiException.class,

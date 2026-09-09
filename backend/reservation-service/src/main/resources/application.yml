@@ -32,6 +32,19 @@ expo-service:
   connect-timeout: 2s
   read-timeout: 3s
 
+reservation:
+  expiry:
+    enabled: ${RESERVATION_EXPIRY_ENABLED:true}
+    interval: 60s
+    # 결제창은 expires_at 에 닫힌다. 이 유예는 늦게 도착하는 웹훅을 기다리는 시간이다.
+    grace: 2m
+    batch-size: 200
+
+ticket-service:
+  base-url: ${TICKET_SERVICE_URL:http://localhost:8084}
+  connect-timeout: 2s
+  read-timeout: 3s
+
 internal:
   token: ${INTERNAL_TOKEN:local-dev-internal-token}
 

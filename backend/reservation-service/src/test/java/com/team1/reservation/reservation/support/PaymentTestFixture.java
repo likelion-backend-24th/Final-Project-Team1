@@ -1,9 +1,12 @@
 package com.team1.reservation.reservation.support;
 
 import com.team1.payment.PaymentService;
+import com.team1.reservation.client.TicketClient;
+import com.team1.reservation.config.AfterCommitExecutor;
 import com.team1.reservation.reservation.entity.Reservation;
 import com.team1.reservation.reservation.repository.ReservationRepository;
 import com.team1.reservation.reservation.service.ReservationPaymentService;
+import com.team1.reservation.reservation.service.TicketIssueNotifier;
 import com.team1.reservation.round.repository.RoundRepository;
 import com.team1.security.AuthenticatedUser;
 
@@ -34,13 +37,17 @@ public abstract class PaymentTestFixture {
     protected ReservationRepository reservations;
     protected RoundRepository rounds;
     protected PaymentService paymentService;
+    protected TicketClient ticketClient;
     protected ReservationPaymentService service;
 
     protected void initMocks() {
         reservations = mock(ReservationRepository.class);
         rounds = mock(RoundRepository.class);
         paymentService = mock(PaymentService.class);
-        service = new ReservationPaymentService(reservations, rounds, paymentService,
+        ticketClient = mock(TicketClient.class);
+        // Transaction 이 없으므로 AfterCommitExecutor 는 통지를 그 자리에서 실행한다.
+        TicketIssueNotifier notifier = new TicketIssueNotifier(ticketClient, new AfterCommitExecutor());
+        service = new ReservationPaymentService(reservations, rounds, paymentService, notifier,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
