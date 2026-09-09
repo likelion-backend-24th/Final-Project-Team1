@@ -32,13 +32,15 @@ expo-service:
   connect-timeout: 2s
   read-timeout: 3s
 
-reservation:
-  expiry:
+scheduler:
+  reservation-expiry:
     enabled: ${RESERVATION_EXPIRY_ENABLED:true}
-    interval: 60s
-    # 결제창은 expires_at 에 닫힌다. 이 유예는 늦게 도착하는 웹훅을 기다리는 시간이다.
-    grace: 2m
+    cron: "0 */2 * * * *"
+    # 유예 상한. PG 가 계속 모른다고 하면 결제대기 창과 같은 길이를 한 번 더 주고 만료시킨다.
+    grace: 10m
     batch-size: 200
+    # PG 조회가 필요한 갈래에만 걸리는 상한. 배치가 외부 호출에 밀리지 않게 한다.
+    pg-batch-size: 50
 
 ticket-service:
   base-url: ${TICKET_SERVICE_URL:http://localhost:8084}
