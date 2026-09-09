@@ -1,6 +1,5 @@
 package com.team1.ticket.ticket.controller;
 
-import com.team1.ticket.common.ApiResponse;
 import com.team1.ticket.ticket.dto.IssueTicketsRequest;
 import com.team1.ticket.ticket.dto.IssuedTicketResponse;
 import com.team1.ticket.ticket.service.TicketService;
@@ -29,10 +28,12 @@ public class InternalTicketController {
     }
 
     // 예약 확정 → 티켓 1건 발급 (예약당 1건, 멱등)
+    // 성공 응답은 raw 로 내보낸다(봉투 없음). 예약(A) 클라이언트가 raw 로 역직렬화하고,
+    // expo·reservation 내부 API 도 raw 다. 에러만 GlobalExceptionHandler 가 봉투로 감싼다.
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<IssuedTicketResponse> issue(@Valid @RequestBody IssueTicketsRequest request) {
-        return ApiResponse.ok(ticketService.issue(request));
+    public IssuedTicketResponse issue(@Valid @RequestBody IssueTicketsRequest request) {
+        return ticketService.issue(request);
     }
 
     // 예약 취소 → 해당 예약 티켓 무효화 (멱등). 계약상 204 No Content.
