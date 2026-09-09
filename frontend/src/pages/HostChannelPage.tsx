@@ -11,17 +11,25 @@ export default function HostChannelPage() {
   const navigate = useNavigate()
   const toast = useToast()
 
+  const [channel, setChannel] = useState<Channel | null>(null)
+  const [expos, setExpos] = useState<Expo[]>([])
+  const [loadingCh, setLoadingCh] = useState(true)
+  const [loadingEx, setLoadingEx] = useState(false)
+
+  function loadExpos(channelId: number) {
+    setLoadingEx(true)
+    expoApi.listPublished({ size: 100 })
+      .then(res => setExpos((res.data ?? []).filter(e => e.channelId === channelId)))
+      .catch(() => toast('박람회 목록을 불러오지 못했습니다', 'error'))
+      .finally(() => setLoadingEx(false))
+  }
+
   useEffect(() => {
     if (!isRole('ORGANIZER', 'SUPER_ADMIN')) {
       toast('주최자 권한이 필요합니다', 'error')
       navigate('/')
     }
   }, [])
-
-  const [channel, setChannel] = useState<Channel | null>(null)
-  const [expos, setExpos] = useState<Expo[]>([])
-  const [loadingCh, setLoadingCh] = useState(true)
-  const [loadingEx, setLoadingEx] = useState(false)
 
   useEffect(() => {
     expoApi.getMyChannel()
@@ -37,14 +45,6 @@ export default function HostChannelPage() {
       })
       .finally(() => setLoadingCh(false))
   }, [])
-
-  function loadExpos(channelId: number) {
-    setLoadingEx(true)
-    expoApi.listPublished({ size: 100 })
-      .then(res => setExpos((res.data ?? []).filter(e => e.channelId === channelId)))
-      .catch(() => toast('박람회 목록을 불러오지 못했습니다', 'error'))
-      .finally(() => setLoadingEx(false))
-  }
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: 'calc(100vh - 64px)' }}>

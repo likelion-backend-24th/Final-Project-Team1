@@ -5,7 +5,7 @@ import com.team1.expo.common.exception.ErrorCode;
 import com.team1.expo.domain.promotion.ExpoPromotion;
 import com.team1.expo.domain.promotion.ExpoPromotionRepository;
 import com.team1.expo.domain.promotion.ExpoPaymentTransactionRepository;
-import com.team1.expo.domain.promotion.WebhookEventRepository;
+import com.team1.expo.domain.promotion.ExpoWebhookEventRepository;
 import com.team1.payment.PgCommunicationException;
 import com.team1.payment.PgClient;
 import com.team1.payment.PgInquiryResult;
@@ -28,7 +28,7 @@ public class ExpoPromotionWebhookService {
 
     private final ExpoPromotionRepository promotionRepository;
     private final ExpoPaymentTransactionRepository paymentTransactionRepository;
-    private final WebhookEventRepository webhookEventRepository;
+    private final ExpoWebhookEventRepository webhookEventRepository;
     private final PgClient pgClient;
     private final Clock clock;
 
