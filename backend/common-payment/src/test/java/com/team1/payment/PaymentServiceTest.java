@@ -112,4 +112,48 @@ class PaymentServiceTest {
         assertThat(result.outcome()).isEqualTo(PaymentApprovalOutcome.UNKNOWN);
         assertThat(tx.getStatus()).isEqualTo(PaymentStatus.PENDING);
     }
+
+    @Test
+    void cancel_PG취소성고하면_CANCELLED_변환() {
+        PaymentTransaction tx = pendingTransaction();
+        when(pgClient.cancel("BE24-01-abc", 10000, "고객요청"))
+                .thenReturn(new PgCancelResult(true, "0000"));
+
+        paymentService.cancel(1L, "고객요청");
+        assertThat(tx.getStatus()).isEqualTo(PaymentStatus.CANCELLED);
+    }
+
+    @Test
+    void cancel_PG취소실패하면_REFUND_FAILED변환() {
+        PaymentTransaction tx = pendingTransaction();
+        when(pgClient.cancel("BE24-01-abc", 10000, "고객 요청"))
+                .thenReturn(new PgCancelResult(false, "9999"));
+
+        paymentService.cancel(1L, "고객 요청");
+
+        assertThat(tx.getStatus()).isEqualTo(PaymentStatus.REFUND_FAILED);
+    }
+
+    @Test
+    void cancel_PG_무응답이면_REFUND_FAILED변환() {
+        PaymentTransaction tx = pendingTransaction();
+        when(pgClient.cancel("BE24-01-abc", 10000, "고객 요청"))
+                .thenThrow(new PgCommunicationException("timeout"));
+
+        paymentService.cancel(1L, "고객 요청");
+
+        assertThat(tx.getStatus()).isEqualTo(PaymentStatus.REFUND_FAILED);
+    }
+
+    @Test
+    void confirm_PG가_CANCELLED면_FAILED_CONFIRMED_반환하고_CANCELLED로_바뀐다() {
+        PaymentTransaction tx = pendingTransaction();
+        when(pgClient.inquire("BE24-01-abc"))
+                .thenReturn(new PgInquiryResult(PgPaymentStatus.CANCELLED, 10000, "pg-123", "0000", null, "store-01", "channel-01"));
+
+        PaymentApprovalResult result = paymentService.confirm(1L);
+
+        assertThat(result.outcome()).isEqualTo(PaymentApprovalOutcome.FAILED_CONFIRMED);
+        assertThat(tx.getStatus()).isEqualTo(PaymentStatus.CANCELLED);
+    }
 }
