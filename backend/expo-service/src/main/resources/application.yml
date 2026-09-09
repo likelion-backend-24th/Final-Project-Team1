@@ -45,4 +45,11 @@ app:
 
 portone:
   stub: ${PORTONE_STUB:true}
-  webhook-secret: ${PORTONE_WEBHOOK_SECRET:}
+  store-id: ${PORTONE_STORE_ID:store-dev-placeholder}
+  channel-key: ${PORTONE_CHANNEL_KEY:channel-key-dev-placeholder}
+  api-secret: ${PORTONE_API_SECRET:dev-only-placeholder}
+  webhook-secret: ${PORTONE_WEBHOOK_SECRET:whsec_ZGV2LW9ubHktcGxhY2Vob2xkZXItbm90LWEtcmVhbC1rZXk=}
+
+# 개발·CI 기본값. 실제 값은 JWT_SECRET 환경변수가 덮어쓴다
+jwt:
+  secret: ${JWT_SECRET:dev-only-not-a-real-secret-0123456789abcdef}

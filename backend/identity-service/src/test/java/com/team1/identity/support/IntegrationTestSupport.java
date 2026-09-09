@@ -40,9 +40,16 @@ public abstract class IntegrationTestSupport {
         MYSQL.start();
     }
 
+    // Container 가 기동 시각으로 만드는 자체 서명 인증서가 호스트 시계보다 앞서면 핸드셰이크가 깨진다
+    private static String jdbcUrl() {
+        String base = MYSQL.getJdbcUrl();
+        return base + (base.contains("?") ? "&" : "?")
+                + "sslMode=DISABLED&allowPublicKeyRetrieval=true";
+    }
+
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", MYSQL::getJdbcUrl);
+        registry.add("spring.datasource.url", IntegrationTestSupport::jdbcUrl);
         registry.add("spring.datasource.username", MYSQL::getUsername);
         registry.add("spring.datasource.password", MYSQL::getPassword);
         registry.add("jwt.secret", () -> TEST_JWT_SECRET);
