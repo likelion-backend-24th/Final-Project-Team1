@@ -2,7 +2,7 @@ package com.team1.ticket.ticket.controller;
 
 import com.team1.ticket.common.ApiResponse;
 import com.team1.ticket.ticket.dto.IssueTicketsRequest;
-import com.team1.ticket.ticket.dto.IssuedTicketsResponse;
+import com.team1.ticket.ticket.dto.IssuedTicketResponse;
 import com.team1.ticket.ticket.service.TicketService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -28,10 +28,10 @@ public class InternalTicketController {
         this.ticketService = ticketService;
     }
 
-    // 예약 확정 → 인원수만큼 티켓 발급 (멱등)
+    // 예약 확정 → 티켓 1건 발급 (예약당 1건, 멱등)
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<IssuedTicketsResponse> issue(@Valid @RequestBody IssueTicketsRequest request) {
+    public ApiResponse<IssuedTicketResponse> issue(@Valid @RequestBody IssueTicketsRequest request) {
         return ApiResponse.ok(ticketService.issue(request));
     }
 

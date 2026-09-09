@@ -5,7 +5,8 @@ import jakarta.validation.constraints.NotNull;
 
 
 // 계약 1 (예약 → 티켓 발급). A(예약 Core)가 결제 확정 시 호출한다.
-// headcount 인원수만큼 티켓을 발급하며, 티켓당 QR(체크인 토큰) 1개를 가진다.
+// 예약당 티켓 1건(API 계약 v3 #17). headcount 는 티켓 수가 아니라 이 티켓 1건이
+// 대응하는 입장 인원(N명분)이며, 티켓에 저장돼 현장 체크인 인원 판단에 쓰인다.
 public record IssueTicketsRequest(
         @NotNull Long reservationId,
         @NotNull Long expoId,
