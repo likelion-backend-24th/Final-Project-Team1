@@ -9,7 +9,9 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:local}
 
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:13306}/ticket?characterEncoding=UTF-8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+    # createDatabaseIfNotExist: 기존 도커 볼륨에는 init.sql이 다시 실행되지 않아 ticket DB가 없을 수 있다.
+    # 기동 시 DB(스키마 네임스페이스)만 자동 생성하고, 테이블은 계속 Flyway가 소유한다.
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:13306}/ticket?characterEncoding=UTF-8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&createDatabaseIfNotExist=true
     username: ${DB_USER:root}
     # password는 시크릿이므로 application-local.yml(또는 환경변수)에서 채운다
 
