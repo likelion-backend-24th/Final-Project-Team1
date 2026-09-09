@@ -83,13 +83,11 @@ public class PaymentService {
                     yield PaymentApprovalResult.failedConfirmed(result.failureReason());
                 }
 
-                case NOT_FOUND -> PaymentApprovalResult.unknown();
+                case NOT_FOUND -> PaymentApprovalResult.unknown("PG 거래없음");
             };
 
         } catch (PgCommunicationException e) {
-
-            return PaymentApprovalResult.unknown();
+            return PaymentApprovalResult.unknown("PG 무응답");
+            }
         }
-
     }
-}
