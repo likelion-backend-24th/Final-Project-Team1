@@ -3,10 +3,13 @@ package com.team1.reservation.reservation.repository;
 import com.team1.reservation.reservation.entity.Reservation;
 import com.team1.reservation.reservation.entity.ReservationStatus;
 import com.team1.reservation.reservation.dto.RoundStatusHeadcount;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
@@ -37,4 +40,25 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     List<Reservation> findByExpoIdAndRoundIdAndStatusInOrderByCreatedAtAsc(
             Long expoId, Long roundId, Collection<ReservationStatus> statuses);
+
+
+    /** 만료 후보(#77). 한 번에 다 긁지 않고 Pageable 로 끊어 배치가 길어지는 것을 막는다. */
+    @Query("select r from Reservation r "
+            + "where r.status = com.team1.reservation.reservation.entity.ReservationStatus.PENDING "
+            + "and r.expiresAt <= :cutoff order by r.expiresAt asc")
+    List<Reservation> findExpirable(@Param("cutoff") Instant cutoff, Pageable pageable);
+
+
+    /**
+     * PENDING 일 때만 EXPIRED 로 전이한다(#77).
+     *
+     * <p>조회 후 전이하는 사이에 결제 승인이 끼어들 수 있으므로 상태 조건을 UPDATE 문에 담는다.
+     * 0 을 반환하면 결제가 먼저 이겼다는 뜻이고, 그때는 정원을 반환해서는 안 된다.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Reservation r "
+            + "set r.status = com.team1.reservation.reservation.entity.ReservationStatus.EXPIRED "
+            + "where r.id = :id "
+            + "and r.status = com.team1.reservation.reservation.entity.ReservationStatus.PENDING")
+    int expireIfPending(@Param("id") Long id);
 }
