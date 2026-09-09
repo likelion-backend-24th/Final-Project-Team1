@@ -9,19 +9,26 @@ import org.springframework.stereotype.Component;
 @Component
 public class PortOneWebhookVerifier {
 
-    private final WebhookVerifier webhookVerifier;
+    private WebhookVerifier webhookVerifier;
+    private final String webhookSecret;
 
     public PortOneWebhookVerifier(
-            @Value("${portone.webhook-secret}")String webhookSecret
-    ){
-      this.webhookVerifier = new WebhookVerifier(webhookSecret);
+            @Value("${portone.webhook-secret}")String webhookSecret){
+
+      this.webhookSecret = webhookSecret;
     }
 
-
-    public Webhook verify(
-            String body,String webhookId,
+    public Webhook verify(String body,String webhookId,
             String webhookSignature,String webhookTimestamp)
     throws WebhookVerificationException{
-        return webhookVerifier.verify(body,webhookId,webhookSignature,webhookTimestamp);
+        return getWebhookVerifier().verify(body,webhookId,
+                webhookSignature,webhookTimestamp);
+    }
+
+    private synchronized WebhookVerifier getWebhookVerifier(){
+        if (webhookVerifier == null){
+            webhookVerifier = new WebhookVerifier(webhookSecret);
+        }
+        return webhookVerifier;
     }
 }

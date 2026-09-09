@@ -18,4 +18,12 @@ public record PaymentApprovalResult(
     public static PaymentApprovalResult amountMismatch(){
         return new PaymentApprovalResult(PaymentApprovalOutcome.AMOUNT_MISMATCH,null,null);
     }
+
+    public static PaymentApprovalResult alreadyProcessed(){
+        return new PaymentApprovalResult(PaymentApprovalOutcome.ALREADY_PROCESSED,null,null);
+    }
+
+    public static PaymentApprovalResult ignored(String reason){
+        return new PaymentApprovalResult(PaymentApprovalOutcome.IGNORED,null,reason);
+    }
 }

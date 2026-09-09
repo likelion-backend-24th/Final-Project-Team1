@@ -3,11 +3,13 @@ package com.team1.payment;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.util.Objects;
 
 @Service
+@Transactional
 public class PaymentService {
 
     private final PaymentTransactionRepository repository;
