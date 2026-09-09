@@ -3,7 +3,10 @@ package com.team1.reservation.reservation;
 import com.team1.reservation.reservation.entity.Reservation;
 import com.team1.reservation.reservation.entity.ReservationStatus;
 import com.team1.reservation.reservation.repository.ReservationRepository;
+import com.team1.reservation.round.entity.Round;
+import com.team1.reservation.round.repository.RoundRepository;
 import com.team1.reservation.support.IntegrationTestSupport;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,12 +23,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ExpireIfPendingTest extends IntegrationTestSupport {
 
     private static final Instant CREATED = Instant.parse("2026-09-09T00:00:00Z");
+    private static final Long EXPO_ID = 1L;
 
     @Autowired
     private ReservationRepository reservations;
 
+    @Autowired
+    private RoundRepository rounds;
+
+    private Long roundId;
+
+    /** reservations.round_id 에 FK 가 걸려 있어 회차를 먼저 만들어야 한다. */
+    @BeforeEach
+    void createRound() {
+        roundId = rounds.saveAndFlush(Round.create(EXPO_ID,
+                CREATED.plusSeconds(86400), CREATED.plusSeconds(100800), 50, 10000, CREATED)).getId();
+    }
+
     private Reservation save(String no) {
-        return reservations.saveAndFlush(Reservation.create(no, 7L, 1L, 100L,
+        return reservations.saveAndFlush(Reservation.create(no, roundId, EXPO_ID, 100L,
                 "홍길동", "01012345678", 2, 20000, CREATED));
     }
 
