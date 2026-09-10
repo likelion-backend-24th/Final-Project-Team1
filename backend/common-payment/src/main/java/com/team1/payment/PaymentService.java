@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Objects;
 
 @Service
@@ -18,6 +19,8 @@ public class PaymentService {
     private final Clock clock;
     private final String storeId;
     private final String channelKey;
+    private final int refundMaxAttempts;
+    private final Duration refundBackoff;
 
     public PaymentService(
             PaymentTransactionRepository repository,
@@ -25,14 +28,20 @@ public class PaymentService {
             PaymentIdGenerator paymentIdGenerator,
             Clock clock,
             @Value("${portone.store-id}") String storeId,
-            @Value("${portone.channel-key}") String channelKey
-    ) {
+            @Value("${portone.channel-key}") String channelKey,
+           @Value("${scheduler.refund-retry.max-attempts}")int refundMaxAttempts,
+    @Value("${scheduler.refund-retry.backoff}") Duration refundBackoff
+    )
+
+    {
         this.repository = repository;
         this.paymentIdGenerator = paymentIdGenerator;
         this.pgClient = pgClient;
         this.clock = clock;
         this.storeId = storeId;
         this.channelKey = channelKey;
+        this.refundMaxAttempts = refundMaxAttempts;
+        this.refundBackoff = refundBackoff;
     }
 
     public PaymentTransaction createPending(Long refId, Integer amount) {
@@ -108,10 +117,10 @@ public class PaymentService {
                 paymentTransaction.markCancelled(clock.instant());
 
             } else {
-                paymentTransaction.markRefundFailed(result.responseCode(), clock.instant());
+                paymentTransaction.markRefundFailed(result.responseCode(), refundMaxAttempts, refundBackoff, clock.instant());
             }
         } catch (PgCommunicationException e) {
-            paymentTransaction.markRefundFailed(e.getMessage(), clock.instant());
+            paymentTransaction.markRefundFailed(e.getMessage(), refundMaxAttempts, refundBackoff, clock.instant());
         }
     }
 }

@@ -32,6 +32,13 @@ expo-service:
   connect-timeout: 2s
   read-timeout: 3s
 
+reservation:
+  cancellation:
+    # 취소 마감. 회차 시작 기준이며 0 이면 시작 직전까지 취소할 수 있다.
+    deadline-before-start: 0s
+    # 전액 환불 창. 회차 시작 이 시간 전까지 취소해야 돈이 돌아간다.
+    refund-window: 1d
+
 scheduler:
   reservation-expiry:
     enabled: ${RESERVATION_EXPIRY_ENABLED:true}
@@ -49,6 +56,14 @@ scheduler:
     batch-size: 100
     max-attempts: 6
     # 지수 백오프의 기준값. 1·2·4·8·16분 뒤에 재시도하고 6회째에 포기한다.
+    backoff: 1m
+
+  # 환불 실패 재시도(#125). REFUND_FAILED 로 남은 건만 회수한다.
+  refund-retry:
+    enabled: ${REFUND_RETRY_ENABLED:true}
+    cron: "0 * * * * *"
+    batch-size: 100
+    max-attempts: 6
     backoff: 1m
 
 ticket-service:

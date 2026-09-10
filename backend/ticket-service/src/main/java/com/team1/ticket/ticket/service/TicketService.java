@@ -1,7 +1,10 @@
 package com.team1.ticket.ticket.service;
 
+import com.team1.ticket.common.ApiException;
+import com.team1.ticket.common.ErrorCode;
 import com.team1.ticket.ticket.dto.IssueTicketsRequest;
 import com.team1.ticket.ticket.dto.IssuedTicketResponse;
+import com.team1.ticket.ticket.dto.TicketDetailResponse;
 import com.team1.ticket.ticket.entity.Ticket;
 import com.team1.ticket.ticket.entity.TicketStatus;
 import com.team1.ticket.ticket.repository.TicketRepository;
@@ -57,6 +60,17 @@ public class TicketService {
                     .map(IssuedTicketResponse::from)
                     .orElseThrow(() -> raced);
         }
+    }
+
+    // 예약별 티켓 단건 조회. 예약 상세 화면(QR 표시)이 호출한다.
+    // 티켓이 아직 없으면(발급 통지 실패로 재시도 대기 중 등) 404 — 예약측이 ticketAvailable=false 로
+    // "발급 중"을 표시할 수 있게 한다. 빈 객체·500 이 아니라 404 여야 진짜 장애(503)와 구분된다.
+    @Transactional(readOnly = true)
+    public TicketDetailResponse getByReservation(Long reservationId) {
+        return ticketRepository.findByReservationId(reservationId)
+                .map(TicketDetailResponse::from)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND,
+                        "ticket not found for reservation: " + reservationId));
     }
 
     // 예약 취소 통지 → 해당 예약의 티켓 무효화. 이미 사용(USED)된 티켓은 건드리지 않는다.
