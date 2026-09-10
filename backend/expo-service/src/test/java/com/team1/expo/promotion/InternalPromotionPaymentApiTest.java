@@ -44,20 +44,20 @@ class InternalPromotionPaymentApiTest extends ApiTestSupport {
         JsonNode data = response.getBody();
         assertThat(data.isArray()).isTrue();
 
-        long paidCount = 0, cancelledCount = 0, pendingCount = 0;
+        // 다른 테스트 클래스가 남긴 트랜잭션도 함께 조회될 수 있으므로 우리 expo 기준으로 필터
+        long paidCount = 0, cancelledCount = 0;
         for (JsonNode node : data) {
+            assertThat(node.path("status").asText()).isNotEqualTo("PENDING"); // 전체 대상: PENDING 미포함
+            if (node.path("expoId").asLong() != expoId) continue;
             switch (node.path("status").asText()) {
                 case "PAID"      -> paidCount++;
                 case "CANCELLED" -> cancelledCount++;
-                case "PENDING"   -> pendingCount++;
             }
-            assertThat(node.path("expoId").asLong()).isEqualTo(expoId);
             assertThat(node.path("paymentId").asText()).isNotBlank();
             assertThat(node.path("amount").asInt()).isEqualTo(9_900);
         }
         assertThat(paidCount).isGreaterThanOrEqualTo(1);
         assertThat(cancelledCount).isGreaterThanOrEqualTo(1);
-        assertThat(pendingCount).isZero();
     }
 
     @Test
