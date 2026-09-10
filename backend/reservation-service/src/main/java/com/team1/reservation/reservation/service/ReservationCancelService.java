@@ -57,6 +57,7 @@ public class ReservationCancelService {
     private final Clock clock;
     private final Duration deadlineBeforeStart;
     private final Duration refundWindow;
+    private final int refundMaxAttempts;
 
     public ReservationCancelService(ReservationRepository reservations,
                                     RoundRepository rounds,
@@ -65,7 +66,8 @@ public class ReservationCancelService {
                                     TicketIssueNotifier ticketNotifier,
                                     Clock clock,
                                     @Value("${reservation.cancellation.deadline-before-start}") Duration deadlineBeforeStart,
-                                    @Value("${reservation.cancellation.refund-window}") Duration refundWindow) {
+                                    @Value("${reservation.cancellation.refund-window}") Duration refundWindow,
+                                    @Value("${scheduler.refund-retry.max-attempts}") int refundMaxAttempts) {
         this.reservations = reservations;
         this.rounds = rounds;
         this.payments = payments;
@@ -74,6 +76,7 @@ public class ReservationCancelService {
         this.clock = clock;
         this.deadlineBeforeStart = deadlineBeforeStart;
         this.refundWindow = refundWindow;
+        this.refundMaxAttempts = refundMaxAttempts;
     }
 
     @Transactional
@@ -135,7 +138,7 @@ public class ReservationCancelService {
 
         // 환불 상태는 결제에서 읽는다. 다시 환불을 시도하지는 않는다.
         RefundState refundState = RefundState.of(current.getStatus(),
-                payments.findByRefId(reservationId).map(PaymentTransaction::getStatus).orElse(null));
+                payments.findByRefId(reservationId).orElse(null), refundMaxAttempts);
 
         return new CancelReservationResponse(reservationId, ReservationStatus.CANCELLED.name(),
                 refundState, current.getCancelledAt());
@@ -155,7 +158,7 @@ public class ReservationCancelService {
 
         if (payment.getStatus() != PaymentStatus.PAID) {
             // 결제가 끝나지 않았거나 실패했으면 돌려줄 돈이 없다.
-            return RefundState.of(ReservationStatus.CANCELLED, payment.getStatus());
+            return RefundState.of(ReservationStatus.CANCELLED, payment, refundMaxAttempts);
         }
 
         if (now.isAfter(round.getStartsAt().minus(refundWindow))) {
@@ -170,7 +173,7 @@ public class ReservationCancelService {
         paymentService.cancel(reservationId, "user cancellation");
 
         // 모듈이 같은 영속성 컨텍스트의 이 행을 갱신했으므로 상태를 다시 읽으면 결과가 보인다.
-        return RefundState.of(ReservationStatus.CANCELLED, payment.getStatus());
+        return RefundState.of(ReservationStatus.CANCELLED, payment, refundMaxAttempts);
     }
 
     private void requireMember(AuthenticatedUser user) {

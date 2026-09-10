@@ -24,6 +24,17 @@ function ReadYamlToken($path) {
     return $null
 }
 
+# HTTP 오류 본문은 스트림이라 한 번만 읽힌다. 읽는 즉시 보관해 두 곳에서 쓴다.
+function CaptureErrorBody($errorRecord) {
+    $script:LastErrorBody = $null
+    $resp = $errorRecord.Exception.Response
+    if ($resp) {
+        $reader = New-Object IO.StreamReader($resp.GetResponseStream(), [Text.Encoding]::UTF8)
+        $script:LastErrorBody = $reader.ReadToEnd()
+    }
+    return $script:LastErrorBody
+}
+
 function Post($url, $body, $token) {
     $headers = @{ 'Content-Type' = 'application/json; charset=utf-8' }
     if ($token) { $headers['Authorization'] = "Bearer $token" }
@@ -35,11 +46,7 @@ function Post($url, $body, $token) {
         # 상태 코드만 보면 원인을 못 찾는다. 서버가 돌려준 본문을 그대로 보여준다.
         Write-Host "`n  POST $url" -ForegroundColor Yellow
         Write-Host "  보낸 것: $json" -ForegroundColor DarkGray
-        $resp = $_.Exception.Response
-        if ($resp) {
-            $reader = New-Object IO.StreamReader($resp.GetResponseStream(), [Text.Encoding]::UTF8)
-            Write-Host "  받은 것: $($reader.ReadToEnd())" -ForegroundColor Yellow
-        }
+        Write-Host "  받은 것: $(CaptureErrorBody $_)" -ForegroundColor Yellow
         throw
     }
 }
@@ -61,6 +68,67 @@ function TicketIdFor($reservationId) {
     if ($ids.Count -gt 1) { Fail "티켓이 $($ids.Count) 건이다 — 예약당 1건이어야 한다" }
     return [int]$ids[0]
 }
+function Patch($url, $token) {
+    $headers = @{ 'Content-Type' = 'application/json; charset=utf-8' }
+    if ($token) { $headers['Authorization'] = "Bearer $token" }
+    try {
+        Invoke-RestMethod -Method Patch -Uri $url -Headers $headers -Body ([byte[]]@())
+    } catch {
+        Write-Host "`n  PATCH $url" -ForegroundColor Yellow
+        Write-Host "  받은 것: $(CaptureErrorBody $_)" -ForegroundColor Yellow
+        throw
+    }
+}
+
+# 실패를 기대하는 호출. 에러 코드를 돌려준다.
+function ErrorCodeOf($scriptBlock) {
+    $script:LastErrorBody = $null
+    try {
+        & $scriptBlock | Out-Null
+        return $null
+    } catch {
+        # Post·Patch 가 이미 스트림을 읽어 보관해 뒀다. 다시 읽으면 EOF 라 빈 문자열이다.
+        if (-not $script:LastErrorBody) { return $null }
+        return ($script:LastErrorBody | ConvertFrom-Json).data.code
+    }
+}
+
+function Sql($query) {
+    $rows = docker exec -e "MYSQL_PWD=$DbPassword" -i $MysqlContainer `
+        mysql -uroot -N -B reservation -e $query 2>&1
+    if ($LASTEXITCODE -ne 0) { Fail "DB 조회 실패: $rows" }
+    return $rows
+}
+
+function TicketStatusOf($reservationId) {
+    $rows = docker exec -e "MYSQL_PWD=$DbPassword" -i $MysqlContainer `
+        mysql -uroot -N -B ticket -e "select status from tickets where reservation_id = $reservationId;" 2>&1
+    if ($LASTEXITCODE -ne 0) { Fail "DB 조회 실패: $rows" }
+    return ($rows | Where-Object { $_ -match '^[A-Z_]+$' } | Select-Object -First 1)
+}
+
+function RemainingOf($roundId) {
+    $rounds = (Get_ "$ReservationUrl/api/v1/expos/$expoId/rounds" $orgToken).data
+    return ($rounds | Where-Object { $_.roundId -eq $roundId }).remaining
+}
+
+# 유료 회차 하나에 예약하고 결제까지 확정한다. 반환값은 reservationId.
+function ConfirmedReservationOn($roundId, $headcount) {
+    $res = Post "$ReservationUrl/api/v1/rounds/$roundId/reservations" `
+        @{ headcount = $headcount; contactName = '김철수'; contactPhone = '010-9876-5432' } $memberToken
+    $id = $res.data.reservationId
+    Post "$ReservationUrl/api/v1/reservations/$id/payment" @{} $memberToken | Out-Null
+    return $id
+}
+
+function PaidRoundStartingIn($hours) {
+    $s = [DateTime]::UtcNow.AddHours($hours).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $e = [DateTime]::UtcNow.AddHours($hours + 4).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $r = Post "$ReservationUrl/api/v1/expos/$expoId/rounds" `
+        @{ startsAt = $s; endsAt = $e; capacity = 50; fee = 10000 } $orgToken
+    return $r.data.roundId
+}
+
 function Step($n, $msg) { Write-Host "`n[$n] $msg" -ForegroundColor Cyan }
 function Pass($msg)     { Write-Host "  PASS  $msg" -ForegroundColor Green }
 function Fail($msg)     { Write-Host "  FAIL  $msg" -ForegroundColor Red; exit 1 }
@@ -177,10 +245,72 @@ Start-Sleep -Seconds 2
 $paidTicketId = TicketIdFor $paidReservationId
 Pass "통지 성공. tickets 에 1건 (ticketId=$paidTicketId)"
 
+# ── 예약 취소 (#83) ─────────────────────────────────────────────────────────
+Step 13 '환불 가능 구간(회차 시작 3일 전) 예약 + 결제 확정'
+$refundRoundId = PaidRoundStartingIn 72
+$before = RemainingOf $refundRoundId
+$refundResId = ConfirmedReservationOn $refundRoundId 2
+$afterReserve = RemainingOf $refundRoundId
+if ($afterReserve -ne ($before - 2)) { Fail "정원이 안 줄었다: $before → $afterReserve" }
+Pass "reservationId=$refundResId, 남은 정원 $before → $afterReserve"
+
+Step 14 '취소 → REFUNDED 이고 정원이 돌아와야 한다'
+$cancel = Patch "$ReservationUrl/api/v1/reservations/$refundResId/cancellation" $memberToken
+if ($cancel.data.status -ne 'CANCELLED') { Fail "status=$($cancel.data.status)" }
+if ($cancel.data.refundState -ne 'REFUNDED') { Fail "refundState=$($cancel.data.refundState) (REFUNDED 예상)" }
+$afterCancel = RemainingOf $refundRoundId
+if ($afterCancel -ne $before) { Fail "정원이 안 돌아왔다: $afterCancel (기대 $before)" }
+Pass "refundState=REFUNDED, 남은 정원 $afterReserve → $afterCancel"
+
+Step 15 '티켓이 무효화됐는지 — DB 확인'
+Start-Sleep -Seconds 2   # 무효화 통지도 커밋 이후에 나간다
+$ticketStatus = TicketStatusOf $refundResId
+if ($ticketStatus -ne 'CANCELLED') {
+    Fail "tickets.status=$ticketStatus (CANCELLED 예상) — 무효화 통지가 안 나갔다"
+}
+Pass "tickets.status=CANCELLED"
+
+Step 16 '멱등 — 다시 취소해도 200 이고 정원이 두 번 돌아오지 않는다'
+$again = Patch "$ReservationUrl/api/v1/reservations/$refundResId/cancellation" $memberToken
+if ($again.data.status -ne 'CANCELLED') { Fail "status=$($again.data.status)" }
+$afterRetry = RemainingOf $refundRoundId
+if ($afterRetry -ne $before) { Fail "정원이 두 번 돌아왔다: $afterRetry (기대 $before)" }
+Pass "200 멱등, 남은 정원 $afterRetry 유지"
+
+Step 17 '환불 기한 경과 구간(회차 시작 5시간 전) → NOT_REFUNDABLE'
+$lateRoundId = PaidRoundStartingIn 5
+$lateResId = ConfirmedReservationOn $lateRoundId 1
+$lateCancel = Patch "$ReservationUrl/api/v1/reservations/$lateResId/cancellation" $memberToken
+if ($lateCancel.data.refundState -ne 'NOT_REFUNDABLE') {
+    Fail "refundState=$($lateCancel.data.refundState) (NOT_REFUNDABLE 예상)"
+}
+Start-Sleep -Seconds 2
+if ((TicketStatusOf $lateResId) -ne 'CANCELLED') {
+    Fail '환불을 못 받은 취소인데 티켓이 살아 있다 — 입장이 가능해진다'
+}
+Pass "refundState=NOT_REFUNDABLE, 티켓은 CANCELLED"
+
+Step 18 '회차가 시작된 뒤에는 400 CANCELLATION_DEADLINE_PASSED'
+$closedRoundId = PaidRoundStartingIn 6
+$closedResId = ConfirmedReservationOn $closedRoundId 1
+# 회차 시작 시각은 API 로 과거로 만들 수 없다. DB 에서 직접 당긴다.
+Sql "update rounds set starts_at = UTC_TIMESTAMP() - INTERVAL 1 HOUR where id = $closedRoundId;" | Out-Null
+
+$code = ErrorCodeOf { Patch "$ReservationUrl/api/v1/reservations/$closedResId/cancellation" $memberToken }
+if ($code -ne 'CANCELLATION_DEADLINE_PASSED') { Fail "에러 코드=$code (CANCELLATION_DEADLINE_PASSED 예상)" }
+
+$stillConfirmed = Sql "select status from reservations where id = $closedResId;"
+if (($stillConfirmed | Where-Object { $_ -match '^[A-Z]+$' }) -ne 'CONFIRMED') {
+    Fail '거절됐는데 예약 상태가 바뀌었다'
+}
+Pass "400 CANCELLATION_DEADLINE_PASSED, 예약은 CONFIRMED 유지"
+
 Write-Host "`n전부 통과." -ForegroundColor Green
 Write-Host @"
 
 --- 검증된 것 ---
+  취소(#83): 전액 환불 / 환불 기한 경과 / 멱등 / 취소 마감 400 / 티켓 무효화
+  정원(#81): 예약 시 차감, 취소 시 정확히 1회 반환
   무료 경로: 예약 즉시 CONFIRMED → 통지 → 티켓 1건 (예약 $reservationId / 티켓 $dbTicketId)
   유료 경로: PENDING → 결제 확정 → 통지 → 티켓 1건 (예약 $paidReservationId / 티켓 $paidTicketId)
   멱등: 재호출해도 같은 ticketId

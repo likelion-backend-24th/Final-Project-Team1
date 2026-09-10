@@ -55,6 +55,7 @@ class ReservationCancelServiceTest {
     private static final int HEADCOUNT = 2;
     private static final int AMOUNT = 20000;
     private static final AuthenticatedUser MEMBER = new AuthenticatedUser(USER_ID, "USER");
+    private static final int MAX_REFUND_ATTEMPTS = 6;
 
     private ReservationRepository reservations;
     private RoundRepository rounds;
@@ -75,7 +76,7 @@ class ReservationCancelServiceTest {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         service = new ReservationCancelService(reservations, rounds, payments, paymentService,
                 TicketDispatchStub.notifier(ticketClient, clock), clock,
-                Duration.ZERO, Duration.ofDays(1));
+                Duration.ZERO, Duration.ofDays(1), MAX_REFUND_ATTEMPTS);
 
         when(reservations.cancelIfActive(anyLong(), any())).thenReturn(1);
     }
@@ -96,15 +97,25 @@ class ReservationCancelServiceTest {
     }
 
     private void givenPayment(PaymentStatus status) {
+        givenPayment(status, 0);
+    }
+
+    private void givenPayment(PaymentStatus status, int attempts) {
         payment = PaymentTransaction.create(RESERVATION_ID, "BE24-01-TEST", AMOUNT, NOW);
         ReflectionTestUtils.setField(payment, "status", status);
+        ReflectionTestUtils.setField(payment, "attempts", attempts);
         when(payments.findByRefId(RESERVATION_ID)).thenReturn(Optional.of(payment));
     }
 
     /** 실제 모듈은 같은 영속성 컨텍스트의 행을 직접 바꾼다. Mock 도 그렇게 흉내낸다. */
     private void whenRefundedBecomes(PaymentStatus after) {
+        whenRefundedBecomes(after, 1);
+    }
+
+    private void whenRefundedBecomes(PaymentStatus after, int attempts) {
         doAnswer(call -> {
             ReflectionTestUtils.setField(payment, "status", after);
+            ReflectionTestUtils.setField(payment, "attempts", attempts);
             return null;
         }).when(paymentService).cancel(anyLong(), anyString());
     }
@@ -131,6 +142,28 @@ class ReservationCancelServiceTest {
         givenPayment(PaymentStatus.PAID);
         // 모듈은 예외를 던지지 않고 REFUND_FAILED 로 기록한다.
         whenRefundedBecomes(PaymentStatus.REFUND_FAILED);
+
+        assertThat(service.cancel(RESERVATION_ID, MEMBER).refundState())
+                .isEqualTo(RefundState.REFUND_PENDING);
+    }
+
+    @Test
+    @DisplayName("재시도 상한을 넘기면 REFUND_UNRESOLVED - 끝나지 않는 \"처리 중\" 을 보여주지 않는다")
+    void reportsUnresolvedAfterRetryLimit() {
+        givenRoundStartingIn(Duration.ofDays(3), 10000);
+        givenPayment(PaymentStatus.PAID);
+        whenRefundedBecomes(PaymentStatus.REFUND_FAILED, MAX_REFUND_ATTEMPTS);
+
+        assertThat(service.cancel(RESERVATION_ID, MEMBER).refundState())
+                .isEqualTo(RefundState.REFUND_UNRESOLVED);
+    }
+
+    @Test
+    @DisplayName("상한 직전까지는 아직 REFUND_PENDING 이다")
+    void staysPendingJustBelowLimit() {
+        givenRoundStartingIn(Duration.ofDays(3), 10000);
+        givenPayment(PaymentStatus.PAID);
+        whenRefundedBecomes(PaymentStatus.REFUND_FAILED, MAX_REFUND_ATTEMPTS - 1);
 
         assertThat(service.cancel(RESERVATION_ID, MEMBER).refundState())
                 .isEqualTo(RefundState.REFUND_PENDING);
@@ -245,7 +278,7 @@ class ReservationCancelServiceTest {
         Reservation reservation = givenRoundStartingIn(Duration.ofDays(3), 10000);
         reservation.cancel(NOW.minus(Duration.ofHours(1)));
         when(reservations.cancelIfActive(anyLong(), any())).thenReturn(0);
-        givenPayment(PaymentStatus.REFUND_FAILED);
+        givenPayment(PaymentStatus.REFUND_FAILED, 2);
 
         assertThat(service.cancel(RESERVATION_ID, MEMBER).refundState())
                 .isEqualTo(RefundState.REFUND_PENDING);
