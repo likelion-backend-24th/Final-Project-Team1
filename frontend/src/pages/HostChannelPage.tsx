@@ -1,6 +1,8 @@
+import * as PortOne from '@portone/browser-sdk/v2'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { expoApi } from '../api/expo'
+import type { ApplyPromotionResponse } from '../api/expo'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import { expoKey } from '../types'
@@ -15,6 +17,8 @@ export default function HostChannelPage() {
   const [expos, setExpos] = useState<Expo[]>([])
   const [loadingCh, setLoadingCh] = useState(true)
   const [loadingEx, setLoadingEx] = useState(false)
+  const [activePromos, setActivePromos] = useState<Record<number, number>>({})
+  const [promoLoading, setPromoLoading] = useState<Record<number, boolean>>({})
 
   function loadExpos(channelId: number) {
     setLoadingEx(true)
@@ -22,6 +26,16 @@ export default function HostChannelPage() {
       .then(res => setExpos((res.data ?? []).filter(e => e.channelId === channelId)))
       .catch(() => toast('박람회 목록을 불러오지 못했습니다', 'error'))
       .finally(() => setLoadingEx(false))
+  }
+
+  function loadActivePromos() {
+    expoApi.getActivePromotions()
+      .then(res => {
+        const map: Record<number, number> = {}
+        for (const p of (res.data ?? [])) map[Number(p.expoId)] = p.promotionId
+        setActivePromos(map)
+      })
+      .catch(() => {})
   }
 
   useEffect(() => {
@@ -44,7 +58,64 @@ export default function HostChannelPage() {
         if (err.status !== 404) toast('채널 정보를 불러오지 못했습니다', 'error')
       })
       .finally(() => setLoadingCh(false))
+
+    loadActivePromos()
   }, [])
+
+  async function handleApply(expoId: number) {
+    setPromoLoading(p => ({ ...p, [expoId]: true }))
+    try {
+      const res = await expoApi.applyPromotion(expoId)
+      const data = res.data as ApplyPromotionResponse
+
+      const response = await PortOne.requestPayment({
+        storeId: import.meta.env.VITE_PORTONE_STORE_ID,
+        channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
+        paymentId: data.paymentId,
+        orderName: 'VIP 배너 노출 (9,900원)',
+        totalAmount: 9900,
+        currency: 'CURRENCY_KRW',
+        payMethod: 'CARD',
+      })
+
+      if (response?.code) {
+        toast(response.message ?? '결제가 취소되었습니다', 'error')
+        return
+      }
+
+      // 로컬 개발: MockPgClient 사용 환경에서 수동 webhook으로 ACTIVE 전환
+      await fetch('/api/v1/expo-promotions/webhooks/portone', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'webhook-id': `wh-${data.paymentId}`,
+        },
+        body: JSON.stringify({ payment_id: data.paymentId, status: 'PAID' }),
+      })
+
+      toast('VIP 배너 신청이 완료되었습니다!', 'success')
+      loadActivePromos()
+    } catch (err: unknown) {
+      const e = err as { status?: number }
+      if (e.status === 409) toast('이미 진행 중인 배너 신청이 있습니다', 'error')
+      else toast('배너 신청에 실패했습니다', 'error')
+    } finally {
+      setPromoLoading(p => ({ ...p, [expoId]: false }))
+    }
+  }
+
+  async function handleRefund(expoId: number, promotionId: number) {
+    setPromoLoading(p => ({ ...p, [expoId]: true }))
+    try {
+      await expoApi.refundPromotion(promotionId)
+      toast('VIP 배너가 환불되었습니다', 'success')
+      setActivePromos(p => { const next = { ...p }; delete next[expoId]; return next })
+    } catch {
+      toast('환불에 실패했습니다', 'error')
+    } finally {
+      setPromoLoading(p => ({ ...p, [expoId]: false }))
+    }
+  }
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: 'calc(100vh - 64px)' }}>
@@ -107,15 +178,22 @@ export default function HostChannelPage() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {expos.map(expo => (
-                  <ExpoRow
-                    key={expoKey(expo)}
-                    expo={expo}
-                    onManage={() =>
-                      navigate(`/host/expos/${expoKey(expo)}/rounds`, { state: { expo } })
-                    }
-                  />
-                ))}
+                {expos.map(expo => {
+                  const eid = expoKey(expo)
+                  const promoId = activePromos[eid]
+                  const busy = promoLoading[eid] ?? false
+                  return (
+                    <ExpoRow
+                      key={eid}
+                      expo={expo}
+                      hasActivePromo={promoId != null}
+                      promoLoading={busy}
+                      onManage={() => navigate(`/host/expos/${eid}/rounds`, { state: { expo } })}
+                      onApplyPromo={() => handleApply(eid)}
+                      onRefundPromo={() => handleRefund(eid, promoId)}
+                    />
+                  )
+                })}
               </div>
             )}
           </div>
@@ -125,36 +203,44 @@ export default function HostChannelPage() {
   )
 }
 
-function ExpoRow({ expo, onManage }: { expo: Expo; onManage: () => void }) {
+function ExpoRow({
+  expo, hasActivePromo, promoLoading, onManage, onApplyPromo, onRefundPromo,
+}: {
+  expo: Expo
+  hasActivePromo: boolean
+  promoLoading: boolean
+  onManage: () => void
+  onApplyPromo: () => void
+  onRefundPromo: () => void
+}) {
   return (
     <div
       className="card"
-      style={{ padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer' }}
-      onClick={onManage}
+      style={{ padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 16 }}
     >
       <div
         style={{
           width: 48, height: 48,
           borderRadius: 'var(--r-sm)',
           background: 'linear-gradient(135deg, var(--navy), #2E3A5C)',
-          flexShrink: 0,
+          flexShrink: 0, cursor: 'pointer',
         }}
+        onClick={onManage}
       />
 
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={onManage}>
         <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
           <span className={`badge badge-${(expo.status ?? 'PUBLISHED').toLowerCase()}`}>
             {(expo.status ?? 'PUBLISHED') === 'PUBLISHED' ? '● 공개중' : expo.status === 'HIDDEN' ? '○ HIDDEN' : '● 종료'}
           </span>
           <span className="badge badge-blue">{expo.category}</span>
+          {hasActivePromo && (
+            <span className="badge" style={{ background: '#7C3AED', color: '#fff' }}>⭐ VIP</span>
+          )}
         </div>
         <h3 style={{
-          fontWeight: 700,
-          color: 'var(--text)',
-          fontSize: 15,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
+          fontWeight: 700, color: 'var(--text)', fontSize: 15,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {expo.title}
         </h3>
@@ -165,13 +251,32 @@ function ExpoRow({ expo, onManage }: { expo: Expo; onManage: () => void }) {
         )}
       </div>
 
-      <button
-        className="btn btn-secondary btn-sm"
-        style={{ flexShrink: 0 }}
-        onClick={e => { e.stopPropagation(); onManage() }}
-      >
-        회차 관리 →
-      </button>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        {hasActivePromo ? (
+          <button
+            className="btn btn-sm btn-secondary"
+            disabled={promoLoading}
+            onClick={onRefundPromo}
+          >
+            {promoLoading ? '처리중...' : 'VIP 환불'}
+          </button>
+        ) : (
+          <button
+            className="btn btn-sm"
+            style={{ background: '#7C3AED', color: '#fff', border: 'none' }}
+            disabled={promoLoading}
+            onClick={onApplyPromo}
+          >
+            {promoLoading ? '처리중...' : '⭐ VIP 배너 신청'}
+          </button>
+        )}
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={onManage}
+        >
+          회차 관리 →
+        </button>
+      </div>
     </div>
   )
 }
