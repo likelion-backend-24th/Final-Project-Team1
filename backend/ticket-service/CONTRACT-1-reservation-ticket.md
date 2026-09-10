@@ -46,7 +46,27 @@ Response `201 Created` (raw, 봉투 없음)
 
 Response `204 No Content` (본문 없음)
 
+## 3. 티켓 조회 — 예약 상세 화면 (#82)
+
+`GET /internal/v1/tickets/reservation/{reservationId}`
+
+A가 "내 예약 상세"에서 QR을 표시하기 위해 호출한다. 예약당 티켓 1건이므로 단건 반환(벌크 없음).
+목록 조회(`GET /api/v1/reservations/me`)에는 QR이 없으므로 이 단건 조회만 있으면 된다.
+
+Response `200 OK` (raw, 봉투 없음)
+```json
+{
+  "ticketId": 1,
+  "checkinToken": "ad12...",
+  "issuedAt": "2026-09-07T02:00:00Z",
+  "status": "ISSUED"
+}
+```
+
+- **`status` 필수** — 화면이 이걸로 분기한다: `ISSUED`→QR 표시, `USED`→"입장 완료", `CANCELLED`→무효 표시. `checkinToken` 만으로는 구분 불가.
+- **`404` 는 정상 상황** — 발급 통지가 fail-open(재시도 대기)이라, 예약은 `CONFIRMED` 인데 티켓이 아직 없을 수 있다. 이때 500·빈 객체가 아니라 **404** 로 응답한다. A는 이를 `ticketAvailable: false`("티켓 발급 중")로 변환하며, 이렇게 해야 진짜 장애(503·타임아웃)와 구분된다.
+
 ## 열린 질문 (합의 필요)
 1. 발급 실패 시 A의 처리 — 예약 확정은 됐는데 티켓 발급 호출이 실패하면? (서비스경계 문서: "재시도 큐 적재 + 사용자에게 '티켓 발급 중' 표시 후 폴링")
 2. `headcount` 상한 — 회차 정원 검증은 A 책임으로 가정(티켓은 A가 넘긴 수를 그대로 발급).
-3. `checkinToken` 서명 방식(JWT형 vs 불투명+서버조회) — #74 에서 확정.
+3. ~~`checkinToken` 서명 방식(JWT형 vs 불투명+서버조회)~~ — **확정: 불투명 토큰 + 서버 조회**(#74). 랜덤 토큰이 UNIQUE·1회용이라 위조 불가, 서명 불필요.

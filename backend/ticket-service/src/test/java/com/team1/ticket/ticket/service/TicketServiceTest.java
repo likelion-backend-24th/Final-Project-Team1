@@ -1,7 +1,10 @@
 package com.team1.ticket.ticket.service;
 
+import com.team1.ticket.common.ApiException;
+import com.team1.ticket.common.ErrorCode;
 import com.team1.ticket.ticket.dto.IssueTicketsRequest;
 import com.team1.ticket.ticket.dto.IssuedTicketResponse;
+import com.team1.ticket.ticket.dto.TicketDetailResponse;
 import com.team1.ticket.ticket.entity.Ticket;
 import com.team1.ticket.ticket.entity.TicketStatus;
 import com.team1.ticket.ticket.repository.TicketRepository;
@@ -17,6 +20,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -118,5 +122,28 @@ class TicketServiceTest {
         service.revokeByReservation(RESERVATION_ID);
 
         assertThat(cancelled.getStatus()).isEqualTo(TicketStatus.CANCELLED);
+    }
+
+    @Test
+    @DisplayName("예약별 조회: 티켓이 있으면 status 를 포함해 반환한다 (화면 분기용)")
+    void getByReservationReturnsDetailWithStatus() {
+        Ticket ticket = Ticket.issue(RESERVATION_ID, 10L, 45L, 77L, 2, "tok-1", NOW);
+        when(tickets.findByReservationId(RESERVATION_ID)).thenReturn(Optional.of(ticket));
+
+        TicketDetailResponse response = service.getByReservation(RESERVATION_ID);
+
+        assertThat(response.checkinToken()).isEqualTo("tok-1");
+        assertThat(response.status()).isEqualTo("ISSUED");
+        assertThat(response.issuedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    @DisplayName("예약별 조회: 티켓이 아직 없으면 404 (발급 중 — 진짜 장애와 구분)")
+    void getByReservationThrowsNotFoundWhenAbsent() {
+        when(tickets.findByReservationId(RESERVATION_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getByReservation(RESERVATION_ID))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.NOT_FOUND));
     }
 }
