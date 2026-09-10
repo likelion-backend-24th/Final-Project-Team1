@@ -47,68 +47,55 @@ export default function HomePage() {
   const [bannerIdx, setBannerIdx] = useState(0)
   const bannerTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // 박람회 목록
+  // 박람회 목록 — 추천순은 VIP 박람회만 표시
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    expoApi.listPublished({
-      category: category === '전체' ? undefined : category,
-      sort,
-    })
-      .then(res => { if (!cancelled) { setExpos(res.data ?? []); setError(false) } })
-      .catch(() => { if (!cancelled) setError(true) })
-      .finally(() => { if (!cancelled) setLoading(false) })
+
+    if (sort === 'recommended') {
+      // 추천순: 활성 VIP 프로모션 박람회만
+      promotionApi.getActive()
+        .then(async res => {
+          if (cancelled) return
+          const active = res.data ?? []
+          if (active.length === 0) { setExpos([]); setError(false); return }
+          // expoId 목록으로 전체 박람회 가져와서 VIP 것만 필터
+          const all = await expoApi.listPublished({ size: 100 })
+          const vipIds = new Set(active.map(p => p.expoId))
+          setExpos((all.data ?? []).filter(e => vipIds.has(e.expoId ?? e.id)))
+          setError(false)
+        })
+        .catch(() => { if (!cancelled) setError(true) })
+        .finally(() => { if (!cancelled) setLoading(false) })
+    } else {
+      expoApi.listPublished({
+        category: category === '전체' ? undefined : category,
+        sort,
+      })
+        .then(res => { if (!cancelled) { setExpos(res.data ?? []); setError(false) } })
+        .catch(() => { if (!cancelled) setError(true) })
+        .finally(() => { if (!cancelled) setLoading(false) })
+    }
     return () => { cancelled = true }
   }, [category, sort])
 
-  // VIP 배너 (30초 rotation)
+  // VIP 배너 (5초 rotation, 추천순 탭에서만 표시)
   useEffect(() => {
     promotionApi.getActive()
       .then(res => setBanners(res.data ?? []))
-      .catch(() => {/* 배너 실패는 무시 */})
+      .catch(() => {})
 
-    bannerTimer.current = setInterval(() => {
-      setBannerIdx(i => i + 1)
-    }, 5000) // UI 체감을 위해 5초로 설정 (실제 백엔드 rotation은 30초)
+    bannerTimer.current = setInterval(() => setBannerIdx(i => i + 1), 5000)
     return () => { if (bannerTimer.current) clearInterval(bannerTimer.current) }
   }, [])
 
   const catIcon = (label: string) => CATS.find(c => c.label === label)?.icon ?? '🏷️'
 
   const banner = banners.length > 0 ? banners[bannerIdx % banners.length] : null
+  const showBanner = sort === 'recommended' && banners.length > 0
 
   return (
     <>
-      {/* ─── VIP 배너 ─── */}
-      {banner && (
-        <div
-          style={{
-            background: 'linear-gradient(135deg, #7C3AED, #4F46E5)',
-            color: '#fff',
-            padding: '12px 0',
-            cursor: 'pointer',
-          }}
-          onClick={() => navigate(`/expos/${banner.expoId}`)}
-        >
-          <div className="container" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{
-              background: 'rgba(255,255,255,0.2)',
-              fontSize: 11,
-              fontWeight: 800,
-              padding: '2px 8px',
-              borderRadius: 4,
-              letterSpacing: '.04em',
-            }}>VIP</span>
-            <span style={{ fontSize: 14, fontWeight: 600, flex: 1 }}>
-              {CAT_ICON[banner.expoCategory] ?? '🎪'} {banner.expoTitle}
-            </span>
-            <span style={{ fontSize: 11, opacity: .7 }}>
-              {bannerIdx % banners.length + 1} / {banners.length}
-            </span>
-          </div>
-        </div>
-      )}
-
       {/* ─── Hero ─── */}
       <section className="hero">
         <div className="container">
@@ -124,20 +111,7 @@ export default function HomePage() {
       {/* ─── Content ─── */}
       <div className="container page-wrap">
 
-        {/* Sort tabs */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          {SORT_TABS.map(t => (
-            <button
-              key={t.key}
-              className={`btn btn-sm ${sort === t.key ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setSort(t.key)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Category filter */}
+        {/* 카테고리 필터 */}
         <div className="cat-bar">
           {CATS.map(c => (
             <button
@@ -151,6 +125,70 @@ export default function HomePage() {
           ))}
         </div>
 
+        {/* 정렬 탭 */}
+        <div style={{ display: 'flex', borderBottom: '2px solid var(--border)', marginBottom: 24 }}>
+          {SORT_TABS.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setSort(t.key)}
+              style={{
+                padding: '10px 20px',
+                fontSize: 14, fontWeight: sort === t.key ? 700 : 400,
+                color: sort === t.key ? 'var(--primary)' : 'var(--sub)',
+                background: 'none', border: 'none', cursor: 'pointer',
+                borderBottom: sort === t.key ? '2px solid var(--primary)' : '2px solid transparent',
+                marginBottom: -2,
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 추천순: VIP 배너 캐러셀 */}
+        {showBanner && (
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #3B0764 0%, #6D28D9 45%, #4338CA 100%)',
+              borderRadius: 16, padding: '32px 36px', marginBottom: 28,
+              cursor: 'pointer', position: 'relative', overflow: 'hidden',
+            }}
+            onClick={() => navigate(`/expos/${banner!.expoId}`)}
+          >
+            <div style={{ position: 'absolute', top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', bottom: -60, right: 100, width: 160, height: 160, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <span style={{ background: 'linear-gradient(90deg, #FCD34D, #F59E0B)', color: '#1a1a1a', fontSize: 11, fontWeight: 900, padding: '3px 10px', borderRadius: 4, letterSpacing: '.08em' }}>⭐ VIP SPONSOR</span>
+              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>
+                {CAT_ICON[banner!.category] ?? '🎪'} {banner!.category}{banner!.region && ` · ${banner!.region}`}
+              </span>
+            </div>
+
+            <h2 style={{ color: '#fff', fontSize: 24, fontWeight: 800, lineHeight: 1.3, marginBottom: 20, maxWidth: 600 }}>
+              {banner!.title}
+            </h2>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <button
+                style={{ background: '#fff', color: '#6D28D9', border: 'none', borderRadius: 8, padding: '9px 22px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+                onClick={e => { e.stopPropagation(); navigate(`/expos/${banner!.expoId}`) }}
+              >
+                자세히 보기 →
+              </button>
+              {banners.length > 1 && (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {banners.map((_, i) => (
+                    <button key={i} onClick={e => { e.stopPropagation(); setBannerIdx(i) }}
+                      style={{ width: i === bannerIdx % banners.length ? 20 : 8, height: 8, borderRadius: 4, border: 'none', background: i === bannerIdx % banners.length ? '#fff' : 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: 0, transition: 'width .3s' }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <SkeletonGrid />
         ) : error ? (
@@ -162,15 +200,15 @@ export default function HomePage() {
           </div>
         ) : expos.length === 0 ? (
           <div className="empty-state">
-            <div className="es-icon">🔍</div>
-            <p className="es-title">검색 결과가 없습니다</p>
-            <p className="es-desc">다른 카테고리를 선택해보세요.</p>
+            <div className="es-icon">{sort === 'recommended' ? '⭐' : '🔍'}</div>
+            <p className="es-title">{sort === 'recommended' ? 'VIP 추천 박람회가 없습니다' : '검색 결과가 없습니다'}</p>
+            <p className="es-desc">{sort === 'recommended' ? '주최자 센터에서 VIP 배너를 신청해보세요.' : '다른 카테고리를 선택해보세요.'}</p>
           </div>
         ) : (
           <>
-            <div className="section-header">
+            <div className="section-header" style={{ marginBottom: 16 }}>
               <span className="section-title">
-                {category === '전체' ? '전체 박람회' : category}
+                {sort === 'recommended' ? '추천 박람회' : category === '전체' ? '전체 박람회' : category}
                 <span className="section-count">{expos.length}개</span>
               </span>
             </div>

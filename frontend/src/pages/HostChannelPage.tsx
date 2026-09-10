@@ -1,3 +1,4 @@
+import * as PortOne from '@portone/browser-sdk/v2'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { expoApi } from '../api/expo'
@@ -33,7 +34,7 @@ export default function HostChannelPage() {
     promotionApi.getActive()
       .then(res => {
         const map: Record<number, number> = {}
-        for (const p of (res.data ?? [])) map[p.expoId] = p.promotionId
+        for (const p of (res.data ?? [])) map[Number(p.expoId)] = p.promotionId
         setActivePromos(map)
       })
       .catch(() => {/* 무시 */})
@@ -65,9 +66,41 @@ export default function HostChannelPage() {
   async function handleApply(expoId: number) {
     setPromoLoading(p => ({ ...p, [expoId]: true }))
     try {
+      // 1. 백엔드에서 paymentId 발급
       const res = await promotionApi.apply(expoId)
       const data = res.data as ApplyPromotionResponse
-      toast(`VIP 배너 신청 완료 (결제ID: ${data.paymentId})`, 'success')
+
+      // 2. PortOne 결제 위젯 호출
+      const response = await PortOne.requestPayment({
+        storeId: import.meta.env.VITE_PORTONE_STORE_ID,
+        channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
+        paymentId: data.paymentId,
+        orderName: 'VIP 배너 노출 (9,900원)',
+        totalAmount: 9900,
+        currency: 'CURRENCY_KRW',
+        payMethod: 'CARD',
+      })
+
+      if (response?.code) {
+        // 결제 실패/취소
+        toast(response.message ?? '결제가 취소되었습니다', 'error')
+        return
+      }
+
+      // 3. 결제 성공 → webhook으로 ACTIVE 전환 (로컬: MockPgClient 사용)
+      await fetch('/api/v1/expo-promotions/webhooks/portone', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'webhook-id': `wh-${data.paymentId}`,
+        },
+        body: JSON.stringify({
+          payment_id: data.paymentId,
+          status: 'PAID',
+        }),
+      })
+
+      toast('VIP 배너 신청이 완료되었습니다 🎉', 'success')
       loadActivePromos()
     } catch (err: unknown) {
       const e = err as { status?: number }

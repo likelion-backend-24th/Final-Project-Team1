@@ -4,10 +4,11 @@ import type { ApiResponse } from '../types'
 export interface ActivePromotion {
   promotionId: number
   expoId: number
-  expoTitle: string
-  expoCategory: string
-  amount: number
-  status: string
+  title: string
+  category: string
+  region?: string
+  thumbnailUrl?: string | null
+  paidAt: string
 }
 
 export interface ApplyPromotionResponse {
