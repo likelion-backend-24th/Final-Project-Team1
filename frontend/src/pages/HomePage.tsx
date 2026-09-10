@@ -33,6 +33,7 @@ export default function HomePage() {
 
   useEffect(() => {
     let cancelled = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     expoApi.listPublished({
       category: category === '전체' ? undefined : category,
