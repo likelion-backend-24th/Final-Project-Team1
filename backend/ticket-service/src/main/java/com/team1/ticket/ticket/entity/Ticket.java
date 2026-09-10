@@ -90,6 +90,18 @@ public class Ticket {
         this.status = TicketStatus.CANCELLED;
     }
 
+    // 현장 체크인. ISSUED → USED (1회용). 이미 사용됐거나 취소된 티켓은 거부한다.
+    public void checkIn(Instant now) {
+        if (this.status == TicketStatus.USED) {
+            throw new ApiException(ErrorCode.CONFLICT, "already checked in");
+        }
+        if (this.status != TicketStatus.ISSUED) {   // CANCELLED
+            throw new ApiException(ErrorCode.CONFLICT, "cancelled ticket cannot be checked in");
+        }
+        this.status = TicketStatus.USED;
+        this.usedAt = now;
+    }
+
     public Long getId() {
         return id;
     }

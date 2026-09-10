@@ -31,6 +31,12 @@ spring:
 internal:
   token: ${INTERNAL_TOKEN:local-dev-internal-token}
 
+# 체크인 소유권 검증(#7): 박람회-Service getExpoInternal 호출. 연결 2s·응답 3s(계약).
+expo-service:
+  base-url: ${EXPO_SERVICE_URL:http://localhost:8082}
+  connect-timeout: 2s
+  read-timeout: 3s
+
 # 개발·CI 기본값. 실제 값은 JWT_SECRET 환경변수가 덮어쓴다
 jwt:
   secret: ${JWT_SECRET:dev-only-not-a-real-secret-0123456789abcdef}
