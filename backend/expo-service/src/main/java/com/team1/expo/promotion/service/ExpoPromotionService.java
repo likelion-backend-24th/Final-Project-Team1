@@ -69,10 +69,14 @@ public class ExpoPromotionService {
     public ApplyPromotionResponse apply(Long requesterId, ApplyPromotionRequest request) {
         verifyOwnership(request.expoId(), requesterId);
 
+        // ACTIVE면 환불 먼저 해야 함
         if (promotionRepository.existsByExpoIdAndStatusIn(
-                request.expoId(), List.of(ExpoPromotionStatus.PENDING, ExpoPromotionStatus.ACTIVE))) {
+                request.expoId(), List.of(ExpoPromotionStatus.ACTIVE))) {
             throw new BusinessException(ErrorCode.PROMOTION_ALREADY_EXISTS);
         }
+        // 결제 취소 등으로 남은 PENDING은 자동 정리
+        promotionRepository.findByExpoIdAndStatus(request.expoId(), ExpoPromotionStatus.PENDING)
+                .ifPresent(p -> p.cancel(clock));
 
         ExpoPromotion promotion = promotionRepository.save(
                 ExpoPromotion.create(request.expoId(), BANNER_PRICE, clock));

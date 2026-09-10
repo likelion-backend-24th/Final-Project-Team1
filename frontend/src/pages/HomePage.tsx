@@ -34,30 +34,15 @@ export default function HomePage() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-
-    const fetchExpos = sort === 'recommended'
-      // 추천순: 전체 가져온 뒤 클라이언트에서 VIP 우선 정렬
-      ? expoApi.listPublished({ category: category === '전체' ? undefined : category })
-      : expoApi.listPublished({ category: category === '전체' ? undefined : category, sort })
-
-    fetchExpos
-      .then(res => {
-        if (cancelled) return
-        const list = res.data ?? []
-        if (sort === 'recommended' && promotions.length > 0) {
-          const vipIds = new Set(promotions.map(p => p.expoId))
-          const vip = list.filter(e => vipIds.has(expoKey(e)))
-          const rest = list.filter(e => !vipIds.has(expoKey(e)))
-          setExpos([...vip, ...rest])
-        } else {
-          setExpos(list)
-        }
-        setError(false)
-      })
+    expoApi.listPublished({
+      category: category === '전체' ? undefined : category,
+      sort: sort === 'recommended' ? undefined : sort,
+    })
+      .then(res => { if (!cancelled) { setExpos(res.data ?? []); setError(false) } })
       .catch(() => { if (!cancelled) setError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [category, sort, promotions])
+  }, [category, sort])
 
   useEffect(() => {
     expoApi.getActivePromotions()
@@ -66,6 +51,11 @@ export default function HomePage() {
   }, [])
 
   const vipIds = new Set(promotions.map(p => p.expoId))
+
+  // 추천순일 때만 클라이언트 정렬 (VIP 먼저)
+  const displayExpos = sort === 'recommended' && vipIds.size > 0
+    ? [...expos.filter(e => vipIds.has(expoKey(e))), ...expos.filter(e => !vipIds.has(expoKey(e)))]
+    : expos
 
   return (
     <>
@@ -129,11 +119,11 @@ export default function HomePage() {
             <div className="section-header">
               <span className="section-title">
                 {category === '전체' ? '전체 박람회' : category}
-                <span className="section-count">{expos.length}개</span>
+                <span className="section-count">{displayExpos.length}개</span>
               </span>
             </div>
             <div className="expo-grid">
-              {expos.map(expo => (
+              {displayExpos.map(expo => (
                 <ExpoCard
                   key={expoKey(expo)}
                   expo={expo}
