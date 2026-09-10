@@ -40,6 +40,14 @@ scheduler:
     cron: "0 */10 * * * *"
     limit: 500
 
+  # 환불 실패 재시도(#125). REFUND_FAILED 로 남은 건만 회수한다.
+  refund-retry:
+    enabled: ${REFUND_RETRY_ENABLED:true}
+    cron: "0 * * * * *"
+    batch-size: 100
+    max-attempts: 6
+    backoff: 1m
+
 app:
   base-url: ${APP_BASE_URL:http://localhost:8082}
 

@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.Duration;
 import java.time.Instant;
 
 @Entity
@@ -36,6 +37,12 @@ public class PaymentTransaction {
 
     @Column(name = "pg_response_code", length = 50)
     private String pgResponseCode;
+
+    @Column(nullable = false)
+    private int attempts;
+
+    @Column(name = "next_attempt_at")
+    private Instant nextAttemptAt;
 
     @Column(name = "failure_reason", length = 500)
     private String failureReason;
@@ -72,10 +79,12 @@ public class PaymentTransaction {
     }
 
     public void markFailed(String pgResponseCode, String failureReason, Instant now) {
+
         this.pgResponseCode = pgResponseCode;
         this.failureReason = failureReason;
         this.status = PaymentStatus.FAILED;
         this.updatedAt = now;
+
     }
 
     public void markCancelled(Instant now) {
@@ -84,9 +93,12 @@ public class PaymentTransaction {
         this.updatedAt = now;
     }
 
-    public void markRefundFailed(String failureReason, Instant now) {
+    public void markRefundFailed(String failureReason,int maxAttempts,Duration backoff, Instant now) {
+
+        this.attempts++;
         this.failureReason = failureReason;
         this.status = PaymentStatus.REFUND_FAILED;
         this.updatedAt = now;
+        this.nextAttemptAt = now.plus(backoff.multipliedBy(1L<<(attempts -1 )));
     }
 }

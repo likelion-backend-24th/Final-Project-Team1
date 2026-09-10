@@ -58,6 +58,14 @@ scheduler:
     # 지수 백오프의 기준값. 1·2·4·8·16분 뒤에 재시도하고 6회째에 포기한다.
     backoff: 1m
 
+  # 환불 실패 재시도(#125). REFUND_FAILED 로 남은 건만 회수한다.
+  refund-retry:
+    enabled: ${REFUND_RETRY_ENABLED:true}
+    cron: "0 * * * * *"
+    batch-size: 100
+    max-attempts: 6
+    backoff: 1m
+
 ticket-service:
   base-url: ${TICKET_SERVICE_URL:http://localhost:8084}
   connect-timeout: 2s
