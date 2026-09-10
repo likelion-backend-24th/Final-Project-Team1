@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -29,4 +30,13 @@ public interface ExpoQueryRepository extends Repository<Expo, Long> {
     Page<Expo> findPublished(@Param("region") String region,
                              @Param("category") String category,
                              Pageable pageable);
+
+    @Query("""
+            select e from Expo e
+            where e.status = com.team1.expo.domain.expo.ExpoStatus.PUBLISHED
+              and (:region is null or e.region = :region)
+              and (:category is null or e.category = :category)
+            """)
+    List<Expo> findAllPublished(@Param("region") String region,
+                                @Param("category") String category);
 }

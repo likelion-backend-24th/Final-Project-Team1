@@ -11,12 +11,15 @@ import com.team1.expo.expo.dto.RoundView;
 import com.team1.expo.expo.repository.ExpoQueryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
@@ -47,10 +50,23 @@ public class ExpoQueryService {
         int pageIndex = Math.max(page, 1) - 1;
         int pageSize = Math.min(Math.max(size, 1), MAX_SIZE);
 
+        if ("deadline".equals(sort)) {
+            // ponytail: expo당 roundClient 1회 호출 — expo 수십 개 규모에서 허용, 수백 개면 배치 API 필요
+            Instant now = Instant.now();
+            List<ExpoSummaryResponse> sorted = expoQueryRepository.findAllPublished(region, category)
+                    .stream()
+                    .sorted(Comparator.comparing(
+                            expo -> nearestDeadline(expo.getId(), now),
+                            Comparator.nullsLast(Comparator.naturalOrder())))
+                    .map(ExpoSummaryResponse::from)
+                    .toList();
+            int from = pageIndex * pageSize;
+            int to = Math.min(from + pageSize, sorted.size());
+            List<ExpoSummaryResponse> slice = from >= sorted.size() ? List.of() : sorted.subList(from, to);
+            return new PageImpl<>(slice, PageRequest.of(pageIndex, pageSize), sorted.size());
+        }
+
         Sort ordering = switch (sort == null ? "recommended" : sort) {
-            case "deadline" ->
-                // ponytail: expo에 마감일 필드 없음 — reservation-service round.endsAt 연동 시 교체
-                Sort.by(Sort.Direction.ASC, "createdAt");
             case "newest" -> Sort.by(Sort.Direction.DESC, "createdAt");
             default -> Sort.by(Sort.Direction.DESC, "createdAt"); // recommended
         };
@@ -58,6 +74,18 @@ public class ExpoQueryService {
         Pageable pageable = PageRequest.of(pageIndex, pageSize, ordering);
         return expoQueryRepository.findPublished(region, category, pageable)
                 .map(ExpoSummaryResponse::from);
+    }
+
+    private Instant nearestDeadline(Long expoId, Instant now) {
+        try {
+            return roundClient.listByExpo(expoId).stream()
+                    .map(RoundView::endsAt)
+                    .filter(e -> e.isAfter(now))
+                    .min(Comparator.naturalOrder())
+                    .orElse(null); // 남은 회차 없으면 null → 정렬 맨 뒤
+        } catch (BusinessException e) {
+            return null; // round 조회 실패도 맨 뒤
+        }
     }
 
     /**
