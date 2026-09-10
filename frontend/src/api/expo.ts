@@ -1,30 +1,40 @@
 import { api } from './client'
-import type { ApiResponse, Expo, Channel } from '../types'
+import type { ActivePromotion, ApiResponse, Expo, Channel } from '../types'
 
 export interface PublicationResponse {
   expoId: number
   status: 'HIDDEN' | 'PUBLISHED' | 'CLOSED'
 }
 
+export type ExpoSort = 'recommended' | 'newest' | 'deadline'
+
 export const expoApi = {
   /**
    * GET /api/v1/expos — PUBLISHED 만 내려온다. 인증 불필요.
-   * 백엔드가 받는 파라미터는 region · category · page(1부터) · size(최대 100) 뿐이다.
+   * 백엔드가 받는 파라미터는 region · category · sort · page(1부터) · size(최대 100).
    * keyword 검색은 Sprint 2 범위라 아직 없다.
    */
   listPublished: (params?: {
     category?: string
     region?: string
+    sort?: ExpoSort
     page?: number
     size?: number
   }) => {
     const q = new URLSearchParams()
     if (params?.category) q.set('category', params.category)
     if (params?.region) q.set('region', params.region)
+    if (params?.sort) q.set('sort', params.sort)
     q.set('page', String(params?.page ?? 1))
     q.set('size', String(params?.size ?? 100))
     return api.get<ApiResponse<Expo[]>>(`/expos?${q}`)
   },
+
+  /**
+   * GET /api/v1/expo-promotions/active — 인증 불필요.
+   * recommended 탭 상단 VIP 배너용. 백엔드가 정렬에 섞어주지 않으므로 프론트가 별도로 불러 조합한다.
+   */
+  getActivePromotions: () => api.get<ApiResponse<ActivePromotion[]>>('/expo-promotions/active'),
 
   /**
    * GET /api/v1/expos/{expoId} — PUBLISHED 가 아니면 404 다.

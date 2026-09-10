@@ -11,6 +11,7 @@ public record RoundView(
         Instant startsAt,
         Instant endsAt,
         int capacity,
-        int remaining
+        int remaining,
+        int fee
 ) {
 }

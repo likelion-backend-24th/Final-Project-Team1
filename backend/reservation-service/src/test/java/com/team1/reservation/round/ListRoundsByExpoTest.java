@@ -55,10 +55,10 @@ class ListRoundsByExpoTest {
                 .andExpect(jsonPath("$[0].endsAt").value("2026-09-10T08:00:00Z"))
                 .andExpect(jsonPath("$[0].capacity").value(100))
                 .andExpect(jsonPath("$[0].remaining").value(100))
+                // fee: Story 5 - 박람회 상세에서 방문자에게 회차 가격을 보여주기 위해 계약에 추가됨
+                .andExpect(jsonPath("$[0].fee").value(10000))
                 // 성공 Envelope 로 감싸지 않는다
-                .andExpect(jsonPath("$.success").doesNotExist())
-                // 계약에 없는 필드는 내보내지 않는다
-                .andExpect(jsonPath("$[0].fee").doesNotExist());
+                .andExpect(jsonPath("$.success").doesNotExist());
     }
 
     @Test

@@ -9,7 +9,8 @@ public record InternalRoundResponse(Long roundId,
                                     Instant startsAt,
                                     Instant endsAt,
                                     int capacity,
-                                    int remaining) {
+                                    int remaining,
+                                    int fee) {
 
     public static InternalRoundResponse from(Round round) {
         return new InternalRoundResponse(
@@ -17,6 +18,7 @@ public record InternalRoundResponse(Long roundId,
                 round.getStartsAt(),
                 round.getEndsAt(),
                 round.getCapacity(),
-                round.remaining());
+                round.remaining(),
+                round.getFee());
     }
 }

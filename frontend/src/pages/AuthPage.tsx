@@ -40,7 +40,7 @@ export default function AuthPage() {
         role: claims.role,
         token,
       })
-      toast('로그인되었습니다 👋', 'success')
+      toast('로그인되었습니다', 'success')
       navigate('/')
     } catch (err: unknown) {
       const e = err as { status?: number }
@@ -60,7 +60,7 @@ export default function AuthPage() {
     setLoading(true)
     try {
       await authApi.signup({ name: signupForm.name, email: signupForm.email, password: signupForm.password })
-      toast('가입 완료! 로그인해주세요 🎉', 'success')
+      toast('가입 완료! 로그인해주세요', 'success')
       changeTab('login')
       setLoginForm({ email: signupForm.email, password: '' })
     } catch (err: unknown) {
@@ -207,7 +207,7 @@ export default function AuthPage() {
         )}
 
         <div className="auth-host-hint">
-          <p>🎯 주최자 계정은 관리자가 직접 발급합니다.</p>
+          <p>주최자 계정은 관리자가 직접 발급합니다.</p>
         </div>
       </div>
     </div>

@@ -65,7 +65,6 @@ export default function HostChannelPage() {
           <p style={{ color: 'var(--sub)', textAlign: 'center', padding: '60px 0' }}>불러오는 중...</p>
         ) : !channel ? (
           <div className="empty-state">
-            <div className="es-icon">📢</div>
             <p className="es-title">채널이 없습니다</p>
             <p className="es-desc">채널을 먼저 만들어야 박람회를 등록할 수 있습니다.</p>
             <button className="btn btn-primary" onClick={() => navigate('/host/channel/new')}>
@@ -97,7 +96,6 @@ export default function HostChannelPage() {
               <p style={{ color: 'var(--sub)', padding: '40px 0' }}>불러오는 중...</p>
             ) : expos.length === 0 ? (
               <div className="empty-state">
-                <div className="es-icon">🎪</div>
                 <p className="es-title">등록된 박람회가 없습니다</p>
                 <p className="es-desc">첫 번째 박람회를 등록해보세요.</p>
                 <button
@@ -139,12 +137,9 @@ function ExpoRow({ expo, onManage }: { expo: Expo; onManage: () => void }) {
           width: 48, height: 48,
           borderRadius: 'var(--r-sm)',
           background: 'linear-gradient(135deg, var(--navy), #2E3A5C)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 22, flexShrink: 0,
+          flexShrink: 0,
         }}
-      >
-        🎪
-      </div>
+      />
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
