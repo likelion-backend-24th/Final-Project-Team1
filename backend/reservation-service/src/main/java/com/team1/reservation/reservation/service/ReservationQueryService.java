@@ -53,7 +53,9 @@ public class ReservationQueryService {
                             round.getId(),
                             round.getCapacity(),
                             headcount(byStatus, ReservationStatus.CONFIRMED),
-                            headcount(byStatus, ReservationStatus.CANCELLED));
+                            headcount(byStatus, ReservationStatus.CANCELLED),
+                            round.getStartsAt(),
+                            round.getEndsAt());
                 })
                 .toList();
     }

@@ -9,6 +9,7 @@ import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.reservation.dto.CancelReservationResponse;
 import com.team1.reservation.reservation.entity.Reservation;
+import com.team1.reservation.reservation.entity.ReservationStatus;
 import com.team1.reservation.reservation.repository.ReservationRepository;
 import com.team1.reservation.reservation.service.ReservationCancelService;
 import com.team1.reservation.reservation.support.TicketDispatchStub;
@@ -70,13 +71,14 @@ class ReservationCancelServiceTest {
 
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         service = new ReservationCancelService(reservations, rounds, payments, paymentService,
-                TicketDispatchStub.notifier(ticketClient, clock), clock);
+                TicketDispatchStub.notifier(ticketClient, clock), clock,
+                Duration.ZERO, Duration.ofDays(1));
 
         when(reservations.cancelIfActive(anyLong(), any())).thenReturn(1);
     }
 
     /** 회차 시작까지 남은 시간을 정해 상황을 만든다. */
-    private void givenRoundStartingIn(Duration untilStart, int fee) {
+    private Reservation givenRoundStartingIn(Duration untilStart, int fee) {
         Instant startsAt = NOW.plus(untilStart);
         Round round = Round.create(EXPO_ID, startsAt, startsAt.plusSeconds(7200), 100, fee,
                 NOW.minus(Duration.ofDays(30)));
@@ -87,6 +89,7 @@ class ReservationCancelServiceTest {
         ReflectionTestUtils.setField(reservation, "id", RESERVATION_ID);
         reservation.confirm(NOW.minus(Duration.ofDays(3)));
         when(reservations.findById(RESERVATION_ID)).thenReturn(Optional.of(reservation));
+        return reservation;
     }
 
     private void givenPaidPayment() {
@@ -133,13 +136,13 @@ class ReservationCancelServiceTest {
     }
 
     @Test
-    @DisplayName("회차가 시작된 뒤에는 취소 자체가 안 된다 - 정원도 건드리지 않는다")
+    @DisplayName("회차가 시작된 뒤에는 400 CANCELLATION_DEADLINE_PASSED - 정원도 건드리지 않는다")
     void rejectsAfterRoundStart() {
         givenRoundStartingIn(Duration.ofHours(-1), 10000);
 
         assertThatThrownBy(() -> service.cancel(RESERVATION_ID, MEMBER))
                 .isInstanceOfSatisfying(ApiException.class,
-                        e -> assertThat(e.code()).isEqualTo(ErrorCode.INVALID_STATE_TRANSITION));
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.CANCELLATION_DEADLINE_PASSED));
 
         verify(reservations, never()).cancelIfActive(anyLong(), any());
         verify(rounds, never()).release(anyLong(), anyInt());
@@ -157,8 +160,9 @@ class ReservationCancelServiceTest {
 
     @Test
     @DisplayName("만료 배치가 먼저 끝냈으면 409 이고 정원을 두 번 반환하지 않는다")
-    void rejectsWhenAlreadyFinalised() {
-        givenRoundStartingIn(Duration.ofDays(3), 10000);
+    void rejectsWhenExpired() {
+        Reservation reservation = givenRoundStartingIn(Duration.ofDays(3), 10000);
+        ReflectionTestUtils.setField(reservation, "status", ReservationStatus.EXPIRED);
         when(reservations.cancelIfActive(anyLong(), any())).thenReturn(0);
 
         assertThatThrownBy(() -> service.cancel(RESERVATION_ID, MEMBER))
@@ -167,6 +171,36 @@ class ReservationCancelServiceTest {
 
         verify(rounds, never()).release(anyLong(), anyInt());
         verifyNoInteractions(paymentService);
+    }
+
+    @Test
+    @DisplayName("이미 취소된 예약은 멱등 200 - 정원을 두 번 반환하지 않는다")
+    void isIdempotentWhenAlreadyCancelled() {
+        Reservation reservation = givenRoundStartingIn(Duration.ofDays(3), 10000);
+        reservation.cancel(NOW.minus(Duration.ofHours(1)));
+        when(reservations.cancelIfActive(anyLong(), any())).thenReturn(0);
+
+        CancelReservationResponse response = service.cancel(RESERVATION_ID, MEMBER);
+
+        assertThat(response.status()).isEqualTo("CANCELLED");
+        assertThat(response.cancelledAt()).isEqualTo(NOW.minus(Duration.ofHours(1)));
+        verify(rounds, never()).release(anyLong(), anyInt());
+        verifyNoInteractions(paymentService);
+    }
+
+    @Test
+    @DisplayName("멱등 응답의 환불 여부는 결제 상태에서 읽는다")
+    void readsRefundStateOnIdempotentReplay() {
+        Reservation reservation = givenRoundStartingIn(Duration.ofDays(3), 10000);
+        reservation.cancel(NOW.minus(Duration.ofHours(1)));
+        when(reservations.cancelIfActive(anyLong(), any())).thenReturn(0);
+
+        PaymentTransaction payment =
+                PaymentTransaction.create(RESERVATION_ID, "BE24-01-TEST", AMOUNT, NOW);
+        ReflectionTestUtils.setField(payment, "status", PaymentStatus.CANCELLED);
+        when(payments.findByRefId(RESERVATION_ID)).thenReturn(Optional.of(payment));
+
+        assertThat(service.cancel(RESERVATION_ID, MEMBER).refunded()).isTrue();
     }
 
     @Test
@@ -203,13 +237,13 @@ class ReservationCancelServiceTest {
     }
 
     @Test
-    @DisplayName("남의 예약이면 403 이고 아무것도 건드리지 않는다")
+    @DisplayName("남의 예약은 403 이 아니라 404 다 - 예약의 존재 자체를 흘리지 않는다")
     void rejectsOtherMembersReservation() {
         givenRoundStartingIn(Duration.ofDays(3), 10000);
 
         assertThatThrownBy(() -> service.cancel(RESERVATION_ID, new AuthenticatedUser(999L, "USER")))
                 .isInstanceOfSatisfying(ApiException.class,
-                        e -> assertThat(e.code()).isEqualTo(ErrorCode.FORBIDDEN));
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.NOT_FOUND));
 
         verify(reservations, never()).cancelIfActive(anyLong(), any());
         verifyNoInteractions(paymentService);
