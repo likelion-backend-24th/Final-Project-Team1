@@ -1,0 +1,18 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+# 컨텍스트 기동에 필요한 값(더미). 실제 호출은 통합 테스트에서 ExpoClient 를 Mock 으로 대체한다.
+expo-service:
+  base-url: http://localhost:8082
+  connect-timeout: 2s
+  read-timeout: 3s
