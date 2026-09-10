@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { requestPayment } from '@portone/browser-sdk/v2'
 import { reservationApi } from '../api/reservation'
 import { useToast } from './Toast'
 import type { Reservation, Round } from '../types'
@@ -22,7 +23,7 @@ function errorMessage(e: unknown, fallback: string) {
   return (code && ERROR_MESSAGES[code]) || fallback
 }
 
-type Step = 'form' | 'confirming' | 'done'
+type Step = 'form' | 'paying' | 'confirming' | 'done'
 
 export default function ReservationModal({ round, onClose, onSuccess }: Props) {
   const toast = useToast()
@@ -33,8 +34,52 @@ export default function ReservationModal({ round, onClose, onSuccess }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<Reservation | null>(null)
+  const [pending, setPending] = useState<Reservation | null>(null)
 
   const isFree = round.fee === 0
+
+  const pay = async (reservation: Reservation) => {
+    if (!reservation.paymentId) {
+      setStep('form')
+      setError('결제 정보를 불러오지 못했습니다. 다시 시도해주세요.')
+      return
+    }
+
+    setStep('paying')
+    const response = await requestPayment({
+      storeId: import.meta.env.VITE_PORTONE_STORE_ID,
+      channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
+      paymentId: reservation.paymentId,
+      orderName: `회차 예약 (${headcount}명)`,
+      totalAmount: reservation.amount,
+      currency: 'CURRENCY_KRW',
+      payMethod: 'CARD',
+      customer: { fullName: contactName.trim(), phoneNumber: contactPhone.trim() },
+    })
+
+    if (!response || response.code) {
+      // 사용자가 결제창을 닫았거나 PG 단계에서 실패한 경우. 예약은 PENDING 으로 남아
+      // 10분 후 자동 만료되거나, 같은 paymentId 로 다시 결제를 시도할 수 있다.
+      // PortOne 이 주는 message 는 내부 코드가 섞여있어(예: "[PAY_PROCESS_CANCELED] ...") 그대로 노출하지 않는다.
+      setStep('form')
+      setError(response?.code === 'PAY_PROCESS_CANCELED'
+        ? '결제를 취소했습니다.'
+        : '결제에 실패했습니다. 다시 시도해주세요.')
+      return
+    }
+
+    setStep('confirming')
+    try {
+      const confirmed = (await reservationApi.confirmPayment(reservation.reservationId)).data
+      const finalReservation = { ...reservation, status: confirmed.status }
+      setResult(finalReservation)
+      setStep('done')
+      onSuccess(finalReservation)
+    } catch (e) {
+      setStep('form')
+      setError(errorMessage(e, '결제 확인에 실패했습니다. 다시 시도해주세요.'))
+    }
+  }
 
   const handleSubmit = async () => {
     setError(null)
@@ -62,19 +107,18 @@ export default function ReservationModal({ round, onClose, onSuccess }: Props) {
         return
       }
 
-      // 유료 회차: 실제 결제창 연동 전까지는 승인 조회를 바로 이어서 부른다.
-      setStep('confirming')
-      const confirmed = (await reservationApi.confirmPayment(created.reservationId)).data
-      const finalReservation = { ...created, status: confirmed.status }
-      setResult(finalReservation)
-      setStep('done')
-      onSuccess(finalReservation)
+      setPending(created)
+      await pay(created)
     } catch (e) {
       setStep('form')
       setError(errorMessage(e, '예약에 실패했습니다. 다시 시도해주세요.'))
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleRetryPayment = () => {
+    if (pending) pay(pending)
   }
 
   return (
@@ -98,6 +142,7 @@ export default function ReservationModal({ round, onClose, onSuccess }: Props) {
                 max={round.remaining}
                 value={headcount}
                 onChange={(e) => setHeadcount(Number(e.target.value))}
+                disabled={!!pending}
               />
               <p className="form-hint">잔여 {round.remaining}명</p>
             </div>
@@ -109,6 +154,7 @@ export default function ReservationModal({ round, onClose, onSuccess }: Props) {
                 value={contactName}
                 onChange={(e) => setContactName(e.target.value)}
                 placeholder="홍길동"
+                disabled={!!pending}
               />
             </div>
 
@@ -119,6 +165,7 @@ export default function ReservationModal({ round, onClose, onSuccess }: Props) {
                 value={contactPhone}
                 onChange={(e) => setContactPhone(e.target.value)}
                 placeholder="010-1234-5678"
+                disabled={!!pending}
               />
             </div>
 
@@ -130,11 +177,17 @@ export default function ReservationModal({ round, onClose, onSuccess }: Props) {
 
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={onClose} disabled={submitting}>취소</button>
-              <button className="btn btn-primary" onClick={handleSubmit} disabled={submitting}>
-                {submitting ? '처리 중...' : isFree ? '예약 확정' : '결제하고 예약하기'}
+              <button className="btn btn-primary" onClick={pending ? handleRetryPayment : handleSubmit} disabled={submitting}>
+                {submitting ? '처리 중...' : pending ? '다시 결제하기' : isFree ? '예약 확정' : '결제하고 예약하기'}
               </button>
             </div>
           </>
+        )}
+
+        {step === 'paying' && (
+          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <p style={{ fontSize: 15, color: 'var(--text2)' }}>결제창을 여는 중입니다...</p>
+          </div>
         )}
 
         {step === 'confirming' && (
