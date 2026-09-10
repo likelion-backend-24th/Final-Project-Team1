@@ -2,6 +2,7 @@ package com.team1.ticket.ticket.service;
 
 import com.team1.ticket.common.ApiException;
 import com.team1.ticket.common.ErrorCode;
+import com.team1.ticket.ticket.dto.CheckinSummaryItem;
 import com.team1.ticket.ticket.dto.IssueTicketsRequest;
 import com.team1.ticket.ticket.dto.IssuedTicketResponse;
 import com.team1.ticket.ticket.dto.TicketDetailResponse;
@@ -17,6 +18,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -145,5 +147,19 @@ class TicketServiceTest {
         assertThatThrownBy(() -> service.getByReservation(RESERVATION_ID))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("체크인 집계: 회차별 USED 인원 합을 반환한다 (#121)")
+    void getCheckinSummaryReturnsUsedHeadcountPerRound() {
+        List<CheckinSummaryItem> rows = List.of(
+                new CheckinSummaryItem(45L, 3),
+                new CheckinSummaryItem(46L, 1));
+        when(tickets.sumCheckedInByRound(10L, TicketStatus.USED)).thenReturn(rows);
+
+        List<CheckinSummaryItem> result = service.getCheckinSummary(10L);
+
+        assertThat(result).isEqualTo(rows);
+        verify(tickets).sumCheckedInByRound(10L, TicketStatus.USED);
     }
 }
