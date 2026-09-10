@@ -1,5 +1,6 @@
 package com.team1.ticket.ticket.controller;
 
+import com.team1.ticket.ticket.dto.CheckinSummaryItem;
 import com.team1.ticket.ticket.dto.IssueTicketsRequest;
 import com.team1.ticket.ticket.dto.IssuedTicketResponse;
 import com.team1.ticket.ticket.dto.TicketDetailResponse;
@@ -12,8 +13,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 
 // 계약 1 (예약 ↔ 티켓). Reservation-Service(A) 가 호출하는 서비스간 내부 API.
@@ -43,6 +47,13 @@ public class InternalTicketController {
     @GetMapping("/reservation/{reservationId}")
     public TicketDetailResponse getByReservation(@PathVariable Long reservationId) {
         return ticketService.getByReservation(reservationId);
+    }
+
+    // 체크인 현황 집계 (#121, Story 8). 박람회-Service 가 예약 현황 화면에 합치려고 호출. raw 응답.
+    // 회차별 체크인 완료 인원. 체크인 0인 회차는 목록에 없으며 호출측이 0으로 병합한다.
+    @GetMapping("/checkin-summary")
+    public List<CheckinSummaryItem> checkinSummary(@RequestParam Long expoId) {
+        return ticketService.getCheckinSummary(expoId);
     }
 
     // 예약 취소 → 해당 예약 티켓 무효화 (멱등). 계약상 204 No Content.

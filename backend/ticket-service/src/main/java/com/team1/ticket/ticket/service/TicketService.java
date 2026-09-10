@@ -2,6 +2,7 @@ package com.team1.ticket.ticket.service;
 
 import com.team1.ticket.common.ApiException;
 import com.team1.ticket.common.ErrorCode;
+import com.team1.ticket.ticket.dto.CheckinSummaryItem;
 import com.team1.ticket.ticket.dto.IssueTicketsRequest;
 import com.team1.ticket.ticket.dto.IssuedTicketResponse;
 import com.team1.ticket.ticket.dto.TicketDetailResponse;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.util.List;
 import java.util.UUID;
 
 
@@ -71,6 +73,13 @@ public class TicketService {
                 .map(TicketDetailResponse::from)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND,
                         "ticket not found for reservation: " + reservationId));
+    }
+
+    // 체크인 현황 집계(#121, Story 8). 박람회-Service 가 예약 현황 화면에 합치려고 당겨간다.
+    // 회차별 체크인 완료 인원(USED 티켓 headcount 합). 체크인 0인 회차는 목록에 안 나온다.
+    @Transactional(readOnly = true)
+    public List<CheckinSummaryItem> getCheckinSummary(Long expoId) {
+        return ticketRepository.sumCheckedInByRound(expoId, TicketStatus.USED);
     }
 
     // 예약 취소 통지 → 해당 예약의 티켓 무효화. 이미 사용(USED)된 티켓은 건드리지 않는다.
