@@ -24,6 +24,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     List<Reservation> findByRoundIdAndStatusIn(Long roundId, Collection<ReservationStatus> statuses);
 
+    /** 내 예약 목록(#82). 최신순이며 만료·취소된 것도 이력으로 보여준다. */
+    List<Reservation> findByUserIdOrderByCreatedAtDesc(Long userId);
+
     /**
      * 회차·상태별 예약 인원 합(#84 예약 현황). 정원은 rounds 에 있으므로 Service 가 합친다.
      */
