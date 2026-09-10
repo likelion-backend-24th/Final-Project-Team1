@@ -77,8 +77,11 @@ public class PortOneClient implements PgClient {
     @Override
     public PgInquiryResult inquire(String paymentId) {
         try {
+            // storeId 를 안 넘기면 이 api-secret 의 기본 상점(우리 상점이 아닐 수 있다) 기준으로 찾는다.
             PortOnePaymentResponse response = restClient.get()
-                    .uri("/payments/{paymentId}", paymentId)
+                    .uri(uriBuilder -> uriBuilder.path("/payments/{paymentId}")
+                            .queryParam("storeId", storeId)
+                            .build(paymentId))
                     .retrieve()
                     .body(PortOnePaymentResponse.class);
 
@@ -103,10 +106,17 @@ public class PortOneClient implements PgClient {
             restClient.post()
                     .uri("/payments/{paymentId}/cancel", paymentId)
                     .header("Idempotency-Key", paymentId)
-                    .body(new CancelRequest(amount, reason))
+                    .body(new CancelRequest(storeId, amount, reason))
                     .retrieve()
                     .toBodilessEntity();
             return new PgCancelResult(true, "0000");
+        } catch (HttpClientErrorException.Conflict e) {
+            // 이미 취소된 결제를 재시도한 경우(PAYMENT_ALREADY_CANCELLED, 409). PG 기준으로는
+            // 이미 끝난 취소라 성공으로 본다 - 안 그러면 재시도 배치가 끝난 건을 계속 붙잡는다.
+            if (e.getResponseBodyAsString().contains("PAYMENT_ALREADY_CANCELLED")) {
+                return new PgCancelResult(true, "0000");
+            }
+            throw new PgCommunicationException("PortOne 취소 실패: " + paymentId, e);
         } catch (RestClientException e) {
             throw new PgCommunicationException("PortOne 취소 실패: " + paymentId, e);
         }
@@ -115,7 +125,7 @@ public class PortOneClient implements PgClient {
     private record PreRegisterRequest(String storeId, Long totalAmount) {
     }
 
-    private record CancelRequest(Integer amount, String reason) {
+    private record CancelRequest(String storeId, Integer amount, String reason) {
     }
 
     private record PaymentAmount(Long total) {
