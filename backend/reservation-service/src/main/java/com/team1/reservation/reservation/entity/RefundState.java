@@ -1,6 +1,5 @@
 package com.team1.reservation.reservation.entity;
 
-import com.team1.payment.PaymentStatus;
 import com.team1.payment.PaymentTransaction;
 
 /*
@@ -14,6 +13,9 @@ public enum RefundState {
 
     /** 환불을 요청했으나 아직 성공하지 못했다. 배치가 재시도 중이며 곧 돌아갈 수 있다. */
     REFUND_PENDING,
+
+    /** 재시도 상한을 넘겨 자동 회수를 포기했다. 결제 상태는 REFUND_PENDING 과 같아 attempts 로만 갈린다. */
+    REFUND_UNRESOLVED,
 
     /** 환불 기한이 지나 취소만 된 경우. 결제는 PAID 로 영구 유지되며 오류가 아니다. */
     NOT_REFUNDABLE;
