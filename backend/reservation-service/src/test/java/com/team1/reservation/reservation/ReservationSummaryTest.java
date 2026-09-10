@@ -4,6 +4,7 @@ import com.team1.reservation.reservation.dto.ReservationSummaryResponse;
 import com.team1.reservation.reservation.entity.ReservationStatus;
 import com.team1.reservation.reservation.service.ReservationQueryService;
 import com.team1.reservation.reservation.support.QueryTestFixture;
+import com.team1.reservation.round.entity.Round;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 class ReservationSummaryTest extends QueryTestFixture {
 
@@ -31,9 +33,25 @@ class ReservationSummaryTest extends QueryTestFixture {
         List<ReservationSummaryResponse> summary = service.summary(EXPO_ID);
 
         assertThat(summary).hasSize(2);
-        assertThat(summary).contains(
-                new ReservationSummaryResponse(roundA, 100, 5, 1),
-                new ReservationSummaryResponse(roundB, 50, 4, 0));
+        assertThat(summary)
+                .extracting(ReservationSummaryResponse::roundId,
+                        ReservationSummaryResponse::capacity,
+                        ReservationSummaryResponse::confirmed,
+                        ReservationSummaryResponse::cancelled)
+                .contains(tuple(roundA, 100, 5, 1), tuple(roundB, 50, 4, 0));
+    }
+
+    @Test
+    @DisplayName("회차 시각을 함께 내려준다 - 박람회-Service 의 마감 정렬이 이 값을 쓴다")
+    void exposesRoundSchedule() {
+        Long roundId = givenRound(EXPO_ID, 100);
+
+        ReservationSummaryResponse row = service.summary(EXPO_ID).get(0);
+
+        Round round = rounds.findById(roundId).orElseThrow();
+        assertThat(row.startsAt()).isEqualTo(round.getStartsAt());
+        assertThat(row.endsAt()).isEqualTo(round.getEndsAt());
+        assertThat(row.endsAt()).isAfter(row.startsAt());
     }
 
     @Test
@@ -53,7 +71,12 @@ class ReservationSummaryTest extends QueryTestFixture {
 
         List<ReservationSummaryResponse> summary = service.summary(EXPO_ID);
 
-        assertThat(summary).containsExactly(new ReservationSummaryResponse(empty, 30, 0, 0));
+        assertThat(summary)
+                .extracting(ReservationSummaryResponse::roundId,
+                        ReservationSummaryResponse::capacity,
+                        ReservationSummaryResponse::confirmed,
+                        ReservationSummaryResponse::cancelled)
+                .containsExactly(tuple(empty, 30, 0, 0));
     }
 
     @Test
@@ -72,7 +95,9 @@ class ReservationSummaryTest extends QueryTestFixture {
 
         List<ReservationSummaryResponse> summary = service.summary(EXPO_ID);
 
-        assertThat(summary).containsExactly(new ReservationSummaryResponse(mine, 100, 2, 0));
+        assertThat(summary)
+                .extracting(ReservationSummaryResponse::roundId, ReservationSummaryResponse::confirmed)
+                .containsExactly(tuple(mine, 2));
     }
 
     @Test
@@ -84,6 +109,7 @@ class ReservationSummaryTest extends QueryTestFixture {
         givenReservation(EXPO_ID, roundId, 3L, 1, ReservationStatus.CONFIRMED);
 
         assertThat(service.summary(EXPO_ID))
-                .containsExactly(new ReservationSummaryResponse(roundId, 100, 1, 0));
+                .extracting(ReservationSummaryResponse::roundId, ReservationSummaryResponse::confirmed)
+                .containsExactly(tuple(roundId, 1));
     }
 }
