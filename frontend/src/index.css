@@ -228,7 +228,6 @@ input, select, textarea { font-family: inherit; }
   font-size: 12px;
   color: var(--sub);
 }
-.expo-card-meta-icon { font-size: 13px; flex-shrink: 0; }
 
 /* ─── Hero / Search ─── */
 .hero {
@@ -308,7 +307,6 @@ input, select, textarea { font-family: inherit; }
 }
 .cat-chip:hover { border-color: var(--primary); color: var(--primary); }
 .cat-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-.cat-chip .cat-icon { font-size: 16px; }
 
 /* ─── Sort ─── */
 .sort-bar { display: flex; gap: 6px; justify-content: flex-end; margin-bottom: 20px; }
@@ -516,7 +514,6 @@ textarea.form-input { resize: vertical; min-height: 108px; line-height: 1.6; }
 
 /* ─── Empty State ─── */
 .empty-state { text-align: center; padding: 72px 20px; color: var(--sub); }
-.empty-state .es-icon { font-size: 52px; margin-bottom: 16px; }
 .empty-state .es-title { font-size: 16px; font-weight: 700; color: var(--text2); margin-bottom: 8px; }
 .empty-state .es-desc { font-size: 14px; color: var(--sub); margin-bottom: 24px; }
 
