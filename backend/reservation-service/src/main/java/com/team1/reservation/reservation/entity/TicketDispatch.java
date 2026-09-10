@@ -34,6 +34,10 @@ public class TicketDispatch {
     private Long reservationId;
 
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false, length = 20)
+    private TicketDispatchType type;
+
     @Column(nullable = false, updatable = false)
     private Long expoId;
 
@@ -78,9 +82,10 @@ public class TicketDispatch {
     protected TicketDispatch() {
     }
 
-    private TicketDispatch(Long reservationId, Long expoId, Long roundId, Long userId,
-                           int headcount, Instant now) {
+    private TicketDispatch(Long reservationId, TicketDispatchType type, Long expoId, Long roundId,
+                           Long userId, int headcount, Instant now) {
         this.reservationId = reservationId;
+        this.type = type;
         this.expoId = expoId;
         this.roundId = roundId;
         this.userId = userId;
@@ -92,9 +97,16 @@ public class TicketDispatch {
         this.updatedAt = now;
     }
 
-    public static TicketDispatch pending(Long reservationId, Long expoId, Long roundId, Long userId,
-                                         int headcount, Instant now) {
-        return new TicketDispatch(reservationId, expoId, roundId, userId, headcount, now);
+    public static TicketDispatch issue(Long reservationId, Long expoId, Long roundId, Long userId,
+                                       int headcount, Instant now) {
+        return new TicketDispatch(reservationId, TicketDispatchType.ISSUE,
+                expoId, roundId, userId, headcount, now);
+    }
+
+    public static TicketDispatch revoke(Long reservationId, Long expoId, Long roundId, Long userId,
+                                        int headcount, Instant now) {
+        return new TicketDispatch(reservationId, TicketDispatchType.REVOKE,
+                expoId, roundId, userId, headcount, now);
     }
 
     public void succeeded(Long ticketId, Instant now) {

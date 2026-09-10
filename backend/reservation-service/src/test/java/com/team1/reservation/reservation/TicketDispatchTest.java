@@ -7,6 +7,7 @@ import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.reservation.entity.TicketDispatch;
 import com.team1.reservation.reservation.entity.TicketDispatchStatus;
+import com.team1.reservation.reservation.entity.TicketDispatchType;
 import com.team1.reservation.reservation.repository.TicketDispatchRepository;
 import com.team1.reservation.reservation.service.TicketDispatchService;
 import com.team1.reservation.reservation.service.TicketDispatcher;
@@ -46,7 +47,11 @@ class TicketDispatchTest {
     }
 
     private TicketDispatch enqueued() {
-        return queue.save(TicketDispatch.pending(42L, 1L, 7L, 100L, 3, NOW));
+        return queue.save(TicketDispatch.issue(42L, 1L, 7L, 100L, 3, NOW));
+    }
+
+    private TicketDispatch enqueuedRevoke() {
+        return queue.save(TicketDispatch.revoke(42L, 1L, 7L, 100L, 3, NOW));
     }
 
     @Test
@@ -129,6 +134,31 @@ class TicketDispatchTest {
         dispatcher.dispatch(dispatch.getId());
 
         verify(ticketClient, times(1)).issueTicket(any());
+    }
+
+    @Test
+    @DisplayName("REVOKE 는 무효화 API 를 부르고 발급을 부르지 않는다")
+    void revokeCallsRevokeApi() {
+        TicketDispatch dispatch = enqueuedRevoke();
+
+        assertThat(dispatcher.dispatch(dispatch.getId())).isTrue();
+
+        verify(ticketClient).revokeTicket(42L);
+        verify(ticketClient, org.mockito.Mockito.never()).issueTicket(any());
+        assertThat(dispatch.getType()).isEqualTo(TicketDispatchType.REVOKE);
+        assertThat(dispatch.getStatus()).isEqualTo(TicketDispatchStatus.SUCCEEDED);
+    }
+
+    @Test
+    @DisplayName("무효화가 실패해도 예외를 던지지 않고 재시도로 남긴다")
+    void reschedulesFailedRevoke() {
+        TicketDispatch dispatch = enqueuedRevoke();
+        org.mockito.Mockito.doThrow(new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "down"))
+                .when(ticketClient).revokeTicket(any());
+
+        assertThat(dispatcher.dispatch(dispatch.getId())).isFalse();
+        assertThat(dispatch.getStatus()).isEqualTo(TicketDispatchStatus.PENDING);
+        assertThat(dispatch.getAttempts()).isEqualTo(1);
     }
 
     @Test

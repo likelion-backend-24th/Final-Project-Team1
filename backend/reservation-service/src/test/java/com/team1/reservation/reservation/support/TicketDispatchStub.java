@@ -61,8 +61,9 @@ public final class TicketDispatchStub {
         });
         when(queue.findById(any())).thenAnswer(call ->
                 Optional.ofNullable(store.get(call.<Long>getArgument(0))));
-        when(queue.findByReservationId(any())).thenAnswer(call -> store.values().stream()
+        when(queue.findByReservationIdAndType(any(), any())).thenAnswer(call -> store.values().stream()
                 .filter(d -> Objects.equals(d.getReservationId(), call.getArgument(0)))
+                .filter(d -> d.getType() == call.getArgument(1))
                 .findFirst());
         return queue;
     }

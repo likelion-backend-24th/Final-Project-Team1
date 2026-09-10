@@ -6,6 +6,7 @@ import com.team1.reservation.client.TicketClient;
 import com.team1.reservation.common.TraceId;
 import com.team1.reservation.reservation.entity.TicketDispatch;
 import com.team1.reservation.reservation.entity.TicketDispatchStatus;
+import com.team1.reservation.reservation.entity.TicketDispatchType;
 import com.team1.reservation.reservation.repository.TicketDispatchRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,13 +56,12 @@ public class TicketDispatcher {
         }
 
         try {
-            IssuedTicket issued = ticketClient.issueTicket(new IssueTicketCommand(
-                    dispatch.getReservationId(), dispatch.getExpoId(), dispatch.getRoundId(),
-                    dispatch.getUserId(), dispatch.getHeadcount()));
+            Long ticketId = send(dispatch);
 
-            dispatch.succeeded(issued.ticketId(), clock.instant());
-            log.info("ticket issued reservationId={} ticketId={} attempts={} traceId={}",
-                    dispatch.getReservationId(), issued.ticketId(), dispatch.getAttempts(), TraceId.get());
+            dispatch.succeeded(ticketId, clock.instant());
+            log.info("ticket {} ok reservationId={} ticketId={} attempts={} traceId={}",
+                    dispatch.getType(), dispatch.getReservationId(), ticketId,
+                    dispatch.getAttempts(), TraceId.get());
             return true;
 
         } catch (RuntimeException e) {
@@ -71,15 +71,28 @@ public class TicketDispatcher {
         }
     }
 
+    /** 무효화는 돌려받을 ticketId 가 없다(계약상 204). null 을 그대로 기록한다. */
+    private Long send(TicketDispatch dispatch) {
+        if (dispatch.getType() == TicketDispatchType.REVOKE) {
+            ticketClient.revokeTicket(dispatch.getReservationId());
+            return null;
+        }
+        IssuedTicket issued = ticketClient.issueTicket(new IssueTicketCommand(
+                dispatch.getReservationId(), dispatch.getExpoId(), dispatch.getRoundId(),
+                dispatch.getUserId(), dispatch.getHeadcount()));
+        return issued.ticketId();
+    }
+
     private void logFailure(TicketDispatch dispatch, RuntimeException e) {
         if (dispatch.getStatus() == TicketDispatchStatus.GAVE_UP) {
             // 자동 회수를 포기했다. CS 문의가 들어오면 이 로그로 찾는다.
-            log.error("TICKET_DISPATCH_GAVE_UP reservationId={} attempts={} traceId={} reason={}",
-                    dispatch.getReservationId(), dispatch.getAttempts(), TraceId.get(), e.toString());
+            log.error("TICKET_DISPATCH_GAVE_UP type={} reservationId={} attempts={} traceId={} reason={}",
+                    dispatch.getType(), dispatch.getReservationId(), dispatch.getAttempts(),
+                    TraceId.get(), e.toString());
             return;
         }
-        log.warn("TICKET_DISPATCH_FAILED reservationId={} attempts={} nextAttemptAt={} traceId={} reason={}",
-                dispatch.getReservationId(), dispatch.getAttempts(), dispatch.getNextAttemptAt(),
-                TraceId.get(), e.toString());
+        log.warn("TICKET_DISPATCH_FAILED type={} reservationId={} attempts={} nextAttemptAt={} traceId={} reason={}",
+                dispatch.getType(), dispatch.getReservationId(), dispatch.getAttempts(),
+                dispatch.getNextAttemptAt(), TraceId.get(), e.toString());
     }
 }
