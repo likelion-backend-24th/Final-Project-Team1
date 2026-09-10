@@ -32,29 +32,40 @@ export default function HomePage() {
   const [promotions, setPromotions] = useState<ActivePromotion[]>([])
 
   useEffect(() => {
-    // 카테고리·정렬을 빠르게 바꾸면 이전 요청이 늦게 도착해 최신 결과를 덮을 수 있다
     let cancelled = false
-    expoApi.listPublished({
-      category: category === '전체' ? undefined : category,
-      sort,
-    })
-      .then(res => { if (!cancelled) { setExpos(res.data ?? []); setError(false) } })
+    setLoading(true)
+
+    const fetchExpos = sort === 'recommended'
+      // 추천순: 전체 가져온 뒤 클라이언트에서 VIP 우선 정렬
+      ? expoApi.listPublished({ category: category === '전체' ? undefined : category })
+      : expoApi.listPublished({ category: category === '전체' ? undefined : category, sort })
+
+    fetchExpos
+      .then(res => {
+        if (cancelled) return
+        const list = res.data ?? []
+        if (sort === 'recommended' && promotions.length > 0) {
+          const vipIds = new Set(promotions.map(p => p.expoId))
+          const vip = list.filter(e => vipIds.has(expoKey(e)))
+          const rest = list.filter(e => !vipIds.has(expoKey(e)))
+          setExpos([...vip, ...rest])
+        } else {
+          setExpos(list)
+        }
+        setError(false)
+      })
       .catch(() => { if (!cancelled) setError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [category, sort])
+  }, [category, sort, promotions])
 
   useEffect(() => {
-    // 추천 배너는 정렬·카테고리와 무관하게 한 번만 불러오고, 화면에서만 걸러 보여준다.
     expoApi.getActivePromotions()
       .then(res => setPromotions(res.data ?? []))
       .catch(() => setPromotions([]))
   }, [])
 
-  // 백엔드가 recommended 탭에만 VIP 상단 노출을 의도하므로(ExpoQueryController 주석) 다른 정렬에서는 숨긴다.
-  const visiblePromotions = sort === 'recommended'
-    ? promotions.filter(p => category === '전체' || p.category === category)
-    : []
+  const vipIds = new Set(promotions.map(p => p.expoId))
 
   return (
     <>
@@ -73,35 +84,6 @@ export default function HomePage() {
 
       {/* ─── Content ─── */}
       <div className="container page-wrap">
-
-        {visiblePromotions.length > 0 && (
-          <div style={{ marginBottom: 28 }}>
-            <div className="section-header" style={{ marginBottom: 12 }}>
-              <span className="section-title">추천 박람회</span>
-            </div>
-            <div className="vip-banner">
-              {visiblePromotions.map(p => (
-                <div
-                  key={p.promotionId}
-                  className="vip-card"
-                  onClick={() => navigate(`/expos/${p.expoId}`)}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div
-                    className="vip-card-thumb"
-                    style={{ background: `linear-gradient(135deg, ${THUMB_COLORS[p.expoId % THUMB_COLORS.length][0]}, ${THUMB_COLORS[p.expoId % THUMB_COLORS.length][1]})` }}
-                  >
-                    <span className="badge badge-primary">PICK</span>
-                  </div>
-                  <p className="vip-card-cat">{p.category}</p>
-                  <h4 className="vip-card-title">{p.title}</h4>
-                  {p.region && <p className="vip-card-region">{p.region}</p>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Category filter */}
         <div className="cat-bar">
@@ -156,6 +138,7 @@ export default function HomePage() {
                   key={expoKey(expo)}
                   expo={expo}
                   colors={THUMB_COLORS[expoKey(expo) % THUMB_COLORS.length]}
+                  isVip={vipIds.has(expoKey(expo))}
                   onClick={() => navigate(`/expos/${expoKey(expo)}`)}
                 />
               ))}
@@ -167,9 +150,10 @@ export default function HomePage() {
   )
 }
 
-function ExpoCard({ expo, colors, onClick }: {
+function ExpoCard({ expo, colors, isVip, onClick }: {
   expo: Expo
   colors: string[]
+  isVip?: boolean
   onClick: () => void
 }) {
   return (
@@ -180,6 +164,7 @@ function ExpoCard({ expo, colors, onClick }: {
           style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})` }}
         />
         <div className="expo-card-thumb-badge">
+          {isVip && <span className="badge" style={{ background: '#7C3AED', color: '#fff', marginRight: 4 }}>⭐ VIP</span>}
           <span className="badge badge-published">● 공개중</span>
         </div>
       </div>
