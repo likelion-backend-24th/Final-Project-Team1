@@ -83,7 +83,7 @@ class ExpoPromotionApiTest extends ApiTestSupport {
                 {"expoId":%d}
                 """.formatted(expoId), ownerToken);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().path("data").path("status").asText()).isEqualTo("PENDING");
         assertThat(response.getBody().path("data").path("paymentId").asText()).isNotEqualTo(firstPaymentId);
     }
