@@ -2,9 +2,11 @@ package com.team1.ticket.ticket.controller;
 
 import com.team1.ticket.ticket.dto.IssueTicketsRequest;
 import com.team1.ticket.ticket.dto.IssuedTicketResponse;
+import com.team1.ticket.ticket.dto.TicketDetailResponse;
 import com.team1.ticket.ticket.service.TicketService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,6 +36,13 @@ public class InternalTicketController {
     @ResponseStatus(HttpStatus.CREATED)
     public IssuedTicketResponse issue(@Valid @RequestBody IssueTicketsRequest request) {
         return ticketService.issue(request);
+    }
+
+    // 예약별 티켓 단건 조회 → 예약 상세 화면의 QR 표시(#82). 성공은 raw, 티켓 없으면 404.
+    // status 를 포함해 화면이 ISSUED(QR)/USED(입장 완료)/CANCELLED(무효)를 구분한다.
+    @GetMapping("/reservation/{reservationId}")
+    public TicketDetailResponse getByReservation(@PathVariable Long reservationId) {
+        return ticketService.getByReservation(reservationId);
     }
 
     // 예약 취소 → 해당 예약 티켓 무효화 (멱등). 계약상 204 No Content.

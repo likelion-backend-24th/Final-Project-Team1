@@ -1,3 +1,7 @@
+scheduler:
+  refund-retry:
+    enabled: false
+
 spring:
   jpa:
     hibernate:
