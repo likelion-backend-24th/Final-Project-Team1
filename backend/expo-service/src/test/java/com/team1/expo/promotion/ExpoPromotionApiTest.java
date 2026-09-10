@@ -71,19 +71,21 @@ class ExpoPromotionApiTest extends ApiTestSupport {
     }
 
     @Test
-    @DisplayName("이미 PENDING인 배너가 있으면 409 PROMOTION_ALREADY_EXISTS를 반환한다")
-    void 배너_중복_신청_거절() {
-        post("/api/v1/expo-promotions", """
+    @DisplayName("이미 PENDING인 배너가 있으면 기존 PENDING을 취소하고 새로 신청된다")
+    void 배너_PENDING_중복_시_자동정리_후_재신청() {
+        ResponseEntity<JsonNode> first = post("/api/v1/expo-promotions", """
                 {"expoId":%d}
                 """.formatted(expoId), ownerToken);
+        String firstPaymentId = first.getBody().path("data").path("paymentId").asText();
 
         ResponseEntity<JsonNode> response = post("/api/v1/expo-promotions",
                 """
                 {"expoId":%d}
                 """.formatted(expoId), ownerToken);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-        assertThat(errorCode(response)).isEqualTo("PROMOTION_ALREADY_EXISTS");
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody().path("data").path("status").asText()).isEqualTo("PENDING");
+        assertThat(response.getBody().path("data").path("paymentId").asText()).isNotEqualTo(firstPaymentId);
     }
 
     @Test
