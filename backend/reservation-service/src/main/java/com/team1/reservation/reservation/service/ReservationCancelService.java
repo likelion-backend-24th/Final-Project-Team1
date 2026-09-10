@@ -8,6 +8,7 @@ import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.common.TraceId;
 import com.team1.reservation.reservation.dto.CancelReservationResponse;
+import com.team1.reservation.reservation.entity.RefundState;
 import com.team1.reservation.reservation.entity.Reservation;
 import com.team1.reservation.reservation.entity.ReservationStatus;
 import com.team1.reservation.reservation.repository.ReservationRepository;
@@ -107,13 +108,13 @@ public class ReservationCancelService {
         }
         rounds.release(roundId, headcount);
 
-        int refunded = refundIfEligible(reservationId, amount, round, now);
+        RefundState refundState = refundIfEligible(reservationId, amount, round, now);
 
         // 환불 여부와 무관하게 무효화한다. 환불을 못 받아도 입장은 막아야 한다.
         ticketNotifier.notifyRevoked(reservation);
 
         return new CancelReservationResponse(reservationId, ReservationStatus.CANCELLED.name(),
-                now, refunded > 0, refunded);
+                refundState, now);
     }
 
     /**
@@ -132,36 +133,44 @@ public class ReservationCancelService {
                     "reservation is " + current.getStatus());
         }
 
-        // 환불 여부는 결제 상태에서 읽는다. 다시 환불을 시도하지는 않는다.
-        boolean refunded = payments.findByRefId(reservationId)
-                .map(p -> p.getStatus() == PaymentStatus.CANCELLED)
-                .orElse(false);
+        // 환불 상태는 결제에서 읽는다. 다시 환불을 시도하지는 않는다.
+        RefundState refundState = RefundState.of(current.getStatus(),
+                payments.findByRefId(reservationId).map(PaymentTransaction::getStatus).orElse(null));
 
         return new CancelReservationResponse(reservationId, ReservationStatus.CANCELLED.name(),
-                current.getCancelledAt(), refunded, refunded ? current.getAmount() : 0);
+                refundState, current.getCancelledAt());
     }
 
-    /** 환불한 금액. 창을 지났거나 결제가 없으면 0 이다. */
-    private int refundIfEligible(Long reservationId, int amount, Round round, Instant now) {
+    /** 환불을 시도하고 그 결과를 표시값으로 돌려준다. */
+    private RefundState refundIfEligible(Long reservationId, int amount, Round round, Instant now) {
         if (amount == 0) {
-            return 0;
+            return RefundState.NOT_APPLICABLE;
         }
+
+        Optional<PaymentTransaction> found = payments.findByRefId(reservationId);
+        if (found.isEmpty()) {
+            return RefundState.NOT_APPLICABLE;
+        }
+        PaymentTransaction payment = found.get();
+
+        if (payment.getStatus() != PaymentStatus.PAID) {
+            // 결제가 끝나지 않았거나 실패했으면 돌려줄 돈이 없다.
+            return RefundState.of(ReservationStatus.CANCELLED, payment.getStatus());
+        }
+
         if (now.isAfter(round.getStartsAt().minus(refundWindow))) {
             // 예약 CANCELLED · 결제 PAID 조합은 정상이다. 기한이 지나 환불하지 않은 것이다.
             log.info("cancelled without refund reservationId={} startsAt={} now={} traceId={}",
                     reservationId, round.getStartsAt(), now, TraceId.get());
-            return 0;
-        }
-
-        Optional<PaymentTransaction> payment = payments.findByRefId(reservationId);
-        if (payment.isEmpty() || payment.get().getStatus() != PaymentStatus.PAID) {
-            return 0;
+            return RefundState.NOT_REFUNDABLE;
         }
 
         // 모듈이 PG 무응답을 REFUND_FAILED 로 기록하고 예외를 던지지 않는다. 취소 자체는
         // 되돌리지 않는 것이 맞다 - 되돌리는 사이 다른 회원이 그 자리를 가져갔을 수 있다.
         paymentService.cancel(reservationId, "user cancellation");
-        return amount;
+
+        // 모듈이 같은 영속성 컨텍스트의 이 행을 갱신했으므로 상태를 다시 읽으면 결과가 보인다.
+        return RefundState.of(ReservationStatus.CANCELLED, payment.getStatus());
     }
 
     private void requireMember(AuthenticatedUser user) {
