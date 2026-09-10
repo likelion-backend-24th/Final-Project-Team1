@@ -1,5 +1,10 @@
 import { api } from './client'
-import type { ActivePromotion, ApiResponse, Expo, Channel } from '../types'
+import type { ActivePromotion, ApiResponse, Expo, Channel, ReservationSummary } from '../types'
+
+const API_BASE = '/api/v1'
+function getToken() {
+  return localStorage.getItem('token')
+}
 
 export interface PublicationResponse {
   expoId: number
@@ -70,6 +75,34 @@ export const expoApi = {
    */
   publishExpo: (expoId: number) =>
     api.post<ApiResponse<PublicationResponse>>(`/expos/${expoId}/publication`, {}),
+
+  // GET /api/v1/expos/{expoId}/reservations/summary — 주최자(채널 소유자) 전용.
+  getReservationSummary: (expoId: number) =>
+    api.get<ApiResponse<ReservationSummary>>(`/expos/${expoId}/reservations/summary`),
+
+  /**
+   * GET /api/v1/expos/{expoId}/reservations/attendees.xlsx — 주최자 전용, 바이너리 응답.
+   * apiFetch(JSON 파싱 전제)를 쓸 수 없어 fetch 를 직접 호출해 blob 으로 받고 다운로드를 트리거한다.
+   * roundId 를 생략하면 박람회 전체 명단이 내려온다.
+   */
+  downloadAttendeesExcel: async (expoId: number, roundId?: number) => {
+    const q = roundId ? `?roundId=${roundId}` : ''
+    const token = getToken()
+    const res = await fetch(`${API_BASE}/expos/${expoId}/reservations/attendees.xlsx${q}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => null)
+      throw Object.assign(new Error('download failed'), { status: res.status, body })
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'attendees.xlsx'
+    a.click()
+    URL.revokeObjectURL(url)
+  },
 }
 
 // 주최자용 "내 채널의 박람회 목록" 엔드포인트는 아직 없다(Sprint 2).

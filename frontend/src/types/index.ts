@@ -132,6 +132,20 @@ export interface ActivePromotion {
   paidAt: string
 }
 
+/** GET /expos/{id}/reservations/summary. expo-service 의 ReservationSummaryResponse. 주최자 전용. */
+export interface ReservationSummary {
+  expoId: number
+  rounds: RoundSummary[]
+}
+
+export interface RoundSummary {
+  roundId: number
+  capacity: number
+  confirmed: number
+  cancelled: number
+  checkedIn: number | null // 체크인 집계 미연동 상태면 null
+}
+
 export interface Channel {
   id: number
   name: string

@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { expoApi } from '../api/expo'
 import { roundApi } from '../api/round'
 import { useToast } from '../components/Toast'
-import type { Expo, Round } from '../types'
+import type { Expo, Round, RoundSummary } from '../types'
 
 function toLocal(d: Date) {
   const p = (n: number) => String(n).padStart(2, '0')
@@ -26,8 +26,10 @@ export default function RoundManagePage() {
   const passed = (location.state as { expo?: Expo } | null)?.expo ?? null
   const [expo, setExpo] = useState<Expo | null>(passed)
   const [rounds, setRounds] = useState<Round[]>([])
+  const [summary, setSummary] = useState<Record<number, RoundSummary>>({})
   const [publishing, setPublishing] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [downloadingRoundId, setDownloadingRoundId] = useState<number | 'all' | null>(null)
 
   const tmrw = new Date()
   tmrw.setDate(tmrw.getDate() + 1)
@@ -53,7 +55,27 @@ export default function RoundManagePage() {
     roundApi.listByExpo(id)
       .then(r => setRounds(r.data ?? []))
       .catch(() => toast('회차 목록을 불러오지 못했습니다', 'error'))
+
+    // 예약 현황(확정/취소/체크인 수)은 별도 API 라 실패해도 회차 관리 자체는 막지 않는다.
+    expoApi.getReservationSummary(id)
+      .then(r => {
+        const byRound: Record<number, RoundSummary> = {}
+        for (const s of r.data.rounds ?? []) byRound[s.roundId] = s
+        setSummary(byRound)
+      })
+      .catch(() => {})
   }, [id])
+
+  async function handleDownload(roundId?: number) {
+    setDownloadingRoundId(roundId ?? 'all')
+    try {
+      await expoApi.downloadAttendeesExcel(id, roundId)
+    } catch {
+      toast('명단 다운로드에 실패했습니다', 'error')
+    } finally {
+      setDownloadingRoundId(null)
+    }
+  }
 
   async function handleAddRound(e: React.FormEvent) {
     e.preventDefault()
@@ -157,11 +179,22 @@ export default function RoundManagePage() {
             {/* Rounds section */}
             <div className="section-header">
               <span className="section-title">회차 목록</span>
-              {!isClosed && (
-                <button className="btn btn-outline btn-sm" onClick={() => setShowForm(f => !f)}>
-                  {showForm ? '취소' : '+ 회차 추가'}
-                </button>
-              )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                {rounds.length > 0 && (
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() => handleDownload()}
+                    disabled={downloadingRoundId !== null}
+                  >
+                    {downloadingRoundId === 'all' ? '다운로드 중...' : '전체 명단 다운로드'}
+                  </button>
+                )}
+                {!isClosed && (
+                  <button className="btn btn-outline btn-sm" onClick={() => setShowForm(f => !f)}>
+                    {showForm ? '취소' : '+ 회차 추가'}
+                  </button>
+                )}
+              </div>
             </div>
 
             {showForm && (
@@ -238,20 +271,36 @@ export default function RoundManagePage() {
               </div>
             ) : (
               <div>
-                {rounds.map(r => (
-                  <div key={r.roundId} className="round-card">
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
-                        {fmt(r.startsAt)} – {fmt(r.endsAt)}
+                {rounds.map(r => {
+                  const s = summary[r.roundId]
+                  return (
+                    <div key={r.roundId} className="round-card">
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
+                          {fmt(r.startsAt)} – {fmt(r.endsAt)}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--sub)' }}>
+                          정원 {r.capacity}명 · 잔여 {r.remaining}명
+                          {r.fee !== undefined && ` · ${r.fee === 0 ? '무료' : `${r.fee.toLocaleString()}원`}`}
+                        </div>
+                        {s && (
+                          <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>
+                            확정 {s.confirmed}명 · 취소 {s.cancelled}명
+                            {s.checkedIn != null && ` · 체크인 ${s.checkedIn}명`}
+                          </div>
+                        )}
                       </div>
-                      <div style={{ fontSize: 12, color: 'var(--sub)' }}>
-                        정원 {r.capacity}명 · 잔여 {r.remaining}명
-                        {r.fee !== undefined && ` · ${r.fee === 0 ? '무료' : `${r.fee.toLocaleString()}원`}`}
-                      </div>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleDownload(r.roundId)}
+                        disabled={downloadingRoundId !== null}
+                      >
+                        {downloadingRoundId === r.roundId ? '다운로드 중...' : '명단 다운로드'}
+                      </button>
+                      {/* 회차 삭제는 Sprint 2 (예약 존재 시 정책 미확정) */}
                     </div>
-                    {/* 회차 삭제는 Sprint 2 (예약 존재 시 정책 미확정) */}
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </>
