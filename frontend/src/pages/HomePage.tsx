@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { expoApi } from '../api/expo'
+import { promotionApi } from '../api/promotion'
+import type { ActivePromotion } from '../api/promotion'
 import { expoKey } from '../types'
 import type { Expo } from '../types'
 
@@ -14,6 +16,12 @@ const CATS = [
   { label: '기타', icon: '📦' },
 ]
 
+const SORT_TABS = [
+  { key: 'recommended', label: '추천순' },
+  { key: 'newest', label: '새행사순' },
+  { key: 'deadline', label: '모집마감일순' },
+] as const
+
 const THUMB_COLORS = [
   ['#1A1A2E', '#16213E'],
   ['#134E4A', '#0F766E'],
@@ -23,30 +31,84 @@ const THUMB_COLORS = [
   ['#14532D', '#15803D'],
 ]
 
+const CAT_ICON: Record<string, string> = {
+  'IT·전자': '💻', '식품·음료': '🍽️', '패션·뷰티': '👗',
+  '교육·취업': '🎓', '문화·예술': '🎨', '기타': '📦',
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
   const [expos, setExpos] = useState<Expo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [category, setCategory] = useState('전체')
+  const [sort, setSort] = useState<'recommended' | 'newest' | 'deadline'>('recommended')
+  const [banners, setBanners] = useState<ActivePromotion[]>([])
+  const [bannerIdx, setBannerIdx] = useState(0)
+  const bannerTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // 박람회 목록
   useEffect(() => {
-    // 카테고리를 빠르게 바꾸면 이전 요청이 늦게 도착해 최신 결과를 덮을 수 있다
     let cancelled = false
-    // 백엔드는 region · category · page · size 만 받는다. keyword 검색은 Sprint 2.
+    setLoading(true)
     expoApi.listPublished({
       category: category === '전체' ? undefined : category,
+      sort,
     })
       .then(res => { if (!cancelled) { setExpos(res.data ?? []); setError(false) } })
       .catch(() => { if (!cancelled) setError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [category])
+  }, [category, sort])
+
+  // VIP 배너 (30초 rotation)
+  useEffect(() => {
+    promotionApi.getActive()
+      .then(res => setBanners(res.data ?? []))
+      .catch(() => {/* 배너 실패는 무시 */})
+
+    bannerTimer.current = setInterval(() => {
+      setBannerIdx(i => i + 1)
+    }, 5000) // UI 체감을 위해 5초로 설정 (실제 백엔드 rotation은 30초)
+    return () => { if (bannerTimer.current) clearInterval(bannerTimer.current) }
+  }, [])
 
   const catIcon = (label: string) => CATS.find(c => c.label === label)?.icon ?? '🏷️'
 
+  const banner = banners.length > 0 ? banners[bannerIdx % banners.length] : null
+
   return (
     <>
+      {/* ─── VIP 배너 ─── */}
+      {banner && (
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #7C3AED, #4F46E5)',
+            color: '#fff',
+            padding: '12px 0',
+            cursor: 'pointer',
+          }}
+          onClick={() => navigate(`/expos/${banner.expoId}`)}
+        >
+          <div className="container" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{
+              background: 'rgba(255,255,255,0.2)',
+              fontSize: 11,
+              fontWeight: 800,
+              padding: '2px 8px',
+              borderRadius: 4,
+              letterSpacing: '.04em',
+            }}>VIP</span>
+            <span style={{ fontSize: 14, fontWeight: 600, flex: 1 }}>
+              {CAT_ICON[banner.expoCategory] ?? '🎪'} {banner.expoTitle}
+            </span>
+            <span style={{ fontSize: 11, opacity: .7 }}>
+              {bannerIdx % banners.length + 1} / {banners.length}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* ─── Hero ─── */}
       <section className="hero">
         <div className="container">
@@ -56,12 +118,24 @@ export default function HomePage() {
             <em>지금 바로</em> 찾아보세요
           </h1>
           <p>IT·식품·패션·문화까지, 다양한 분야의 박람회가 모여있습니다</p>
-          {/* 키워드 검색은 Sprint 2 에서 열린다. 카테고리 필터로 대체. */}
         </div>
       </section>
 
       {/* ─── Content ─── */}
       <div className="container page-wrap">
+
+        {/* Sort tabs */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          {SORT_TABS.map(t => (
+            <button
+              key={t.key}
+              className={`btn btn-sm ${sort === t.key ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setSort(t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
         {/* Category filter */}
         <div className="cat-bar">
@@ -84,13 +158,13 @@ export default function HomePage() {
             <div className="es-icon">⚠️</div>
             <p className="es-title">불러올 수 없습니다</p>
             <p className="es-desc">잠시 후 다시 시도해주세요.</p>
-            <button className="btn btn-outline" onClick={() => setCategory(category)}>새로고침</button>
+            <button className="btn btn-outline" onClick={() => setSort(sort)}>새로고침</button>
           </div>
         ) : expos.length === 0 ? (
           <div className="empty-state">
             <div className="es-icon">🔍</div>
             <p className="es-title">검색 결과가 없습니다</p>
-            <p className="es-desc">다른 키워드나 카테고리로 검색해보세요.</p>
+            <p className="es-desc">다른 카테고리를 선택해보세요.</p>
           </div>
         ) : (
           <>

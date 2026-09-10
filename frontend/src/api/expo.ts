@@ -15,12 +15,14 @@ export const expoApi = {
   listPublished: (params?: {
     category?: string
     region?: string
+    sort?: 'recommended' | 'newest' | 'deadline'
     page?: number
     size?: number
   }) => {
     const q = new URLSearchParams()
     if (params?.category) q.set('category', params.category)
     if (params?.region) q.set('region', params.region)
+    if (params?.sort) q.set('sort', params.sort)
     q.set('page', String(params?.page ?? 1))
     q.set('size', String(params?.size ?? 100))
     return api.get<ApiResponse<Expo[]>>(`/expos?${q}`)
