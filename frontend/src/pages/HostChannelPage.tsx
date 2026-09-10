@@ -72,8 +72,8 @@ export default function HostChannelPage() {
 
       // 2. PortOne 결제 위젯 호출
       const response = await PortOne.requestPayment({
-        storeId: import.meta.env.VITE_PORTONE_STORE_ID,
-        channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
+        storeId: 'store-5a778905-6231-4172-b428-33ba04465e10',
+        channelKey: 'channel-key-c5723eb4-9ee3-4df3-9c56-129d13d4e9d6',
         paymentId: data.paymentId,
         orderName: 'VIP 배너 노출 (9,900원)',
         totalAmount: 9900,
