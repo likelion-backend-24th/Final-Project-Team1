@@ -7,6 +7,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
@@ -32,7 +33,7 @@ class PaymentServiceTest {
 
     @BeforeEach
     void setUp() {
-        paymentService = new PaymentService(repository, pgClient, paymentIdGenerator, clock, "store-01", "channel-01");
+        paymentService = new PaymentService(repository, pgClient, paymentIdGenerator, clock, "store-01", "channel-01", 6, Duration.ofMinutes(1));
     }
 
     private PaymentTransaction pendingTransaction() {
