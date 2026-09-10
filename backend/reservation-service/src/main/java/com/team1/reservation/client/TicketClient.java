@@ -4,4 +4,7 @@ package com.team1.reservation.client;
 public interface TicketClient {
 
     IssuedTicket issueTicket(IssueTicketCommand command);
+
+    /*발급 전이거나 이미 취소됐어도 성공한다(멱등). */
+    void revokeTicket(Long reservationId);
 }

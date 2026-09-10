@@ -7,7 +7,6 @@ import com.team1.reservation.client.ExpoClient;
 import com.team1.reservation.client.ExpoSummary;
 import com.team1.reservation.client.IssueTicketCommand;
 import com.team1.reservation.client.TicketClient;
-import com.team1.reservation.config.AfterCommitExecutor;
 import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.reservation.dto.CreateReservationRequest;
@@ -17,6 +16,7 @@ import com.team1.reservation.reservation.repository.ReservationRepository;
 import com.team1.reservation.reservation.service.ReservationCreation;
 import com.team1.reservation.reservation.service.ReservationNoGenerator;
 import com.team1.reservation.reservation.service.ReservationService;
+import com.team1.reservation.reservation.support.TicketDispatchStub;
 import com.team1.reservation.reservation.service.TicketIssueNotifier;
 import com.team1.reservation.round.entity.Round;
 import com.team1.reservation.round.repository.RoundRepository;
@@ -70,7 +70,7 @@ class CreateReservationServiceTest {
         expoClient = mock(ExpoClient.class);
         paymentService = mock(PaymentService.class);
         ticketClient = mock(TicketClient.class);
-        notifier = new TicketIssueNotifier(ticketClient, new AfterCommitExecutor());
+        notifier = TicketDispatchStub.notifier(ticketClient, Clock.fixed(NOW, ZoneOffset.UTC));
         ReservationNoGenerator generator = () -> "R-4K7Q-W2M8";
 
         service = new ReservationService(reservations, rounds, expoClient, paymentService, notifier,

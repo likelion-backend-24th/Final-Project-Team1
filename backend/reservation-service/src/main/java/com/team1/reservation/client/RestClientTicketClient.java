@@ -42,4 +42,19 @@ public class RestClientTicketClient implements TicketClient {
             throw new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "ticket-service unavailable");
         }
     }
+
+    @Override
+    public void revokeTicket(Long reservationId) {
+        try {
+            restClient.patch()
+                    .uri("/internal/v1/tickets/reservation/{reservationId}/revoke", reservationId)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + internalToken)
+                    .header(TraceId.HEADER, TraceId.get())
+                    .retrieve()
+                    .toBodilessEntity();
+
+        } catch (Exception e) {
+            throw new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "ticket-service unavailable");
+        }
+    }
 }

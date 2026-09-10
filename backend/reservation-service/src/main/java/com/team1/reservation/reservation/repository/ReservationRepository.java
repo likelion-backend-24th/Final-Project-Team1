@@ -49,16 +49,25 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     List<Reservation> findExpirable(@Param("cutoff") Instant cutoff, Pageable pageable);
 
 
-    /**
-     * PENDING 일 때만 EXPIRED 로 전이한다(#77).
-     *
-     * <p>조회 후 전이하는 사이에 결제 승인이 끼어들 수 있으므로 상태 조건을 UPDATE 문에 담는다.
-     * 0 을 반환하면 결제가 먼저 이겼다는 뜻이고, 그때는 정원을 반환해서는 안 된다.
-     */
+
+     //PENDING 일 때만 EXPIRED 로 전이한다(#77).
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update Reservation r "
             + "set r.status = com.team1.reservation.reservation.entity.ReservationStatus.EXPIRED "
             + "where r.id = :id "
             + "and r.status = com.team1.reservation.reservation.entity.ReservationStatus.PENDING")
     int expireIfPending(@Param("id") Long id);
+
+
+
+     //아직 살아 있는 예약만 CANCELLED 로 전이한다.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Reservation r "
+            + "set r.status = com.team1.reservation.reservation.entity.ReservationStatus.CANCELLED, "
+            + "r.cancelledAt = :now "
+            + "where r.id = :id and r.status in ("
+            + "com.team1.reservation.reservation.entity.ReservationStatus.PENDING, "
+            + "com.team1.reservation.reservation.entity.ReservationStatus.CONFIRMED)")
+    int cancelIfActive(@Param("id") Long id, @Param("now") Instant now);
 }

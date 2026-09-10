@@ -42,6 +42,15 @@ scheduler:
     # PG 조회가 필요한 갈래에만 걸리는 상한. 배치가 외부 호출에 밀리지 않게 한다.
     pg-batch-size: 50
 
+  # 티켓 발급 통지 재시도(#79). 즉시 시도에 실패한 건을 회수한다.
+  ticket-dispatch:
+    enabled: ${TICKET_DISPATCH_ENABLED:true}
+    cron: "0 * * * * *"
+    batch-size: 100
+    max-attempts: 6
+    # 지수 백오프의 기준값. 1·2·4·8·16분 뒤에 재시도하고 6회째에 포기한다.
+    backoff: 1m
+
 ticket-service:
   base-url: ${TICKET_SERVICE_URL:http://localhost:8084}
   connect-timeout: 2s
