@@ -1,3 +1,8 @@
+reservation:
+  cancellation:
+    deadline-before-start: 0s
+    refund-window: 1d
+
 scheduler:
   reservation-expiry:
     enabled: false   # Test 에서 배치가 제멋대로 돌면 다른 Test 의 예약을 EXPIRED 로 바꾼다

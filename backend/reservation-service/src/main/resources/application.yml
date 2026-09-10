@@ -32,6 +32,13 @@ expo-service:
   connect-timeout: 2s
   read-timeout: 3s
 
+reservation:
+  cancellation:
+    # 취소 마감. 회차 시작 기준이며 0 이면 시작 직전까지 취소할 수 있다.
+    deadline-before-start: 0s
+    # 전액 환불 창. 회차 시작 이 시간 전까지 취소해야 돈이 돌아간다.
+    refund-window: 1d
+
 scheduler:
   reservation-expiry:
     enabled: ${RESERVATION_EXPIRY_ENABLED:true}
