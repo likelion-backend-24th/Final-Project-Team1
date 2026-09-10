@@ -13,6 +13,14 @@ export interface PublicationResponse {
 
 export type ExpoSort = 'recommended' | 'newest' | 'deadline'
 
+export interface ApplyPromotionResponse {
+  promotionId: number
+  expoId: number
+  amount: number
+  paymentId: string
+  status: string
+}
+
 export const expoApi = {
   /**
    * GET /api/v1/expos — PUBLISHED 만 내려온다. 인증 불필요.
@@ -75,6 +83,14 @@ export const expoApi = {
    */
   publishExpo: (expoId: number) =>
     api.post<ApiResponse<PublicationResponse>>(`/expos/${expoId}/publication`, {}),
+
+  // POST /api/v1/expo-promotions — paymentId 발급 (결제 전 단계)
+  applyPromotion: (expoId: number) =>
+    api.post<ApiResponse<ApplyPromotionResponse>>('/expo-promotions', { expoId }),
+
+  // POST /api/v1/expo-promotions/{promotionId}/refund
+  refundPromotion: (promotionId: number) =>
+    api.post<ApiResponse<void>>(`/expo-promotions/${promotionId}/refund`, {}),
 
   // GET /api/v1/expos/{expoId}/reservations/summary — 주최자(채널 소유자) 전용.
   getReservationSummary: (expoId: number) =>
