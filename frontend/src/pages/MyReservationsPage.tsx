@@ -28,6 +28,17 @@ const REFUND_LABEL: Record<string, string> = {
   NOT_REFUNDABLE: '환불 기한 경과(환불 불가)',
 }
 
+const CANCEL_ERROR_MESSAGES: Record<string, string> = {
+  CANCELLATION_DEADLINE_PASSED: '회차가 이미 시작되어 취소할 수 없습니다.',
+  NOT_FOUND: '예약 정보를 찾을 수 없습니다.',
+  INVALID_STATE_TRANSITION: '이미 종료된 예약은 취소할 수 없습니다.',
+}
+
+function cancelErrorMessage(e: unknown, fallback: string) {
+  const code = (e as { body?: { data?: { code?: string } } } | undefined)?.body?.data?.code
+  return (code && CANCEL_ERROR_MESSAGES[code]) || fallback
+}
+
 export default function MyReservationsPage() {
   const toast = useToast()
   const [reservations, setReservations] = useState<MyReservation[]>([])
@@ -144,8 +155,8 @@ function ReservationDetailModal({ reservationId, onClose, onCancelled }: {
       setDetail(prev => prev && { ...prev, status: result.status as MyReservationDetail['status'], refundState: result.refundState })
       onCancelled(reservationId, result.status, result.refundState)
       setConfirmingCancel(false)
-    } catch {
-      toast('취소에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error')
+    } catch (e) {
+      toast(cancelErrorMessage(e, '취소에 실패했습니다. 잠시 후 다시 시도해주세요.'), 'error')
     } finally {
       setCancelling(false)
     }
