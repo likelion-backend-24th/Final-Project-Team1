@@ -1,6 +1,8 @@
 scheduler:
   reservation-expiry:
-    enabled: false   # Test 에서 만료 배치가 제멋대로 돌면 다른 Test 의 예약을 EXPIRED 로 바꾼다
+    enabled: false   # Test 에서 배치가 제멋대로 돌면 다른 Test 의 예약을 EXPIRED 로 바꾼다
+  ticket-dispatch:
+    enabled: false
 
 spring:
   jpa:

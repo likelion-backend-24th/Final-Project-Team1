@@ -8,12 +8,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
 import java.time.Instant;
 
 
 @Entity
 @Table(name = "rounds")
+@Getter
 public class Round {
 
     @Id
@@ -74,37 +76,5 @@ public class Round {
     /** 잔여 정원. 조건부 UPDATE 가 갱신한 reserved_count 를 그대로 반영한다. */
     public int remaining() {
         return capacity - reservedCount;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getExpoId() {
-        return expoId;
-    }
-
-    public Instant getStartsAt() {
-        return startsAt;
-    }
-
-    public Instant getEndsAt() {
-        return endsAt;
-    }
-
-    public int getCapacity() {
-        return capacity;
-    }
-
-    public int getReservedCount() {
-        return reservedCount;
-    }
-
-    public int getFee() {
-        return fee;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
     }
 }

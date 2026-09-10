@@ -10,28 +10,22 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.regex.Pattern;
 
 
-/**
- * 예약 Aggregate Root.
- * <p>상태 전이 규칙을 Service 가 아니라 이 클래스 안에 둔다. 예약은 결제·만료 스케줄러·사용자 취소
- * 세 경로에서 상태가 바뀌는데, 규칙이 Service 에 흩어지면 경로마다 조건이 어긋나기 쉽다.
- */
+
 @Entity
 @Table(name = "reservations")
+@Getter
 public class Reservation {
 
 
     public static final Duration PAYMENT_WINDOW = Duration.ofMinutes(10);
 
-    /**
-     * 연락처는 하이픈을 제거한 숫자만 받는다. 정규화는 Service 계층(#76)이 하지만,
-     * 엔티티에서도 막아야 정규화를 빠뜨린 호출 경로가 생겨도 DB 에 표기 형식이 섞이지 않는다.
-     */
     private static final Pattern DIGITS_ONLY = Pattern.compile("^\\d{9,15}$");
 
     @Id
@@ -153,62 +147,6 @@ public class Reservation {
             throw new ApiException(ErrorCode.INVALID_REQUEST,
                     "cannot " + action + " from " + status);
         }
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getReservationNo() {
-        return reservationNo;
-    }
-
-    public Long getRoundId() {
-        return roundId;
-    }
-
-    public Long getExpoId() {
-        return expoId;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public String getContactName() {
-        return contactName;
-    }
-
-    public String getContactPhone() {
-        return contactPhone;
-    }
-
-    public int getHeadcount() {
-        return headcount;
-    }
-
-    public int getAmount() {
-        return amount;
-    }
-
-    public ReservationStatus getStatus() {
-        return status;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getExpiresAt() {
-        return expiresAt;
-    }
-
-    public Instant getConfirmedAt() {
-        return confirmedAt;
-    }
-
-    public Instant getCancelledAt() {
-        return cancelledAt;
     }
 
 
