@@ -8,7 +8,9 @@ import com.team1.expo.domain.promotion.*;
 import com.team1.expo.promotion.dto.ActivePromotionResponse;
 import com.team1.expo.promotion.dto.ApplyPromotionRequest;
 import com.team1.expo.promotion.dto.ApplyPromotionResponse;
+import com.team1.expo.promotion.dto.InternalPromotionPaymentResponse;
 import com.team1.payment.PaymentIdGenerator;
+import com.team1.payment.PaymentStatus;
 import com.team1.payment.PaymentTransaction;
 import com.team1.payment.PgCancelResult;
 import com.team1.payment.PgClient;
@@ -18,7 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -91,6 +97,24 @@ public class ExpoPromotionService {
     public List<ActivePromotionResponse> getActive() {
         return promotionRepository.findByStatusOrderByPaidAtAsc(ExpoPromotionStatus.ACTIVE)
                 .stream().map(ActivePromotionResponse::from).toList();
+    }
+
+    private static final List<PaymentStatus> SETTLEMENT_STATUSES =
+            List.of(PaymentStatus.PAID, PaymentStatus.CANCELLED);
+
+    /** 계약 2 — Settlement-Service가 정산 집계에 사용. PAID·CANCELLED만 반환한다. */
+    @Transactional(readOnly = true)
+    public List<InternalPromotionPaymentResponse> getPaymentsForSettlement(Instant from, Instant to) {
+        List<PaymentTransaction> txs =
+                paymentTransactionRepository.findByStatusInAndUpdatedAtBetween(SETTLEMENT_STATUSES, from, to);
+
+        Set<Long> promotionIds = txs.stream().map(PaymentTransaction::getRefId).collect(Collectors.toSet());
+        Map<Long, Long> promotionToExpoId = promotionRepository.findAllById(promotionIds).stream()
+                .collect(Collectors.toMap(ExpoPromotion::getId, ExpoPromotion::getExpoId));
+
+        return txs.stream()
+                .map(tx -> InternalPromotionPaymentResponse.of(tx, promotionToExpoId.get(tx.getRefId())))
+                .toList();
     }
 
     private void verifyOwnership(Long expoId, Long requesterId) {
