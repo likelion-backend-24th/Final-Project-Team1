@@ -35,16 +35,27 @@ public class ExpoQueryService {
     private final RoundClient roundClient;
 
     /**
-     * 공개(PUBLISHED) 박람회 목록. page는 1부터, size는 기본 20·최대 100, created_at 내림차순 기본 정렬.
+     * 공개(PUBLISHED) 박람회 목록.
+     * sort: recommended(기본·추천순), newest(새행사순), deadline(모집마감일순)
+     * VIP 상단 노출은 GET /api/v1/expo-promotions/active 를 프론트가 별도 호출해 조합한다.
+     * deadline 정렬은 round endsAt 기준이 필요해 reservation-service 연동 시 구현 예정.
      */
-    public Page<ExpoSummaryResponse> listPublished(String region, String category, int page, int size) {
+    public Page<ExpoSummaryResponse> listPublished(String region, String category, String sort, int page, int size) {
         if (category != null && !ALLOWED_CATEGORIES.contains(category)) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
         int pageIndex = Math.max(page, 1) - 1;
         int pageSize = Math.min(Math.max(size, 1), MAX_SIZE);
-        Pageable pageable = PageRequest.of(pageIndex, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
 
+        Sort ordering = switch (sort == null ? "recommended" : sort) {
+            case "deadline" ->
+                // ponytail: expo에 마감일 필드 없음 — reservation-service round.endsAt 연동 시 교체
+                Sort.by(Sort.Direction.ASC, "createdAt");
+            case "newest" -> Sort.by(Sort.Direction.DESC, "createdAt");
+            default -> Sort.by(Sort.Direction.DESC, "createdAt"); // recommended
+        };
+
+        Pageable pageable = PageRequest.of(pageIndex, pageSize, ordering);
         return expoQueryRepository.findPublished(region, category, pageable)
                 .map(ExpoSummaryResponse::from);
     }

@@ -46,7 +46,7 @@ class ExpoQueryServiceTest {
     @Test
     @DisplayName("허용되지 않은 카테고리 필터 → 400")
     void list_invalidCategory() {
-        assertThatThrownBy(() -> service.listPublished(null, "없는카테고리", 1, 20))
+        assertThatThrownBy(() -> service.listPublished(null, "없는카테고리", "recommended", 1, 20))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.INVALID_REQUEST);
     }

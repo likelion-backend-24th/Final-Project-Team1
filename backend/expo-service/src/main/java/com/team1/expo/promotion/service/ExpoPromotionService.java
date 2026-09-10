@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -95,8 +96,22 @@ public class ExpoPromotionService {
 
     @Transactional(readOnly = true)
     public List<ActivePromotionResponse> getActive() {
-        return promotionRepository.findByStatusOrderByPaidAtAsc(ExpoPromotionStatus.ACTIVE)
-                .stream().map(ActivePromotionResponse::from).toList();
+        List<ExpoPromotion> promotions = promotionRepository.findByStatusOrderByPaidAtAsc(ExpoPromotionStatus.ACTIVE);
+        if (promotions.isEmpty()) return List.of();
+
+        // ponytail: 30초 단위 순환 — 상태 없이 시계로만 회전. 수십 개 초과 시 DB 기반 커서로 교체
+        int size = promotions.size();
+        int offset = (int) ((clock.instant().getEpochSecond() / 30) % size);
+        List<ExpoPromotion> rotated = new ArrayList<>(promotions.subList(offset, size));
+        rotated.addAll(promotions.subList(0, offset));
+
+        Map<Long, com.team1.expo.domain.expo.Expo> expoMap = expoRepository
+                .findAllById(rotated.stream().map(ExpoPromotion::getExpoId).collect(Collectors.toSet()))
+                .stream().collect(Collectors.toMap(com.team1.expo.domain.expo.Expo::getId, e -> e));
+
+        return rotated.stream()
+                .map(p -> ActivePromotionResponse.of(p, expoMap.get(p.getExpoId())))
+                .toList();
     }
 
     private static final List<PaymentStatus> SETTLEMENT_STATUSES =
