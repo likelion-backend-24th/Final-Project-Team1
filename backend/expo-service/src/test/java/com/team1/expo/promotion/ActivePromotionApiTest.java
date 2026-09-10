@@ -44,8 +44,8 @@ class ActivePromotionApiTest extends ApiTestSupport {
     }
 
     @Test
-    @DisplayName("ACTIVE 배너가 paidAt 오름차순으로 반환된다")
-    void 활성_배너_순서_확인() {
+    @DisplayName("ACTIVE 배너가 두 건 모두 반환되고 expo 정보를 포함한다")
+    void 활성_배너_목록_확인() {
         long p1 = activePromotion(expoId1, Instant.parse("2026-09-01T00:00:00Z"));
         long p2 = activePromotion(expoId2, Instant.parse("2026-09-02T00:00:00Z"));
 
@@ -53,11 +53,16 @@ class ActivePromotionApiTest extends ApiTestSupport {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode data = response.getBody().path("data");
-        // p1이 p2보다 앞에 와야 한다 (paidAt 오름차순)
-        long firstId = data.get(0).path("promotionId").asLong();
-        long secondId = data.get(1).path("promotionId").asLong();
-        assertThat(firstId).isEqualTo(p1);
-        assertThat(secondId).isEqualTo(p2);
+        assertThat(data.size()).isGreaterThanOrEqualTo(2);
+
+        // 두 promotionId가 모두 포함돼야 한다 (순환으로 순서는 실행 시점에 따라 달라짐)
+        var ids = new java.util.HashSet<Long>();
+        for (JsonNode node : data) {
+            ids.add(node.path("promotionId").asLong());
+            // expo 정보 포함 확인
+            assertThat(node.path("title").asText()).isNotBlank();
+        }
+        assertThat(ids).contains(p1, p2);
     }
 
     @Test

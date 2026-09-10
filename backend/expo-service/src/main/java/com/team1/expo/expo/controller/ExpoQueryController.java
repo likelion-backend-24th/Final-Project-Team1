@@ -26,13 +26,18 @@ public class ExpoQueryController {
 
     private final ExpoQueryService expoQueryService;
 
+    /**
+     * sort 값: recommended(추천순·기본), newest(새행사순), deadline(모집마감일순)
+     * recommended 탭에서 VIP 상단 노출은 GET /api/v1/expo-promotions/active 를 별도 호출해 조합한다.
+     */
     @GetMapping
     public ApiResponse<List<ExpoSummaryResponse>> listExpos(
             @RequestParam(required = false) String region,
             @RequestParam(required = false) String category,
+            @RequestParam(defaultValue = "recommended") String sort,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Page<ExpoSummaryResponse> result = expoQueryService.listPublished(region, category, page, size);
+        Page<ExpoSummaryResponse> result = expoQueryService.listPublished(region, category, sort, page, size);
         return ApiResponse.ok(result.getContent(), PageMeta.of(page, result));
     }
 
