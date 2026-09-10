@@ -88,7 +88,7 @@ export default function RoundManagePage() {
       // 응답은 { expoId, status } 뿐이라 기존 정보를 유지한 채 상태만 갈아끼운다.
       const r = await expoApi.publishExpo(id)
       setExpo(prev => (prev ? { ...prev, status: r.data.status } : prev))
-      toast('박람회가 공개되었습니다! 🎉', 'success')
+      toast('박람회가 공개되었습니다', 'success')
     } catch (err: unknown) {
       const e = err as { status?: number }
       if (e.status === 400) toast('회차를 먼저 등록해야 공개할 수 있습니다', 'error')
@@ -232,7 +232,6 @@ export default function RoundManagePage() {
 
             {rounds.length === 0 ? (
               <div className="empty-state">
-                <div className="es-icon">📅</div>
                 <p className="es-title">등록된 회차가 없습니다</p>
                 <p className="es-desc">회차를 추가해야 박람회를 공개할 수 있습니다.</p>
                 <button className="btn btn-primary" onClick={() => setShowForm(true)}>회차 추가하기</button>
@@ -241,7 +240,6 @@ export default function RoundManagePage() {
               <div>
                 {rounds.map(r => (
                   <div key={r.roundId} className="round-card">
-                    <div style={{ fontSize: 20, flexShrink: 0 }}>📅</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
                         {fmt(r.startsAt)} – {fmt(r.endsAt)}

@@ -45,7 +45,91 @@ export interface Round {
   endsAt: string
   capacity: number
   remaining: number
-  fee?: number // RoundResponse 에만 있다. RoundView 에는 없다.
+  fee: number
+}
+
+/**
+ * reservation-service 의 ReservationResponse.
+ * paymentId 는 무료 회차(amount=0, 즉시 CONFIRMED)면 응답에서 빠진다.
+ */
+export interface Reservation {
+  reservationId: number
+  reservationNo: string
+  roundId: number
+  headcount: number
+  amount: number
+  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED'
+  expiresAt?: string
+  paymentId?: string
+}
+
+export type RefundState = 'NOT_APPLICABLE' | 'REFUNDED' | 'REFUND_PENDING' | 'REFUND_UNRESOLVED' | 'NOT_REFUNDABLE'
+
+/** GET /reservations/me 한 줄. reservation-service 의 MyReservationResponse. */
+export interface MyReservation {
+  reservationId: number
+  reservationNo: string
+  expoId: number
+  roundId: number
+  startsAt?: string
+  endsAt?: string
+  headcount: number
+  amount: number
+  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED'
+  refundState: RefundState
+  createdAt: string
+}
+
+/** GET /reservations/{id} 상세에 실리는 QR 정보. reservation-service 의 ReservationTicketView. */
+export interface ReservationTicket {
+  ticketId: number
+  checkinToken: string
+  issuedAt: string
+  status: string
+}
+
+/** GET /reservations/{id}. reservation-service 의 MyReservationDetailResponse. */
+export interface MyReservationDetail extends MyReservation {
+  contactName: string
+  contactPhone: string
+  ticketAvailable: boolean
+  ticket?: ReservationTicket
+}
+
+/** PATCH /reservations/{id}/cancellation 응답. reservation-service 의 CancelReservationResponse. */
+export interface CancelReservationResult {
+  reservationId: number
+  status: string
+  refundState: RefundState
+  cancelledAt: string
+}
+
+/** GET /tickets/verify. ticket-service 의 CheckinTicketView. */
+export interface CheckinTicketView {
+  ticketId: number
+  status: string
+  roundId: number
+  headcount: number
+  issuedAt: string
+  usedAt?: string
+}
+
+/** POST /tickets/{id}/checkin. ticket-service 의 CheckinResult. */
+export interface CheckinResult {
+  ticketId: number
+  status: string
+  checkedInAt: string
+}
+
+/** GET /expo-promotions/active. expo-service 의 ActivePromotionResponse. recommended 탭 상단 VIP 배너에 쓴다. */
+export interface ActivePromotion {
+  promotionId: number
+  expoId: number
+  title: string
+  thumbnailUrl?: string
+  region?: string
+  category: string
+  paidAt: string
 }
 
 export interface Channel {

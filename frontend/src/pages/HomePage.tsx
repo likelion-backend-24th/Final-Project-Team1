@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { expoApi } from '../api/expo'
+import type { ExpoSort } from '../api/expo'
 import { expoKey } from '../types'
-import type { Expo } from '../types'
+import type { ActivePromotion, Expo } from '../types'
 
-const CATS = [
-  { label: '전체', icon: '🏷️' },
-  { label: 'IT·전자', icon: '💻' },
-  { label: '식품·음료', icon: '🍽️' },
-  { label: '패션·뷰티', icon: '👗' },
-  { label: '교육·취업', icon: '🎓' },
-  { label: '문화·예술', icon: '🎨' },
-  { label: '기타', icon: '📦' },
+const CATS = ['전체', 'IT·전자', '식품·음료', '패션·뷰티', '교육·취업', '문화·예술', '기타']
+
+const SORTS: { value: ExpoSort; label: string }[] = [
+  { value: 'recommended', label: '추천순' },
+  { value: 'newest', label: '새 행사순' },
+  { value: 'deadline', label: '모집마감일순' },
 ]
 
 const THUMB_COLORS = [
@@ -29,21 +28,33 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [category, setCategory] = useState('전체')
+  const [sort, setSort] = useState<ExpoSort>('recommended')
+  const [promotions, setPromotions] = useState<ActivePromotion[]>([])
 
   useEffect(() => {
-    // 카테고리를 빠르게 바꾸면 이전 요청이 늦게 도착해 최신 결과를 덮을 수 있다
+    // 카테고리·정렬을 빠르게 바꾸면 이전 요청이 늦게 도착해 최신 결과를 덮을 수 있다
     let cancelled = false
-    // 백엔드는 region · category · page · size 만 받는다. keyword 검색은 Sprint 2.
     expoApi.listPublished({
       category: category === '전체' ? undefined : category,
+      sort,
     })
       .then(res => { if (!cancelled) { setExpos(res.data ?? []); setError(false) } })
       .catch(() => { if (!cancelled) setError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [category])
+  }, [category, sort])
 
-  const catIcon = (label: string) => CATS.find(c => c.label === label)?.icon ?? '🏷️'
+  useEffect(() => {
+    // 추천 배너는 정렬·카테고리와 무관하게 한 번만 불러오고, 화면에서만 걸러 보여준다.
+    expoApi.getActivePromotions()
+      .then(res => setPromotions(res.data ?? []))
+      .catch(() => setPromotions([]))
+  }, [])
+
+  // 백엔드가 recommended 탭에만 VIP 상단 노출을 의도하므로(ExpoQueryController 주석) 다른 정렬에서는 숨긴다.
+  const visiblePromotions = sort === 'recommended'
+    ? promotions.filter(p => category === '전체' || p.category === category)
+    : []
 
   return (
     <>
@@ -63,16 +74,57 @@ export default function HomePage() {
       {/* ─── Content ─── */}
       <div className="container page-wrap">
 
+        {visiblePromotions.length > 0 && (
+          <div style={{ marginBottom: 28 }}>
+            <div className="section-header" style={{ marginBottom: 12 }}>
+              <span className="section-title">추천 박람회</span>
+            </div>
+            <div className="vip-banner">
+              {visiblePromotions.map(p => (
+                <div
+                  key={p.promotionId}
+                  className="vip-card"
+                  onClick={() => navigate(`/expos/${p.expoId}`)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div
+                    className="vip-card-thumb"
+                    style={{ background: `linear-gradient(135deg, ${THUMB_COLORS[p.expoId % THUMB_COLORS.length][0]}, ${THUMB_COLORS[p.expoId % THUMB_COLORS.length][1]})` }}
+                  >
+                    <span className="badge badge-primary">PICK</span>
+                  </div>
+                  <p className="vip-card-cat">{p.category}</p>
+                  <h4 className="vip-card-title">{p.title}</h4>
+                  {p.region && <p className="vip-card-region">{p.region}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Category filter */}
         <div className="cat-bar">
           {CATS.map(c => (
             <button
-              key={c.label}
-              className={`cat-chip ${category === c.label ? 'active' : ''}`}
-              onClick={() => setCategory(c.label)}
+              key={c}
+              className={`cat-chip ${category === c ? 'active' : ''}`}
+              onClick={() => setCategory(c)}
             >
-              <span className="cat-icon">{c.icon}</span>
-              {c.label}
+              {c}
+            </button>
+          ))}
+        </div>
+
+        {/* Sort */}
+        <div className="sort-bar">
+          {SORTS.map(s => (
+            <button
+              key={s.value}
+              className={`sort-chip ${sort === s.value ? 'active' : ''}`}
+              onClick={() => setSort(s.value)}
+            >
+              {s.label}
             </button>
           ))}
         </div>
@@ -81,14 +133,12 @@ export default function HomePage() {
           <SkeletonGrid />
         ) : error ? (
           <div className="empty-state">
-            <div className="es-icon">⚠️</div>
             <p className="es-title">불러올 수 없습니다</p>
             <p className="es-desc">잠시 후 다시 시도해주세요.</p>
             <button className="btn btn-outline" onClick={() => setCategory(category)}>새로고침</button>
           </div>
         ) : expos.length === 0 ? (
           <div className="empty-state">
-            <div className="es-icon">🔍</div>
             <p className="es-title">검색 결과가 없습니다</p>
             <p className="es-desc">다른 키워드나 카테고리로 검색해보세요.</p>
           </div>
@@ -106,7 +156,6 @@ export default function HomePage() {
                   key={expoKey(expo)}
                   expo={expo}
                   colors={THUMB_COLORS[expoKey(expo) % THUMB_COLORS.length]}
-                  catIcon={catIcon(expo.category)}
                   onClick={() => navigate(`/expos/${expoKey(expo)}`)}
                 />
               ))}
@@ -118,10 +167,9 @@ export default function HomePage() {
   )
 }
 
-function ExpoCard({ expo, colors, catIcon, onClick }: {
+function ExpoCard({ expo, colors, onClick }: {
   expo: Expo
   colors: string[]
-  catIcon: string
   onClick: () => void
 }) {
   return (
@@ -130,9 +178,7 @@ function ExpoCard({ expo, colors, catIcon, onClick }: {
         <div
           className="expo-card-thumb-inner"
           style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})` }}
-        >
-          <span>{catIcon}</span>
-        </div>
+        />
         <div className="expo-card-thumb-badge">
           <span className="badge badge-published">● 공개중</span>
         </div>
@@ -144,13 +190,11 @@ function ExpoCard({ expo, colors, catIcon, onClick }: {
         <div className="expo-card-meta">
           {expo.venue && (
             <div className="expo-card-meta-row">
-              <span className="expo-card-meta-icon">🏛</span>
               <span>{expo.venue}</span>
             </div>
           )}
           {expo.region && (
             <div className="expo-card-meta-row">
-              <span className="expo-card-meta-icon">📍</span>
               <span>{expo.region}</span>
             </div>
           )}

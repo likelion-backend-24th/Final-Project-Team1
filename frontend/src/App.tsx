@@ -10,6 +10,8 @@ import ChannelCreatePage from './pages/ChannelCreatePage'
 import ExpoManagePage from './pages/ExpoManagePage'
 import RoundManagePage from './pages/RoundManagePage'
 import HostChannelPage from './pages/HostChannelPage'
+import MyReservationsPage from './pages/MyReservationsPage'
+import CheckinPage from './pages/CheckinPage'
 
 export default function App() {
   return (
@@ -27,6 +29,8 @@ export default function App() {
             <Route path="/host/channel/new" element={<ChannelCreatePage />} />
             <Route path="/host/expos/new" element={<ExpoManagePage />} />
             <Route path="/host/expos/:expoId/rounds" element={<RoundManagePage />} />
+            <Route path="/my/reservations" element={<MyReservationsPage />} />
+            <Route path="/host/checkin" element={<CheckinPage />} />
           </Routes>
         </ToastProvider>
       </AuthProvider>

@@ -25,8 +25,14 @@ export default function GNB() {
 
       <div className="gnb-links">
         <Link to="/expos" className={isActive('/expos')}>박람회 탐색</Link>
+        {isRole('USER') && (
+          <Link to="/my/reservations" className={isActive('/my/reservations')}>내 예약</Link>
+        )}
         {isRole('ORGANIZER') && (
-          <Link to="/host/channel" className={isActive('/host')}>주최자 센터</Link>
+          <>
+            <Link to="/host/channel" className={isActive('/host/channel')}>주최자 센터</Link>
+            <Link to="/host/checkin" className={isActive('/host/checkin')}>현장 체크인</Link>
+          </>
         )}
         {isRole('SUPER_ADMIN') && (
           <Link to="/admin" className={isActive('/admin')}>관리자</Link>

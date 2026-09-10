@@ -64,7 +64,7 @@ button { font-family: inherit; cursor: pointer; }
 input, select, textarea { font-family: inherit; }
 
 /* ─── Layout ─── */
-.container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 40px); }
 .page-wrap { padding: 40px 0 80px; }
 
 /* ─── GNB ─── */
@@ -77,7 +77,7 @@ input, select, textarea { font-family: inherit; }
   height: 64px;
   display: flex;
   align-items: center;
-  padding: 0 40px;
+  padding: 0 clamp(20px, 4vw, 40px);
   gap: 0;
 }
 .gnb-logo {
@@ -309,6 +309,40 @@ input, select, textarea { font-family: inherit; }
 .cat-chip:hover { border-color: var(--primary); color: var(--primary); }
 .cat-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 .cat-chip .cat-icon { font-size: 16px; }
+
+/* ─── Sort ─── */
+.sort-bar { display: flex; gap: 6px; justify-content: flex-end; margin-bottom: 20px; }
+.sort-chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--sub);
+  cursor: pointer;
+  transition: .15s;
+}
+.sort-chip:hover { border-color: var(--text2); color: var(--text); }
+.sort-chip.active { background: var(--gray1); color: var(--text); border-color: var(--text2); }
+
+/* ─── VIP banner ─── */
+.vip-banner { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 6px; }
+.vip-card {
+  flex: 0 0 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s;
+}
+.vip-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.vip-card-thumb { position: relative; width: 100%; padding-top: 56.25%; }
+.vip-card-thumb .badge { position: absolute; top: 10px; left: 10px; }
+.vip-card-cat { font-size: 11px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: .04em; margin: 12px 14px 4px; }
+.vip-card-title { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.4; margin: 0 14px 6px; }
+.vip-card-region { font-size: 12px; color: var(--sub); margin: 0 14px 14px; }
 
 /* ─── Section ─── */
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
@@ -582,8 +616,6 @@ tbody tr:hover td { background: var(--gray1); }
 
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
-  .gnb { padding: 0 16px; }
-  .container { padding: 0 16px; }
   .hero h1 { font-size: 26px; }
   .form-row { grid-template-columns: 1fr; }
   .host-layout { grid-template-columns: 1fr; }

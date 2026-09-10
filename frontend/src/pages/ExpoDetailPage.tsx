@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { expoApi } from '../api/expo'
 import { useAuth } from '../context/AuthContext'
-import type { Expo, Round } from '../types'
+import ReservationModal from '../components/ReservationModal'
+import type { Expo, Reservation, Round } from '../types'
 
 function fmtDate(dt: string) {
   return new Date(dt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -29,6 +30,14 @@ export default function ExpoDetailPage() {
   const [rounds, setRounds] = useState<Round[]>([])
   const [expoLoading, setExpoLoading] = useState(true)
   const [roundsError, setRoundsError] = useState(false)
+  const [reservingRound, setReservingRound] = useState<Round | null>(null)
+
+  const handleReservationSuccess = (reservation: Reservation) => {
+    // 방금 예약한 만큼 잔여 정원을 즉시 반영한다 — 다음 회차 목록 재조회를 기다리지 않는다.
+    setRounds(prev => prev.map(r =>
+      r.roundId === reservation.roundId ? { ...r, remaining: r.remaining - reservation.headcount } : r
+    ))
+  }
 
   useEffect(() => {
     if (!expoId) return
@@ -53,7 +62,6 @@ export default function ExpoDetailPage() {
 
   const status = expo.status ?? 'PUBLISHED'
   const colors = THUMB_COLORS[expo.category] ?? ['#1A1A2E', '#374151']
-  const catIcon = { 'IT·전자': '💻', '식품·음료': '🍽️', '패션·뷰티': '👗', '교육·취업': '🎓', '문화·예술': '🎨', '기타': '📦' }[expo.category] ?? '🎪'
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: 'calc(100vh - 64px)' }}>
@@ -61,13 +69,7 @@ export default function ExpoDetailPage() {
       <div style={{
         background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`,
         height: 280,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 96,
-      }}>
-        {catIcon}
-      </div>
+      }} />
 
       <div className="container" style={{ paddingTop: 32, paddingBottom: 80 }}>
         {/* Back */}
@@ -96,12 +98,12 @@ export default function ExpoDetailPage() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, marginBottom: 28 }}>
               {expo.region && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: 'var(--sub)' }}>
-                  <span>📍</span><span>{expo.region}</span>
+                  <span>{expo.region}</span>
                 </div>
               )}
               {expo.venue && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: 'var(--sub)' }}>
-                  <span>🏛</span><span>{expo.venue}</span>
+                  <span>{expo.venue}</span>
                 </div>
               )}
             </div>
@@ -155,6 +157,10 @@ export default function ExpoDetailPage() {
                           {fmtTime(r.startsAt)} – {fmtTime(r.endsAt)}
                         </div>
 
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>
+                          {r.fee ? `${r.fee.toLocaleString()}원` : '무료'}
+                        </div>
+
                         {/* Capacity bar */}
                         <div style={{ marginBottom: 10 }}>
                           <div style={{ height: 4, background: 'var(--gray3)', borderRadius: 4, overflow: 'hidden' }}>
@@ -178,7 +184,7 @@ export default function ExpoDetailPage() {
                           <button
                             className={`btn ${isFull ? 'btn-secondary' : 'btn-primary'} btn-sm btn-block`}
                             disabled={isFull}
-                            onClick={() => alert('예약 기능은 Sprint 2에서 제공됩니다.')}
+                            onClick={() => setReservingRound(r)}
                           >
                             {isFull ? '마감된 회차' : '예약하기'}
                           </button>
@@ -200,6 +206,14 @@ export default function ExpoDetailPage() {
           </div>
         </div>
       </div>
+
+      {reservingRound && (
+        <ReservationModal
+          round={reservingRound}
+          onClose={() => setReservingRound(null)}
+          onSuccess={handleReservationSuccess}
+        />
+      )}
     </div>
   )
 }
