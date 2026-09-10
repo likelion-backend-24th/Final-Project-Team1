@@ -8,13 +8,14 @@ import com.team1.reservation.client.TicketClient;
 import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.reservation.dto.CancelReservationResponse;
+import com.team1.reservation.reservation.entity.RefundState;
 import com.team1.reservation.reservation.entity.Reservation;
 import com.team1.reservation.reservation.entity.ReservationStatus;
-import com.team1.reservation.reservation.repository.ReservationRepository;
 import com.team1.reservation.reservation.service.ReservationCancelService;
 import com.team1.reservation.reservation.support.TicketDispatchStub;
 import com.team1.reservation.round.entity.Round;
 import com.team1.reservation.round.repository.RoundRepository;
+import com.team1.reservation.reservation.repository.ReservationRepository;
 import com.team1.security.AuthenticatedUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -40,7 +42,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * 취소·환불 규칙. 취소는 회차 시작 전까지, 전액 환불은 시작 24시간 전까지.
+ * #83 취소·환불 규칙. 취소는 회차 시작 전까지, 전액 환불은 시작 24시간 전까지.
  * 그 사이에 취소하면 취소는 되지만 환불은 없다.
  */
 class ReservationCancelServiceTest {
@@ -60,6 +62,7 @@ class ReservationCancelServiceTest {
     private PaymentService paymentService;
     private TicketClient ticketClient;
     private ReservationCancelService service;
+    private PaymentTransaction payment;
 
     @BeforeEach
     void setUp() {
@@ -92,37 +95,57 @@ class ReservationCancelServiceTest {
         return reservation;
     }
 
-    private void givenPaidPayment() {
-        PaymentTransaction payment =
-                PaymentTransaction.create(RESERVATION_ID, "BE24-01-TEST", AMOUNT, NOW);
-        ReflectionTestUtils.setField(payment, "status", PaymentStatus.PAID);
+    private void givenPayment(PaymentStatus status) {
+        payment = PaymentTransaction.create(RESERVATION_ID, "BE24-01-TEST", AMOUNT, NOW);
+        ReflectionTestUtils.setField(payment, "status", status);
         when(payments.findByRefId(RESERVATION_ID)).thenReturn(Optional.of(payment));
     }
 
+    /** 실제 모듈은 같은 영속성 컨텍스트의 행을 직접 바꾼다. Mock 도 그렇게 흉내낸다. */
+    private void whenRefundedBecomes(PaymentStatus after) {
+        doAnswer(call -> {
+            ReflectionTestUtils.setField(payment, "status", after);
+            return null;
+        }).when(paymentService).cancel(anyLong(), anyString());
+    }
+
+    // ── 환불 판정 ──────────────────────────────────────────────────────────
+
     @Test
-    @DisplayName("회차 시작 24시간 전보다 이르면 전액 환불한다")
+    @DisplayName("회차 시작 24시간 전보다 이르면 전액 환불하고 REFUNDED 를 내려준다")
     void refundsInFullBeforeWindow() {
         givenRoundStartingIn(Duration.ofDays(3), 10000);
-        givenPaidPayment();
+        givenPayment(PaymentStatus.PAID);
+        whenRefundedBecomes(PaymentStatus.CANCELLED);
 
         CancelReservationResponse response = service.cancel(RESERVATION_ID, MEMBER);
 
-        assertThat(response.refunded()).isTrue();
-        assertThat(response.refundAmount()).isEqualTo(20000);
+        assertThat(response.refundState()).isEqualTo(RefundState.REFUNDED);
         verify(paymentService).cancel(RESERVATION_ID, "user cancellation");
     }
 
     @Test
-    @DisplayName("24시간 안으로 들어오면 취소는 되지만 환불은 없다")
+    @DisplayName("환불 요청이 PG 에 닿지 못하면 REFUND_PENDING - 아직 돈이 돌아가지 않았다")
+    void reportsRefundPendingWhenPgFailed() {
+        givenRoundStartingIn(Duration.ofDays(3), 10000);
+        givenPayment(PaymentStatus.PAID);
+        // 모듈은 예외를 던지지 않고 REFUND_FAILED 로 기록한다.
+        whenRefundedBecomes(PaymentStatus.REFUND_FAILED);
+
+        assertThat(service.cancel(RESERVATION_ID, MEMBER).refundState())
+                .isEqualTo(RefundState.REFUND_PENDING);
+    }
+
+    @Test
+    @DisplayName("24시간 안으로 들어오면 취소는 되지만 환불은 없다 - NOT_REFUNDABLE")
     void cancelsWithoutRefundInsideWindow() {
         givenRoundStartingIn(Duration.ofHours(5), 10000);
-        givenPaidPayment();
+        givenPayment(PaymentStatus.PAID);
 
         CancelReservationResponse response = service.cancel(RESERVATION_ID, MEMBER);
 
         assertThat(response.status()).isEqualTo("CANCELLED");
-        assertThat(response.refunded()).isFalse();
-        assertThat(response.refundAmount()).isZero();
+        assertThat(response.refundState()).isEqualTo(RefundState.NOT_REFUNDABLE);
         verify(paymentService, never()).cancel(anyLong(), anyString());
     }
 
@@ -130,10 +153,36 @@ class ReservationCancelServiceTest {
     @DisplayName("경계는 정확히 24시간 - 24시간 0초 전은 아직 환불된다")
     void refundsExactlyAtBoundary() {
         givenRoundStartingIn(Duration.ofDays(1), 10000);
-        givenPaidPayment();
+        givenPayment(PaymentStatus.PAID);
+        whenRefundedBecomes(PaymentStatus.CANCELLED);
 
-        assertThat(service.cancel(RESERVATION_ID, MEMBER).refunded()).isTrue();
+        assertThat(service.cancel(RESERVATION_ID, MEMBER).refundState())
+                .isEqualTo(RefundState.REFUNDED);
     }
+
+    @Test
+    @DisplayName("무료 회차는 환불 단계를 건너뛴다")
+    void skipsRefundForFreeRound() {
+        givenRoundStartingIn(Duration.ofDays(3), 0);
+
+        assertThat(service.cancel(RESERVATION_ID, MEMBER).refundState())
+                .isEqualTo(RefundState.NOT_APPLICABLE);
+        verifyNoInteractions(paymentService);
+        verify(ticketClient).revokeTicket(RESERVATION_ID);
+    }
+
+    @Test
+    @DisplayName("결제가 PAID 가 아니면 환불하지 않는다 - 돌려줄 돈이 없다")
+    void skipsRefundWhenPaymentNotPaid() {
+        givenRoundStartingIn(Duration.ofDays(3), 10000);
+        givenPayment(PaymentStatus.PENDING);
+
+        assertThat(service.cancel(RESERVATION_ID, MEMBER).refundState())
+                .isEqualTo(RefundState.NOT_APPLICABLE);
+        verify(paymentService, never()).cancel(anyLong(), anyString());
+    }
+
+    // ── 기한·전이 ──────────────────────────────────────────────────────────
 
     @Test
     @DisplayName("회차가 시작된 뒤에는 400 CANCELLATION_DEADLINE_PASSED - 정원도 건드리지 않는다")
@@ -152,9 +201,11 @@ class ReservationCancelServiceTest {
     @DisplayName("전이에 성공한 경우에만 정원을 돌려준다")
     void releasesCapacityOnlyOnTransition() {
         givenRoundStartingIn(Duration.ofDays(3), 10000);
-        givenPaidPayment();
+        givenPayment(PaymentStatus.PAID);
+        whenRefundedBecomes(PaymentStatus.CANCELLED);
 
         service.cancel(RESERVATION_ID, MEMBER);
+
         verify(rounds).release(ROUND_ID, HEADCOUNT);
     }
 
@@ -189,51 +240,30 @@ class ReservationCancelServiceTest {
     }
 
     @Test
-    @DisplayName("멱등 응답의 환불 여부는 결제 상태에서 읽는다")
+    @DisplayName("멱등 응답의 환불 상태도 결제에서 읽는다 - 다시 환불하지 않는다")
     void readsRefundStateOnIdempotentReplay() {
         Reservation reservation = givenRoundStartingIn(Duration.ofDays(3), 10000);
         reservation.cancel(NOW.minus(Duration.ofHours(1)));
         when(reservations.cancelIfActive(anyLong(), any())).thenReturn(0);
+        givenPayment(PaymentStatus.REFUND_FAILED);
 
-        PaymentTransaction payment =
-                PaymentTransaction.create(RESERVATION_ID, "BE24-01-TEST", AMOUNT, NOW);
-        ReflectionTestUtils.setField(payment, "status", PaymentStatus.CANCELLED);
-        when(payments.findByRefId(RESERVATION_ID)).thenReturn(Optional.of(payment));
-
-        assertThat(service.cancel(RESERVATION_ID, MEMBER).refunded()).isTrue();
+        assertThat(service.cancel(RESERVATION_ID, MEMBER).refundState())
+                .isEqualTo(RefundState.REFUND_PENDING);
+        verifyNoInteractions(paymentService);
     }
+
+    // ── 권한 ──────────────────────────────────────────────────────────────
 
     @Test
     @DisplayName("취소하면 티켓 무효화를 통지한다")
     void notifiesTicketRevoke() {
         givenRoundStartingIn(Duration.ofDays(3), 10000);
-        givenPaidPayment();
+        givenPayment(PaymentStatus.PAID);
+        whenRefundedBecomes(PaymentStatus.CANCELLED);
 
         service.cancel(RESERVATION_ID, MEMBER);
 
         verify(ticketClient).revokeTicket(RESERVATION_ID);
-    }
-
-    @Test
-    @DisplayName("무료 회차는 환불 단계를 건너뛴다")
-    void skipsRefundForFreeRound() {
-        givenRoundStartingIn(Duration.ofDays(3), 0);
-
-        assertThat(service.cancel(RESERVATION_ID, MEMBER).refunded()).isFalse();
-        verifyNoInteractions(paymentService);
-        verify(ticketClient).revokeTicket(RESERVATION_ID);
-    }
-
-    @Test
-    @DisplayName("결제가 PAID 가 아니면 환불하지 않는다 - 돌려줄 돈이 없다")
-    void skipsRefundWhenPaymentNotPaid() {
-        givenRoundStartingIn(Duration.ofDays(3), 10000);
-        PaymentTransaction payment =
-                PaymentTransaction.create(RESERVATION_ID, "BE24-01-TEST", AMOUNT, NOW);
-        when(payments.findByRefId(RESERVATION_ID)).thenReturn(Optional.of(payment));
-
-        assertThat(service.cancel(RESERVATION_ID, MEMBER).refunded()).isFalse();
-        verify(paymentService, never()).cancel(anyLong(), anyString());
     }
 
     @Test
