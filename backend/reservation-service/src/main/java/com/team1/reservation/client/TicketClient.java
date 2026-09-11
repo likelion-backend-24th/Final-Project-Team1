@@ -10,4 +10,10 @@ public interface TicketClient {
 
     /** 아직 발급되지 않았거나 조회에 실패하면 null. 호출자가 부분 실패로 처리한다. */
     TicketDetail findTicket(Long reservationId);
+
+    /**
+     * 아직 발급되지 않았으면 null, <b>조회에 실패하면 예외</b>.
+     * "모른다" 를 허용할 수 없는 경로가 쓴다 — 모른 채 취소하면 입장한 예약을 환불하게 된다.
+     */
+    TicketDetail findTicketFailClosed(Long reservationId);
 }

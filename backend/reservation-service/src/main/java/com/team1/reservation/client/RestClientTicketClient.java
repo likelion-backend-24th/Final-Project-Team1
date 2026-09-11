@@ -54,20 +54,34 @@ public class RestClientTicketClient implements TicketClient {
     @Override
     public TicketDetail findTicket(Long reservationId) {
         try {
-            return restClient.get()
-                    .uri("/internal/v1/tickets/reservation/{reservationId}", reservationId)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + internalToken)
-                    .header(TraceId.HEADER, TraceId.get())
-                    .retrieve()
-                    .onStatus(status -> status.value() == 404, (request, response) -> {
-                        // 통지가 아직 안 나갔거나 재시도 큐에 걸려 있다.
-                    })
-                    .body(TicketDetail.class);
-
+            return getTicket(reservationId);
         } catch (Exception e) {
             log.warn("findTicket failed reservationId={} traceId={}", reservationId, TraceId.get(), e);
             return null;
         }
+    }
+
+    /** 같은 조회지만 실패를 삼키지 않는다. 취소 경로가 쓴다. */
+    @Override
+    public TicketDetail findTicketFailClosed(Long reservationId) {
+        try {
+            return getTicket(reservationId);
+        } catch (Exception e) {
+            log.warn("ticket lookup failed reservationId={} traceId={}", reservationId, TraceId.get(), e);
+            throw new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "ticket-service unavailable");
+        }
+    }
+
+    private TicketDetail getTicket(Long reservationId) {
+        return restClient.get()
+                .uri("/internal/v1/tickets/reservation/{reservationId}", reservationId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + internalToken)
+                .header(TraceId.HEADER, TraceId.get())
+                .retrieve()
+                .onStatus(status -> status.value() == 404, (request, response) -> {
+                    // 통지가 아직 안 나갔거나 재시도 큐에 걸려 있다.
+                })
+                .body(TicketDetail.class);
     }
 
     @Override

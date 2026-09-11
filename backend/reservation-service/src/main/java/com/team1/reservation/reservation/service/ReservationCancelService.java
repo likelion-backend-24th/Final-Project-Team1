@@ -4,6 +4,8 @@ import com.team1.payment.PaymentService;
 import com.team1.payment.PaymentStatus;
 import com.team1.payment.PaymentTransaction;
 import com.team1.payment.PaymentTransactionRepository;
+import com.team1.reservation.client.TicketClient;
+import com.team1.reservation.client.TicketDetail;
 import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.common.TraceId;
@@ -49,11 +51,14 @@ public class ReservationCancelService {
 
     static final String ROLE_MEMBER = "USER";
 
+    private static final String TICKET_USED = "USED";
+
     private final ReservationRepository reservations;
     private final RoundRepository rounds;
     private final PaymentTransactionRepository payments;
     private final PaymentService paymentService;
     private final TicketIssueNotifier ticketNotifier;
+    private final TicketClient ticketClient;
     private final Clock clock;
     private final Duration deadlineBeforeStart;
     private final Duration refundWindow;
@@ -64,6 +69,7 @@ public class ReservationCancelService {
                                     PaymentTransactionRepository payments,
                                     PaymentService paymentService,
                                     TicketIssueNotifier ticketNotifier,
+                                    TicketClient ticketClient,
                                     Clock clock,
                                     @Value("${reservation.cancellation.deadline-before-start}") Duration deadlineBeforeStart,
                                     @Value("${reservation.cancellation.refund-window}") Duration refundWindow,
@@ -73,6 +79,7 @@ public class ReservationCancelService {
         this.payments = payments;
         this.paymentService = paymentService;
         this.ticketNotifier = ticketNotifier;
+        this.ticketClient = ticketClient;
         this.clock = clock;
         this.deadlineBeforeStart = deadlineBeforeStart;
         this.refundWindow = refundWindow;
@@ -104,6 +111,11 @@ public class ReservationCancelService {
                     "cancellation deadline has passed for round " + roundId);
         }
 
+        // PENDING 은 아직 티켓이 없으므로 묻지 않는다. 결제창을 닫은 취소가 이 경로를 자주 탄다.
+        if (reservation.getStatus() == ReservationStatus.CONFIRMED) {
+            requireNotCheckedIn(reservationId);
+        }
+
         // 순서가 중요하다. 전이가 먼저다 - 0 행이면 만료 배치나 웹훅, 또는 동시 요청이
         // 먼저 끝낸 것이고, 그때 정원을 반환하면 두 번 돌려주게 된다.
         if (reservations.cancelIfActive(reservationId, now) == 0) {
@@ -118,6 +130,26 @@ public class ReservationCancelService {
 
         return new CancelReservationResponse(reservationId, ReservationStatus.CANCELLED.name(),
                 refundState, now);
+    }
+
+    /**
+     * 이미 입장한 예약은 취소할 수 없다. 취소하면 관람을 마친 사람에게 환불하고 그 자리를 다시 판다.
+     *
+     * <p>티켓 무효화는 USED 를 조용히 건너뛰므로(계약 1-2 의 멱등 규칙) 통지로는 이 사실을 알 수 없다.
+     * 취소 전에 직접 물어봐야 한다.
+     *
+     * <p>조회에 실패하면 취소를 거절한다(fail-closed). 모른 채 취소하는 대가는 환불과 정원 이중 판매고,
+     * 거절하는 대가는 잠시 취소하지 못하는 것이다.
+     */
+    private void requireNotCheckedIn(Long reservationId) {
+        TicketDetail ticket = ticketClient.findTicketFailClosed(reservationId);
+
+        if (ticket != null && TICKET_USED.equals(ticket.status())) {
+            log.info("cancellation rejected: already checked in reservationId={} traceId={}",
+                    reservationId, TraceId.get());
+            throw new ApiException(ErrorCode.ALREADY_CHECKED_IN,
+                    "reservation " + reservationId + " has already been checked in");
+        }
     }
 
     /**
