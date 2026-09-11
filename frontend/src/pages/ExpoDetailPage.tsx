@@ -41,18 +41,33 @@ export default function ExpoDetailPage() {
 
   useEffect(() => {
     if (!expoId) return
+
     // 회차는 별도 API 로 가져오지 않는다.
     // GET /expos/{id} 응답에 expo-service 가 reservation-service 의 내부 API 를
     // 호출해 병합한 rounds 가 이미 들어 있다.
     // 그 호출이 실패하면 박람회 정보는 200 으로 내려오고 roundsAvailable=false 가 된다(부분 실패 허용).
-    expoApi.getExpo(Number(expoId))
-      .then(res => {
-        setExpo(res.data)
-        setRounds(res.data.rounds ?? [])
-        setRoundsError(res.data.roundsAvailable === false)
-      })
-      .catch(() => navigate('/'))
-      .finally(() => setExpoLoading(false))
+    const fetchExpo = () =>
+      expoApi.getExpo(Number(expoId))
+        .then(res => {
+          setExpo(res.data)
+          setRounds(res.data.rounds ?? [])
+          setRoundsError(res.data.roundsAvailable === false)
+        })
+        .catch(() => navigate('/'))
+        .finally(() => setExpoLoading(false))
+
+    fetchExpo()
+
+    // 다른 페이지(내 예약 등)에서 취소·예약해 잔여 정원이 바뀐 뒤 이 페이지로 돌아왔을 때
+    // 탭이 다시 보이는 시점에 조용히 재조회한다(로딩 스피너 없이) — 별도 상태 공유가 없어서
+    // 이 방법으로 최신화한다. 최초 로딩(expoLoading)은 건드리지 않는다.
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchExpo() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('pageshow', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('pageshow', onVisible)
+    }
   }, [expoId, navigate])
 
   if (expoLoading) return (
@@ -137,17 +152,20 @@ export default function ExpoDetailPage() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {rounds.map(r => {
+                    // eslint-disable-next-line react-hooks/purity -- 시각 비교는 렌더 시점 스냅샷이면 충분하다(폴링·실시간 갱신 불필요).
+                    const isEnded = new Date(r.endsAt).getTime() <= Date.now()
                     const isFull = r.remaining === 0
+                    const isClosed = isEnded || isFull
                     const pct = Math.round((r.remaining / r.capacity) * 100)
                     return (
                       <div
                         key={r.roundId}
                         style={{
                           padding: '16px',
-                          border: `1.5px solid ${isFull ? 'var(--border)' : 'var(--border)'}`,
+                          border: `1.5px solid ${isClosed ? 'var(--border)' : 'var(--border)'}`,
                           borderRadius: 'var(--r-sm)',
-                          background: isFull ? 'var(--gray1)' : 'var(--surface)',
-                          opacity: isFull ? .6 : 1,
+                          background: isClosed ? 'var(--gray1)' : 'var(--surface)',
+                          opacity: isClosed ? .6 : 1,
                         }}
                       >
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
@@ -174,19 +192,19 @@ export default function ExpoDetailPage() {
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
                             <span style={{ fontSize: 11, color: 'var(--sub)' }}>정원 {r.capacity}명</span>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: isFull ? 'var(--sub)' : 'var(--teal)' }}>
-                              {isFull ? '마감' : `잔여 ${r.remaining}명`}
+                            <span style={{ fontSize: 11, fontWeight: 700, color: isClosed ? 'var(--sub)' : 'var(--teal)' }}>
+                              {isEnded ? '종료' : isFull ? '마감' : `잔여 ${r.remaining}명`}
                             </span>
                           </div>
                         </div>
 
                         {isRole('USER') && (
                           <button
-                            className={`btn ${isFull ? 'btn-secondary' : 'btn-primary'} btn-sm btn-block`}
-                            disabled={isFull}
+                            className={`btn ${isClosed ? 'btn-secondary' : 'btn-primary'} btn-sm btn-block`}
+                            disabled={isClosed}
                             onClick={() => setReservingRound(r)}
                           >
-                            {isFull ? '마감된 회차' : '예약하기'}
+                            {isEnded ? '종료된 회차' : isFull ? '마감된 회차' : '예약하기'}
                           </button>
                         )}
                         {!isRole('USER') && !isRole('ORGANIZER') && !isRole('SUPER_ADMIN') && (
