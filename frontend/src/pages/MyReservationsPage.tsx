@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import { reservationApi } from '../api/reservation'
 import { useToast } from '../components/Toast'
 import type { MyReservation, MyReservationDetail } from '../types'
@@ -201,11 +202,23 @@ function ReservationDetailModal({ reservationId, onClose, onCancelled }: {
 
             {detail.status === 'CONFIRMED' && (
               <div className="form-group">
-                <label className="form-label">입장용 체크인 코드</label>
+                <label className="form-label">입장용 QR 티켓</label>
                 {detail.ticketAvailable && detail.ticket ? (
-                  <p style={{ fontFamily: 'monospace', fontSize: 13, wordBreak: 'break-all', background: 'var(--gray1)', padding: '10px 12px', borderRadius: 'var(--r-sm)' }}>
-                    {detail.ticket.checkinToken}
-                  </p>
+                  detail.ticket.status === 'USED' ? (
+                    <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--sub)' }}>입장 완료</p>
+                  ) : detail.ticket.status === 'CANCELLED' ? (
+                    <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--sub)' }}>무효화된 티켓입니다.</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0' }}>
+                      <div style={{ background: '#fff', padding: 12, borderRadius: 'var(--r-sm)' }}>
+                        <QRCodeSVG value={detail.ticket.checkinToken} size={180} level="M" />
+                      </div>
+                      <p style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all', color: 'var(--sub)' }}>
+                        {detail.ticket.checkinToken}
+                      </p>
+                      <p style={{ fontSize: 12, color: 'var(--sub)' }}>현장에서 이 QR을 제시하세요.</p>
+                    </div>
+                  )
                 ) : (
                   <p style={{ fontSize: 13, color: 'var(--sub)' }}>티켓이 아직 발급되지 않았습니다. 잠시 후 다시 확인해주세요.</p>
                 )}
