@@ -30,14 +30,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             AuthenticatedUser user = jwtValidator.validate(header.substring(7));
             AuthContext.set(user);
-            chain.doFilter(request, response);
         } catch (InvalidTokenException e) {
-            response.setHeader("WWW-Authenticate", "Bearer");
-            response.setStatus(401);
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write(
-                "{\"success\":false,\"data\":{\"code\":\"UNAUTHENTICATED\"},\"meta\":null,\"message\":\"인증이 필요합니다\"}"
-            );
+            // 헤더가 없을 때와 동일하게 다룬다: 여기서 바로 거절하면 로그인처럼
+            // 인증이 필요 없는 요청까지, 브라우저에 남아있는 만료된 Token 때문에 막혀버린다.
+            // 실제로 보호가 필요한 기능은 각 서비스가 AuthContext 유무를 직접 검사해서 거절한다.
+        }
+
+        try {
+            chain.doFilter(request, response);
         } finally {
             AuthContext.clear();
         }

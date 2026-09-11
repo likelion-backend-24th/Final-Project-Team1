@@ -20,6 +20,15 @@ export async function apiFetch<T>(
 
   if (!res.ok) {
     const code = body?.data?.code ?? body?.message ?? `HTTP ${res.status}`
+
+    // 로그인해서 받은 Token이 아니라, 브라우저에 남아있던 Token이 만료·무효화된 경우다.
+    // (로그인 자체이 틀린 경우는 INVALID_CREDENTIALS로 별도 코드가 내려온다.)
+    if (res.status === 401 && code === 'UNAUTHENTICATED' && token) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('auth')
+      window.location.href = '/auth'
+    }
+
     throw Object.assign(new Error(code), { status: res.status, body })
   }
   return body
