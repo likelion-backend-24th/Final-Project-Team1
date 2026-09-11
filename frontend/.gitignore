@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 로컬 환경변수 (PortOne storeId/channelKey)
+.env
+.env.*
+!.env.example

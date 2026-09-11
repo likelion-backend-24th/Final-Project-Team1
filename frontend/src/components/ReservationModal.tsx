@@ -8,6 +8,8 @@ interface Props {
   round: Round
   onClose: () => void
   onSuccess: (reservation: Reservation) => void
+  /** 결제 취소로 잡아둔 자리를 돌려줬을 때. 목록의 잔여 인원을 되돌린다. */
+  onReleased: (reservation: Reservation) => void
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -25,7 +27,18 @@ function errorMessage(e: unknown, fallback: string) {
 
 type Step = 'form' | 'paying' | 'confirming' | 'done'
 
-export default function ReservationModal({ round, onClose, onSuccess }: Props) {
+const USER_CANCEL_MARKERS = ['PAY_PROCESS_CANCELED', 'USER_CANCEL', 'CANCELED_BY_USER']
+
+/** PortOne 은 code 에 'PGProviderError' 만 준다. PG 원본 코드는 어느 필드에 들어올지 보장이 없다. */
+function isUserCancel(response: { code?: string; message?: string; pgCode?: string; pgMessage?: string }) {
+  const haystack = [response.code, response.message, response.pgCode, response.pgMessage]
+    .filter((v): v is string => typeof v === 'string')
+    .join(' ')
+    .toUpperCase()
+  return USER_CANCEL_MARKERS.some(marker => haystack.includes(marker))
+}
+
+export default function ReservationModal({ round, onClose, onSuccess, onReleased }: Props) {
   const toast = useToast()
   const [step, setStep] = useState<Step>('form')
   const [headcount, setHeadcount] = useState(1)
@@ -35,6 +48,8 @@ export default function ReservationModal({ round, onClose, onSuccess }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<Reservation | null>(null)
   const [pending, setPending] = useState<Reservation | null>(null)
+  // 결제창을 통과했는지. 통과했으면 재시도는 확정만 다시 부른다(재결제 금지).
+  const [paid, setPaid] = useState(false)
 
   const isFree = round.fee === 0
 
@@ -46,28 +61,74 @@ export default function ReservationModal({ round, onClose, onSuccess }: Props) {
     }
 
     setStep('paying')
-    const response = await requestPayment({
-      storeId: import.meta.env.VITE_PORTONE_STORE_ID,
-      channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
-      paymentId: reservation.paymentId,
-      orderName: `회차 예약 (${headcount}명)`,
-      totalAmount: reservation.amount,
-      currency: 'CURRENCY_KRW',
-      payMethod: 'CARD',
-      customer: { fullName: contactName.trim(), phoneNumber: contactPhone.trim() },
-    })
-
-    if (!response || response.code) {
-      // 사용자가 결제창을 닫았거나 PG 단계에서 실패한 경우. 예약은 PENDING 으로 남아
-      // 10분 후 자동 만료되거나, 같은 paymentId 로 다시 결제를 시도할 수 있다.
-      // PortOne 이 주는 message 는 내부 코드가 섞여있어(예: "[PAY_PROCESS_CANCELED] ...") 그대로 노출하지 않는다.
+    let response
+    try {
+      response = await requestPayment({
+        storeId: import.meta.env.VITE_PORTONE_STORE_ID,
+        channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
+        paymentId: reservation.paymentId,
+        orderName: `회차 예약 (${headcount}명)`,
+        totalAmount: reservation.amount,
+        currency: 'CURRENCY_KRW',
+        payMethod: 'CARD',
+        customer: { fullName: contactName.trim(), phoneNumber: contactPhone.trim() },
+      })
+    } catch (e) {
+      // SDK 입력값 오류(storeId·channelKey 누락 등)는 여기로 온다. 예약은 이미 만들어졌다.
+      console.error('portone requestPayment failed', e)
       setStep('form')
-      setError(response?.code === 'PAY_PROCESS_CANCELED'
-        ? '결제를 취소했습니다.'
-        : '결제에 실패했습니다. 다시 시도해주세요.')
+      setError('결제창을 열지 못했습니다. 결제 설정을 확인해주세요.')
       return
     }
 
+    if (!response || response.code) {
+      // 판정이 어긋나면 자리가 잠긴 채 빠져나갈 수 없으므로 응답 원본을 남긴다.
+      console.warn('[portone] payment not completed', response)
+      setStep('form')
+
+      // 사용자가 직접 닫은 경우에만 예약을 정리한다. 안 그러면 자리가 10분간 잠겨
+      // 같은 회차에 다시 예약할 수 없다(DUPLICATE_RESERVATION).
+      if (response && isUserCancel(response)) {
+        if (await releasePending(reservation)) {
+          setError('결제를 취소했습니다. 다시 신청할 수 있습니다.')
+        }
+        return
+      }
+
+      // 인증 실패 등은 곧바로 다시 시도할 가능성이 높아 자리를 붙들고 있는 편이 유리하다.
+      // PortOne 의 message 는 내부 코드가 섞여있어 그대로 노출하지 않는다.
+      setError('결제에 실패했습니다. 다시 시도하거나, 예약을 취소하고 다시 신청해주세요.')
+      return
+    }
+
+    setPaid(true)
+    await confirm(reservation)
+  }
+
+  const releasePending = async (reservation: Reservation) => {
+    try {
+      await reservationApi.cancel(reservation.reservationId)
+      setPending(null)
+      setPaid(false)
+      onReleased(reservation)
+      return true
+    } catch (e) {
+      // 자리가 잠긴 채 남는다. 만료 배치가 10분 뒤 회수하지만 그동안 재예약이 막히므로 알린다.
+      console.error('[reservation] release failed', e)
+      setError(errorMessage(e, '예약 정리에 실패했습니다. 내 예약에서 직접 취소해주세요.'))
+      return false
+    }
+  }
+
+  const handleReleaseClick = async () => {
+    if (!pending) return
+    setSubmitting(true)
+    const released = await releasePending(pending)
+    setSubmitting(false)
+    if (released) setError('예약을 취소했습니다. 다시 신청할 수 있습니다.')
+  }
+
+  const confirm = async (reservation: Reservation) => {
     setStep('confirming')
     try {
       const confirmed = (await reservationApi.confirmPayment(reservation.reservationId)).data
@@ -117,8 +178,8 @@ export default function ReservationModal({ round, onClose, onSuccess }: Props) {
     }
   }
 
-  const handleRetryPayment = () => {
-    if (pending) pay(pending)
+  const handleRetry = () => {
+    if (pending) (paid ? confirm(pending) : pay(pending)).catch(() => setStep('form'))
   }
 
   return (
@@ -176,9 +237,14 @@ export default function ReservationModal({ round, onClose, onSuccess }: Props) {
             )}
 
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={onClose} disabled={submitting}>취소</button>
-              <button className="btn btn-primary" onClick={pending ? handleRetryPayment : handleSubmit} disabled={submitting}>
-                {submitting ? '처리 중...' : pending ? '다시 결제하기' : isFree ? '예약 확정' : '결제하고 예약하기'}
+              <button className="btn btn-secondary" onClick={onClose} disabled={submitting}>닫기</button>
+              {pending && (
+                <button className="btn btn-outline" onClick={handleReleaseClick} disabled={submitting}>
+                  예약 취소
+                </button>
+              )}
+              <button className="btn btn-primary" onClick={pending ? handleRetry : handleSubmit} disabled={submitting}>
+                {submitting ? '처리 중...' : pending ? (paid ? '결제 확인 재시도' : '다시 결제하기') : isFree ? '예약 확정' : '결제하고 예약하기'}
               </button>
             </div>
           </>
