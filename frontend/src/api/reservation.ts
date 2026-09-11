@@ -34,6 +34,8 @@ export const reservationApi = {
   confirmPayment: (reservationId: number) =>
     api.post<ApiResponse<{ reservationId: number; status: Reservation['status']; confirmedAt?: string }>>(
       `/reservations/${reservationId}/payment`,
-      {}
+      {},
+      // 여기서 /auth 로 튕기면 결제가 성공했다는 사실을 사용자가 못 본다. 화면에서 직접 안내한다.
+      { authRedirect: false },
     ),
 }
