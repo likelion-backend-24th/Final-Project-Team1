@@ -17,8 +17,9 @@ import java.util.Date;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 서명·만료가 어긋난 Token은 서비스 로직에 닿기 전에 거절돼야 한다.
- * 실제 Servlet 필터 체인을 태우기 위해 HTTP로 호출한다.
+ * 서명·만료가 어긋난 Token으로는 보호 기능을 쓸 수 없어야 한다. 다만 필터가 직접 끊지는 않고,
+ * 헤더가 없을 때와 같이 통과시킨 뒤 각 기능의 인증 검사가 거절한다 — 그래야 만료 Token 하나로
+ * 로그인 같은 공개 기능까지 막히지 않는다. 실제 Servlet 필터 체인을 태우기 위해 HTTP로 호출한다.
  */
 class TokenRejectionTest extends ApiTestSupport {
 
@@ -53,23 +54,30 @@ class TokenRejectionTest extends ApiTestSupport {
     }
 
     @Test
-    @DisplayName("Token 문자열이 망가져 있으면 401이다")
+    @DisplayName("Token 문자열이 망가져 있으면 401이고 한글 메시지가 깨지지 않는다")
     void 형식이_깨진_토큰() {
         ResponseEntity<JsonNode> response = post("/api/v1/admin/organizers", body(), "not-a-jwt");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(errorCode(response)).isEqualTo("UNAUTHENTICATED");
+        assertThat(response.getBody().path("message").asText()).isEqualTo("인증이 필요합니다.");
     }
 
     @Test
-    @DisplayName("401 응답의 한글 메시지가 깨지지 않는다")
-    void 한글_에러_메시지가_깨지지_않는다() {
-        // JwtAuthenticationFilter는 더 이상 401을 직접 쓰지 않는다(무효 Token은 헤더가 없을 때와
-        // 동일하게 다루고, 실제 거절은 GlobalExceptionHandler가 Jackson으로 직렬화한다).
-        // Jackson은 항상 UTF-8로 쓰므로 이 테스트가 원래 잡으려던 깨짐은 body 값으로 확인하면 충분하다.
-        ResponseEntity<JsonNode> response = post("/api/v1/admin/organizers", body(), "not-a-jwt");
+    @DisplayName("무효한 Token이 붙어 있어도 인증이 필요 없는 기능은 막히지 않는다")
+    void 무효한_토큰은_인증이_필요_없는_요청을_막지_않는다() {
+        // 필터가 여기서 401로 끊으면, 브라우저에 남아있는 만료 Token 하나로 로그인조차 못 한다.
+        // 통과했다면 서비스까지 닿아 자격증명 오류(INVALID_CREDENTIALS)로 갈린다.
+        String expired = token(TEST_JWT_SECRET,
+                Instant.now().minus(2, ChronoUnit.HOURS),
+                Instant.now().minus(1, ChronoUnit.HOURS));
 
-        assertThat(response.getBody().path("message").asText())
-                .isEqualTo("인증이 필요합니다.");
+        ResponseEntity<JsonNode> response = post("/api/v1/auth/login",
+                """
+                {"email":"nobody@team1.local","password":"wrong-password"}
+                """, expired);
+
+        assertThat(errorCode(response)).isEqualTo("INVALID_CREDENTIALS");
     }
 
     private String token(String secret, Instant issuedAt, Instant expiresAt) {

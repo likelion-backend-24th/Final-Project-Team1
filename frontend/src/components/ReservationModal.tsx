@@ -138,6 +138,14 @@ export default function ReservationModal({ round, onClose, onSuccess, onReleased
       onSuccess(finalReservation)
     } catch (e) {
       setStep('form')
+
+      // 결제는 이미 끝났다. 여기서 로그인 만료로 튕겨버리면 사용자는 결제가 실패한 줄 안다.
+      // 만료 배치가 PG 에 다시 물어 확정하므로(#77) 자리를 잃지는 않는다.
+      if ((e as { status?: number })?.status === 401) {
+        setError('결제는 완료됐습니다. 로그인이 만료되어 확정만 남았고, 잠시 후 자동으로 처리됩니다. 다시 로그인한 뒤 내 예약에서 확인해주세요.')
+        return
+      }
+
       setError(errorMessage(e, '결제 확인에 실패했습니다. 다시 시도해주세요.'))
     }
   }
