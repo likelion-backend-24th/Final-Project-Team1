@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { expoApi } from '../api/expo'
 import { useAuth } from '../context/AuthContext'
@@ -32,29 +32,35 @@ export default function ExpoDetailPage() {
   const [roundsError, setRoundsError] = useState(false)
   const [reservingRound, setReservingRound] = useState<Round | null>(null)
 
-  const handleReservationSuccess = (reservation: Reservation) => {
-    // 방금 예약한 만큼 잔여 정원을 즉시 반영한다 — 다음 회차 목록 재조회를 기다리지 않는다.
+  // 회차는 별도 API 로 가져오지 않는다.
+  // GET /expos/{id} 응답에 expo-service 가 reservation-service 의 내부 API 를
+  // 호출해 병합한 rounds 가 이미 들어 있다.
+  // 그 호출이 실패하면 박람회 정보는 200 으로 내려오고 roundsAvailable=false 가 된다(부분 실패 허용).
+  const fetchExpo = useCallback(() =>
+    expoApi.getExpo(Number(expoId))
+      .then(res => {
+        setExpo(res.data)
+        setRounds(res.data.rounds ?? [])
+        setRoundsError(res.data.roundsAvailable === false)
+      })
+      .catch(() => navigate('/'))
+      .finally(() => setExpoLoading(false)), [expoId, navigate])
+
+  const shiftRemaining = (reservation: Reservation, delta: number) =>
     setRounds(prev => prev.map(r =>
-      r.roundId === reservation.roundId ? { ...r, remaining: r.remaining - reservation.headcount } : r
+      r.roundId === reservation.roundId ? { ...r, remaining: r.remaining + delta } : r
     ))
-  }
+
+  // 방금 예약한 만큼 잔여 정원을 즉시 반영한다 — 다음 회차 목록 재조회를 기다리지 않는다.
+  const handleReservationSuccess = (reservation: Reservation) =>
+    shiftRemaining(reservation, -reservation.headcount)
+
+  // 결제를 취소해 자리를 돌려준 경우. 서버가 실제로 몇 자리를 되돌렸는지는 응답으로 알 수 없어
+  // 계산하지 않고 다시 조회한다.
+  const handleReservationReleased = () => { fetchExpo() }
 
   useEffect(() => {
     if (!expoId) return
-
-    // 회차는 별도 API 로 가져오지 않는다.
-    // GET /expos/{id} 응답에 expo-service 가 reservation-service 의 내부 API 를
-    // 호출해 병합한 rounds 가 이미 들어 있다.
-    // 그 호출이 실패하면 박람회 정보는 200 으로 내려오고 roundsAvailable=false 가 된다(부분 실패 허용).
-    const fetchExpo = () =>
-      expoApi.getExpo(Number(expoId))
-        .then(res => {
-          setExpo(res.data)
-          setRounds(res.data.rounds ?? [])
-          setRoundsError(res.data.roundsAvailable === false)
-        })
-        .catch(() => navigate('/'))
-        .finally(() => setExpoLoading(false))
 
     fetchExpo()
 
@@ -68,7 +74,7 @@ export default function ExpoDetailPage() {
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('pageshow', onVisible)
     }
-  }, [expoId, navigate])
+  }, [expoId, fetchExpo])
 
   if (expoLoading) return (
     <div style={{ textAlign: 'center', padding: '120px 0', color: 'var(--sub)' }}>불러오는 중...</div>
@@ -230,6 +236,7 @@ export default function ExpoDetailPage() {
           round={reservingRound}
           onClose={() => setReservingRound(null)}
           onSuccess={handleReservationSuccess}
+          onReleased={handleReservationReleased}
         />
       )}
     </div>
