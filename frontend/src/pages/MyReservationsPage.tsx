@@ -31,6 +31,8 @@ const REFUND_LABEL: Record<string, string> = {
 
 const CANCEL_ERROR_MESSAGES: Record<string, string> = {
   CANCELLATION_DEADLINE_PASSED: '회차가 이미 시작되어 취소할 수 없습니다.',
+  ALREADY_CHECKED_IN: '이미 현장 입장이 완료된 예약은 취소할 수 없습니다.',
+  DEPENDENCY_UNAVAILABLE: '티켓 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.',
   NOT_FOUND: '예약 정보를 찾을 수 없습니다.',
   INVALID_STATE_TRANSITION: '이미 종료된 예약은 취소할 수 없습니다.',
 }

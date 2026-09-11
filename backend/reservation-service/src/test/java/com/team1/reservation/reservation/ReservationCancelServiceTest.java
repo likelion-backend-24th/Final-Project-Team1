@@ -5,6 +5,7 @@ import com.team1.payment.PaymentStatus;
 import com.team1.payment.PaymentTransaction;
 import com.team1.payment.PaymentTransactionRepository;
 import com.team1.reservation.client.TicketClient;
+import com.team1.reservation.client.TicketDetail;
 import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.reservation.dto.CancelReservationResponse;
@@ -75,7 +76,7 @@ class ReservationCancelServiceTest {
 
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         service = new ReservationCancelService(reservations, rounds, payments, paymentService,
-                TicketDispatchStub.notifier(ticketClient, clock), clock,
+                TicketDispatchStub.notifier(ticketClient, clock), ticketClient, clock,
                 Duration.ZERO, Duration.ofDays(1), MAX_REFUND_ATTEMPTS);
 
         when(reservations.cancelIfActive(anyLong(), any())).thenReturn(1);
@@ -110,6 +111,43 @@ class ReservationCancelServiceTest {
     /** 실제 모듈은 같은 영속성 컨텍스트의 행을 직접 바꾼다. Mock 도 그렇게 흉내낸다. */
     private void whenRefundedBecomes(PaymentStatus after) {
         whenRefundedBecomes(after, 1);
+    }
+
+
+    @Test
+    @DisplayName("이미 체크인한 예약은 취소되지 않고 정원도 환불도 건드리지 않는다")
+    void 체크인한_예약은_취소할_수_없다() {
+        // 회차 3일 뒤 = 환불 창 안. 막지 않으면 관람을 마친 사람에게 전액 환불이 나간다.
+        givenRoundStartingIn(Duration.ofDays(3), 10000);
+        givenPayment(PaymentStatus.PAID);
+        when(ticketClient.findTicketFailClosed(RESERVATION_ID))
+                .thenReturn(new TicketDetail(9L, "tok", NOW, "USED"));
+
+        assertThatThrownBy(() -> service.cancel(RESERVATION_ID, MEMBER))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).code())
+                .isEqualTo(ErrorCode.ALREADY_CHECKED_IN);
+
+        verify(reservations, never()).cancelIfActive(anyLong(), any());
+        verify(rounds, never()).release(anyLong(), anyInt());
+        verifyNoInteractions(paymentService);
+    }
+
+    @Test
+    @DisplayName("티켓 상태를 확인할 수 없으면 취소를 거절한다(fail-closed)")
+    void 티켓_조회에_실패하면_취소하지_않는다() {
+        // 모른 채 취소하는 대가는 환불과 정원 이중 판매고, 거절하는 대가는 잠시 취소하지 못하는 것이다.
+        givenRoundStartingIn(Duration.ofDays(3), 10000);
+        when(ticketClient.findTicketFailClosed(RESERVATION_ID))
+                .thenThrow(new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "ticket-service unavailable"));
+
+        assertThatThrownBy(() -> service.cancel(RESERVATION_ID, MEMBER))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).code())
+                .isEqualTo(ErrorCode.DEPENDENCY_UNAVAILABLE);
+
+        verify(reservations, never()).cancelIfActive(anyLong(), any());
+        verify(rounds, never()).release(anyLong(), anyInt());
     }
 
     private void whenRefundedBecomes(PaymentStatus after, int attempts) {
