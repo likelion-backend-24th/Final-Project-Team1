@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
 class TicketDispatchTest {
 
     private static final Instant NOW = Instant.parse("2026-09-10T04:00:00Z");
+    private static final String RESERVATION_NO = "R-4K7Q-W2M8";
     private static final IssuedTicket TICKET = new IssuedTicket(900L, "chk-abc", NOW);
 
     private TicketDispatchRepository queue;
@@ -47,11 +48,11 @@ class TicketDispatchTest {
     }
 
     private TicketDispatch enqueued() {
-        return queue.save(TicketDispatch.issue(42L, 1L, 7L, 100L, 3, NOW));
+        return queue.save(TicketDispatch.issue(42L, RESERVATION_NO, 1L, 7L, 100L, 3, NOW));
     }
 
     private TicketDispatch enqueuedRevoke() {
-        return queue.save(TicketDispatch.revoke(42L, 1L, 7L, 100L, 3, NOW));
+        return queue.save(TicketDispatch.revoke(42L, RESERVATION_NO, 1L, 7L, 100L, 3, NOW));
     }
 
     @Test
@@ -74,7 +75,7 @@ class TicketDispatchTest {
 
         dispatcher.dispatch(dispatch.getId());
 
-        verify(ticketClient).issueTicket(new IssueTicketCommand(42L, 1L, 7L, 100L, 3));
+        verify(ticketClient).issueTicket(new IssueTicketCommand(42L, RESERVATION_NO, 1L, 7L, 100L, 3));
     }
 
     @Test

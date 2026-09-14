@@ -47,6 +47,7 @@ public class TicketService {
     private IssuedTicketResponse create(IssueTicketsRequest request) {
         Ticket ticket = Ticket.issue(
                 request.reservationId(),
+                request.reservationNo(),
                 request.expoId(),
                 request.roundId(),
                 request.userId(),

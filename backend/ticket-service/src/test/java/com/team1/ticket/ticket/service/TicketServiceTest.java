@@ -45,7 +45,7 @@ class TicketServiceTest {
     }
 
     private IssueTicketsRequest request(int headcount) {
-        return new IssueTicketsRequest(RESERVATION_ID, 10L, 45L, 77L, headcount);
+        return new IssueTicketsRequest(RESERVATION_ID, "R-" + RESERVATION_ID, 10L, 45L, 77L, headcount);
     }
 
     @Test
@@ -71,7 +71,7 @@ class TicketServiceTest {
     @Test
     @DisplayName("멱등: 같은 예약으로 이미 발급된 티켓이 있으면 재발급하지 않고 기존 것을 반환한다")
     void idempotentReturnsExistingWithoutSaving() {
-        Ticket existing = Ticket.issue(RESERVATION_ID, 10L, 45L, 77L, 3, "tok-1", NOW);
+        Ticket existing = Ticket.issue(RESERVATION_ID, "R-" + RESERVATION_ID, 10L, 45L, 77L, 3, "tok-1", NOW);
         when(tickets.findByReservationId(RESERVATION_ID)).thenReturn(Optional.of(existing));
 
         IssuedTicketResponse response = service.issue(request(3));
@@ -83,7 +83,7 @@ class TicketServiceTest {
     @Test
     @DisplayName("멱등(경합): 동시 재시도로 reservation_id UNIQUE 위반이 나면 기존 티켓을 반환한다")
     void returnsExistingOnUniqueViolation() {
-        Ticket existing = Ticket.issue(RESERVATION_ID, 10L, 45L, 77L, 3, "tok-1", NOW);
+        Ticket existing = Ticket.issue(RESERVATION_ID, "R-" + RESERVATION_ID, 10L, 45L, 77L, 3, "tok-1", NOW);
         when(tickets.findByReservationId(RESERVATION_ID))
                 .thenReturn(Optional.empty())        // 최초 조회 → 없음
                 .thenReturn(Optional.of(existing));  // 저장 충돌 후 재조회 → 기존 반환
@@ -98,7 +98,7 @@ class TicketServiceTest {
     @Test
     @DisplayName("무효화: 예약의 ISSUED 티켓을 CANCELLED 로 전이한다")
     void revokeCancelsIssuedTicket() {
-        Ticket ticket = Ticket.issue(RESERVATION_ID, 10L, 45L, 77L, 2, "tok-1", NOW);
+        Ticket ticket = Ticket.issue(RESERVATION_ID, "R-" + RESERVATION_ID, 10L, 45L, 77L, 2, "tok-1", NOW);
         when(tickets.findByReservationId(RESERVATION_ID)).thenReturn(Optional.of(ticket));
 
         service.revokeByReservation(RESERVATION_ID);
@@ -117,7 +117,7 @@ class TicketServiceTest {
     @Test
     @DisplayName("무효화 멱등: 이미 취소된 티켓은 그대로 CANCELLED 로 둔다")
     void revokeKeepsAlreadyCancelled() {
-        Ticket cancelled = Ticket.issue(RESERVATION_ID, 10L, 45L, 77L, 2, "tok-1", NOW);
+        Ticket cancelled = Ticket.issue(RESERVATION_ID, "R-" + RESERVATION_ID, 10L, 45L, 77L, 2, "tok-1", NOW);
         cancelled.cancel();
         when(tickets.findByReservationId(RESERVATION_ID)).thenReturn(Optional.of(cancelled));
 
@@ -129,7 +129,7 @@ class TicketServiceTest {
     @Test
     @DisplayName("예약별 조회: 티켓이 있으면 status 를 포함해 반환한다 (화면 분기용)")
     void getByReservationReturnsDetailWithStatus() {
-        Ticket ticket = Ticket.issue(RESERVATION_ID, 10L, 45L, 77L, 2, "tok-1", NOW);
+        Ticket ticket = Ticket.issue(RESERVATION_ID, "R-" + RESERVATION_ID, 10L, 45L, 77L, 2, "tok-1", NOW);
         when(tickets.findByReservationId(RESERVATION_ID)).thenReturn(Optional.of(ticket));
 
         TicketDetailResponse response = service.getByReservation(RESERVATION_ID);

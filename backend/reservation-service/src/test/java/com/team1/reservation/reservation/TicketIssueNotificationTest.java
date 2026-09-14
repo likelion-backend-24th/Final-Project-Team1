@@ -50,7 +50,8 @@ class TicketIssueNotificationTest extends PaymentTestFixture {
         ArgumentCaptor<IssueTicketCommand> captor = ArgumentCaptor.forClass(IssueTicketCommand.class);
         verify(ticketClient).issueTicket(captor.capture());
         assertThat(captor.getValue()).isEqualTo(new IssueTicketCommand(
-                reservation.getId(), EXPO_ID, ROUND_ID, USER_ID, HEADCOUNT));
+                reservation.getId(), reservation.getReservationNo(),
+                EXPO_ID, ROUND_ID, USER_ID, HEADCOUNT));
     }
 
     @Test

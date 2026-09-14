@@ -38,6 +38,10 @@ public class TicketDispatch {
     @Column(nullable = false, updatable = false, length = 20)
     private TicketDispatchType type;
 
+    // DB 는 NULL 을 허용한다(이미 쌓인 행에 채울 값이 없다). 신규 적재는 팩터리가 강제한다.
+    @Column(updatable = false, length = 20)
+    private String reservationNo;
+
     @Column(nullable = false, updatable = false)
     private Long expoId;
 
@@ -82,9 +86,10 @@ public class TicketDispatch {
     protected TicketDispatch() {
     }
 
-    private TicketDispatch(Long reservationId, TicketDispatchType type, Long expoId, Long roundId,
-                           Long userId, int headcount, Instant now) {
+    private TicketDispatch(Long reservationId, String reservationNo, TicketDispatchType type,
+                           Long expoId, Long roundId, Long userId, int headcount, Instant now) {
         this.reservationId = reservationId;
+        this.reservationNo = reservationNo;
         this.type = type;
         this.expoId = expoId;
         this.roundId = roundId;
@@ -97,15 +102,15 @@ public class TicketDispatch {
         this.updatedAt = now;
     }
 
-    public static TicketDispatch issue(Long reservationId, Long expoId, Long roundId, Long userId,
-                                       int headcount, Instant now) {
-        return new TicketDispatch(reservationId, TicketDispatchType.ISSUE,
+    public static TicketDispatch issue(Long reservationId, String reservationNo, Long expoId,
+                                       Long roundId, Long userId, int headcount, Instant now) {
+        return new TicketDispatch(reservationId, reservationNo, TicketDispatchType.ISSUE,
                 expoId, roundId, userId, headcount, now);
     }
 
-    public static TicketDispatch revoke(Long reservationId, Long expoId, Long roundId, Long userId,
-                                        int headcount, Instant now) {
-        return new TicketDispatch(reservationId, TicketDispatchType.REVOKE,
+    public static TicketDispatch revoke(Long reservationId, String reservationNo, Long expoId,
+                                        Long roundId, Long userId, int headcount, Instant now) {
+        return new TicketDispatch(reservationId, reservationNo, TicketDispatchType.REVOKE,
                 expoId, roundId, userId, headcount, now);
     }
 

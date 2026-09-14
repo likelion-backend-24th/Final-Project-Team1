@@ -33,7 +33,7 @@ class CheckinSummaryIntegrationTest extends IntegrationTestSupport {
     }
 
     private Ticket used(long reservationId, long roundId, int headcount, String token) {
-        Ticket t = Ticket.issue(reservationId, EXPO_ID, roundId, 77L, headcount, token, NOW);
+        Ticket t = Ticket.issue(reservationId, "R-" + reservationId, EXPO_ID, roundId, 77L, headcount, token, NOW);
         t.checkIn(NOW);
         return t;
     }
@@ -47,13 +47,13 @@ class CheckinSummaryIntegrationTest extends IntegrationTestSupport {
         // round 46: USED 1명
         ticketRepository.save(used(3L, 46L, 1, "u46"));
         // round 45: ISSUED(미체크인) → 집계 제외
-        ticketRepository.save(Ticket.issue(4L, EXPO_ID, 45L, 77L, 9, "issued45", NOW));
+        ticketRepository.save(Ticket.issue(4L, "R-" + 4L, EXPO_ID, 45L, 77L, 9, "issued45", NOW));
         // round 47: CANCELLED → 집계 제외 (회차 자체가 목록에 안 나와야 함)
-        Ticket cancelled = Ticket.issue(5L, EXPO_ID, 47L, 77L, 4, "cx47", NOW);
+        Ticket cancelled = Ticket.issue(5L, "R-" + 5L, EXPO_ID, 47L, 77L, 4, "cx47", NOW);
         cancelled.cancel();
         ticketRepository.save(cancelled);
         // 다른 박람회(99)의 USED → expoId 필터로 제외
-        Ticket otherExpo = Ticket.issue(6L, 99L, 45L, 77L, 7, "other", NOW);
+        Ticket otherExpo = Ticket.issue(6L, "R-" + 6L, 99L, 45L, 77L, 7, "other", NOW);
         otherExpo.checkIn(NOW);
         ticketRepository.save(otherExpo);
 
@@ -67,7 +67,7 @@ class CheckinSummaryIntegrationTest extends IntegrationTestSupport {
     @Test
     @DisplayName("집계: 체크인이 하나도 없으면 빈 목록을 반환한다")
     void returnsEmptyWhenNoCheckin() {
-        ticketRepository.save(Ticket.issue(1L, EXPO_ID, 45L, 77L, 2, "issued", NOW));
+        ticketRepository.save(Ticket.issue(1L, "R-" + 1L, EXPO_ID, 45L, 77L, 2, "issued", NOW));
 
         assertThat(ticketService.getCheckinSummary(EXPO_ID)).isEmpty();
     }
