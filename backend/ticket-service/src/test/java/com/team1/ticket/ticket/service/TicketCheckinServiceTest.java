@@ -2,6 +2,7 @@ package com.team1.ticket.ticket.service;
 
 import com.team1.ticket.client.ExpoClient;
 import com.team1.ticket.client.ExpoSummary;
+import com.team1.ticket.client.RoundClient;
 import com.team1.ticket.common.ApiException;
 import com.team1.ticket.common.ErrorCode;
 import com.team1.ticket.ticket.dto.CheckinResult;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
@@ -42,13 +44,17 @@ class TicketCheckinServiceTest {
 
     private TicketRepository tickets;
     private ExpoClient expoClient;
+    private RoundClient roundClient;
     private TicketCheckinService service;
 
     @BeforeEach
     void setUp() {
         tickets = mock(TicketRepository.class);
         expoClient = mock(ExpoClient.class);
-        service = new TicketCheckinService(tickets, expoClient, Clock.fixed(NOW, ZoneOffset.UTC));
+        // findRound 기본값 null -> 시간창 검증은 fail-open 으로 건너뛴다. 경계는 CheckinTimeWindowTest 가 본다.
+        roundClient = mock(RoundClient.class);
+        service = new TicketCheckinService(tickets, expoClient, roundClient,
+                Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofHours(1));
     }
 
     private Ticket issuedTicket() {

@@ -13,10 +13,17 @@ const TICKET_ERROR_MESSAGES: Record<string, string> = {
   CONFLICT: '이미 체크인되었거나 취소된 티켓입니다.',
   FORBIDDEN: '해당 박람회의 주최자만 체크인할 수 있습니다.',
   INVALID_REQUEST: '입력값을 확인해주세요.',
+  CHECKIN_CLOSED: '회차가 종료되어 체크인할 수 없습니다.',
 }
 
 function errorMessage(e: unknown, fallback: string) {
-  const code = (e as { body?: { data?: { code?: string } } } | undefined)?.body?.data?.code
+  const body = (e as { body?: { data?: { code?: string }; message?: string } } | undefined)?.body
+  const code = body?.data?.code
+  if (code === 'CHECKIN_NOT_OPEN') {
+    // 서버가 메시지에 ISO 시각을 담아 보낸다. 못 읽으면 시각 없이 안내한다.
+    const opensAt = body?.message?.match(/\d{4}-\d{2}-\d{2}T[\d:.]+Z/)?.[0]
+    return opensAt ? `아직 체크인할 수 없습니다. ${fmtDateTime(opensAt)}부터 가능합니다.` : '아직 체크인할 수 없습니다.'
+  }
   return (code && TICKET_ERROR_MESSAGES[code]) || fallback
 }
 

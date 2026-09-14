@@ -10,6 +10,9 @@ public enum ErrorCode {
     FORBIDDEN(HttpStatus.FORBIDDEN),
     NOT_FOUND(HttpStatus.NOT_FOUND),
     CONFLICT(HttpStatus.CONFLICT),
+    // 시간창 거절은 "이미 체크인됨" 과 화면 문구가 달라야 해서 코드를 나눈다.
+    CHECKIN_NOT_OPEN(HttpStatus.CONFLICT),
+    CHECKIN_CLOSED(HttpStatus.CONFLICT),
     DEPENDENCY_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR);
 

@@ -1,6 +1,7 @@
 package com.team1.ticket.support;
 
 import com.team1.ticket.client.ExpoClient;
+import com.team1.ticket.client.RoundClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -16,6 +17,10 @@ public abstract class IntegrationTestSupport {
     // 체크인 소유권 검증용 외부 호출은 이 테스트들에서 쓰지 않으므로 Mock 으로 둔다.
     @MockBean
     protected ExpoClient expoClient;
+
+    // 시간창 검증용 회차 조회. 기본값 null 이면 fail-open 이라 체크인이 통과한다.
+    @MockBean
+    protected RoundClient roundClient;
 
     private static final MySQLContainer<?> MYSQL =
             new MySQLContainer<>("mysql:8.0").withDatabaseName("ticket");

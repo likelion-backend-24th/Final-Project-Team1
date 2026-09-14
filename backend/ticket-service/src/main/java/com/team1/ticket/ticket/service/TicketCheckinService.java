@@ -2,17 +2,25 @@ package com.team1.ticket.ticket.service;
 
 import com.team1.ticket.client.ExpoClient;
 import com.team1.ticket.client.ExpoSummary;
+import com.team1.ticket.client.RoundClient;
+import com.team1.ticket.client.RoundInfo;
 import com.team1.ticket.common.ApiException;
 import com.team1.ticket.common.ErrorCode;
+import com.team1.ticket.common.TraceId;
 import com.team1.ticket.ticket.dto.CheckinResult;
 import com.team1.ticket.ticket.dto.CheckinTicketView;
 import com.team1.ticket.ticket.entity.Ticket;
 import com.team1.ticket.ticket.repository.TicketRepository;
 import com.team1.security.AuthenticatedUser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -23,16 +31,23 @@ import java.util.Optional;
 @Service
 public class TicketCheckinService {
 
+    private static final Logger log = LoggerFactory.getLogger(TicketCheckinService.class);
     private static final String ROLE_ORGANIZER = "ORGANIZER";
 
     private final TicketRepository ticketRepository;
     private final ExpoClient expoClient;
+    private final RoundClient roundClient;
     private final Clock clock;
+    private final Duration opensBefore;
 
-    public TicketCheckinService(TicketRepository ticketRepository, ExpoClient expoClient, Clock clock) {
+    public TicketCheckinService(TicketRepository ticketRepository, ExpoClient expoClient,
+                                RoundClient roundClient, Clock clock,
+                                @Value("${checkin.opens-before}") Duration opensBefore) {
         this.ticketRepository = ticketRepository;
         this.expoClient = expoClient;
+        this.roundClient = roundClient;
         this.clock = clock;
+        this.opensBefore = opensBefore;
     }
 
     // 체크인 토큰 또는 예약번호로 티켓을 조회한다. 상태를 바꾸지 않는다(주최자가 확정 전에 확인).
@@ -49,7 +64,9 @@ public class TicketCheckinService {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "ticket not found: " + ticketId));
         verifyOwnership(ticket, organizer);
-        ticket.checkIn(clock.instant());
+        Instant now = clock.instant();
+        requireWithinCheckinWindow(ticket, now);
+        ticket.checkIn(now);
         return CheckinResult.from(ticket);
     }
 
@@ -70,6 +87,24 @@ public class TicketCheckinService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    // 회차 시각은 티켓에 저장하지 않고 매번 조회한다. Story 9 로 일정을 옮기면 저장된 값이 낡는다.
+    // 조회 실패는 fail-open - 부가 검증 하나 때문에 현장 입장 줄을 멈추지 않는다.
+    private void requireWithinCheckinWindow(Ticket ticket, Instant now) {
+        RoundInfo round = roundClient.findRound(ticket.getRoundId());
+        if (round == null || round.startsAt() == null || round.endsAt() == null) {
+            log.warn("checkin window not verified roundId={} traceId={}", ticket.getRoundId(), TraceId.get());
+            return;
+        }
+        // 메시지에 ISO 시각을 담아 화면이 "언제부터 가능한지" 를 보여줄 수 있게 한다.
+        Instant opensAt = round.startsAt().minus(opensBefore);
+        if (now.isBefore(opensAt)) {
+            throw new ApiException(ErrorCode.CHECKIN_NOT_OPEN, "checkin opens at " + opensAt);
+        }
+        if (now.isAfter(round.endsAt())) {
+            throw new ApiException(ErrorCode.CHECKIN_CLOSED, "checkin closed at " + round.endsAt());
+        }
     }
 
     // 주최자만, 그리고 그 티켓 박람회의 소유자만 체크인할 수 있다.
