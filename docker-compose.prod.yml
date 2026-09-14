@@ -105,8 +105,11 @@ services:
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-80}:80"
+      - "${WEB_TLS_PORT:-443}:443"
     volumes:
       - ./infra/nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      # 호스트 certbot 이 발급한 인증서 (live/ 가 archive/ 를 가리키는 링크라 폴더 전체를 마운트)
+      - ${LETSENCRYPT_DIR:-/etc/letsencrypt}:/etc/letsencrypt:ro
     depends_on:
       - identity-service
       - expo-service
