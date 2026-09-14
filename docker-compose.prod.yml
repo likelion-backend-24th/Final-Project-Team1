@@ -1,0 +1,117 @@
+# 배포용 compose. EC2 에서는 CD 가 이미지를 pull 해서 띄운다(build 섹션은 로컬 검증용).
+# 값은 같은 폴더의 .env 에서 읽는다 → infra/deploy/prod.env.example 참고.
+
+x-backend-env: &backend-env
+  SPRING_PROFILES_ACTIVE: prod
+  DB_HOST: mysql
+  DB_PORT: 3306
+  DB_USER: root
+  SPRING_DATASOURCE_PASSWORD: ${DB_ROOT_PASSWORD}
+  JWT_SECRET: ${JWT_SECRET}
+  INTERNAL_TOKEN: ${INTERNAL_TOKEN}
+  # 프리티어(메모리 1~2GB)에 서비스 4개를 올리기 위한 힙 제한
+  JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms64m -Xmx200m -XX:MaxMetaspaceSize=150m -Xss512k -XX:+UseSerialGC -XX:TieredStopAtLevel=1}
+
+x-backend: &backend
+  restart: unless-stopped
+  depends_on:
+    mysql:
+      condition: service_healthy
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    command:
+      - --performance-schema=OFF
+      - --innodb-buffer-pool-size=64M
+      - --max-connections=80
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./infra/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      # 127.0.0.1(TCP)로 확인해야 초기화 중 임시 서버를 healthy 로 오판하지 않는다
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  identity-service:
+    <<: *backend
+    image: ${REGISTRY:-ghcr.io/likelion-backend-24th}/fpt1-identity-service:${IMAGE_TAG:-latest}
+    build:
+      context: ./backend
+      args:
+        SERVICE: identity-service
+    environment:
+      <<: *backend-env
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-admin@team1.local}
+      SUPER_ADMIN_PASSWORD_HASH: ${SUPER_ADMIN_PASSWORD_HASH}
+
+  expo-service:
+    <<: *backend
+    image: ${REGISTRY:-ghcr.io/likelion-backend-24th}/fpt1-expo-service:${IMAGE_TAG:-latest}
+    build:
+      context: ./backend
+      args:
+        SERVICE: expo-service
+    environment:
+      <<: *backend-env
+      RESERVATION_SERVICE_URL: http://reservation-service:8083
+      APP_BASE_URL: ${APP_BASE_URL}
+      PORTONE_STUB: ${PORTONE_STUB:-true}
+      PORTONE_STORE_ID: ${PORTONE_STORE_ID}
+      PORTONE_CHANNEL_KEY: ${PORTONE_CHANNEL_KEY}
+      PORTONE_API_SECRET: ${PORTONE_API_SECRET}
+      PORTONE_WEBHOOK_SECRET: ${PORTONE_WEBHOOK_SECRET}
+
+  reservation-service:
+    <<: *backend
+    image: ${REGISTRY:-ghcr.io/likelion-backend-24th}/fpt1-reservation-service:${IMAGE_TAG:-latest}
+    build:
+      context: ./backend
+      args:
+        SERVICE: reservation-service
+    environment:
+      <<: *backend-env
+      EXPO_SERVICE_URL: http://expo-service:8082
+      TICKET_SERVICE_URL: http://ticket-service:8084
+      PORTONE_STORE_ID: ${PORTONE_STORE_ID}
+      PORTONE_CHANNEL_KEY: ${PORTONE_CHANNEL_KEY}
+      PORTONE_API_SECRET: ${PORTONE_API_SECRET}
+      PORTONE_WEBHOOK_SECRET: ${PORTONE_WEBHOOK_SECRET}
+
+  ticket-service:
+    <<: *backend
+    image: ${REGISTRY:-ghcr.io/likelion-backend-24th}/fpt1-ticket-service:${IMAGE_TAG:-latest}
+    build:
+      context: ./backend
+      args:
+        SERVICE: ticket-service
+    environment:
+      <<: *backend-env
+      EXPO_SERVICE_URL: http://expo-service:8082
+
+  web:
+    image: ${REGISTRY:-ghcr.io/likelion-backend-24th}/fpt1-web:${IMAGE_TAG:-latest}
+    build:
+      context: ./frontend
+      args:
+        VITE_PORTONE_STORE_ID: ${PORTONE_STORE_ID}
+        VITE_PORTONE_CHANNEL_KEY: ${PORTONE_CHANNEL_KEY}
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-80}:80"
+    volumes:
+      - ./infra/nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - identity-service
+      - expo-service
+      - reservation-service
+      - ticket-service
+
+volumes:
+  mysql_data:
