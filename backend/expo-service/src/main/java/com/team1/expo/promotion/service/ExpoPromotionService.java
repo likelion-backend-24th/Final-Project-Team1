@@ -42,6 +42,7 @@ public class ExpoPromotionService {
     private final Clock clock;
     private final int refundMaxAttempts;
     private final Duration refundBackoff;
+    private final int bannerMaxSlots;
 
     public ExpoPromotionService(
             ExpoPromotionRepository promotionRepository,
@@ -52,7 +53,8 @@ public class ExpoPromotionService {
             PaymentIdGenerator paymentIdGenerator,
             Clock clock,
             @Value("${scheduler.refund-retry.max-attempts}") int refundMaxAttempts,
-            @Value("${scheduler.refund-retry.backoff}") Duration refundBackoff
+            @Value("${scheduler.refund-retry.backoff}") Duration refundBackoff,
+            @Value("${banner.max-slots}") int bannerMaxSlots
     ){
         this.promotionRepository = promotionRepository;
         this.paymentTransactionRepository = paymentTransactionRepository;
@@ -63,11 +65,17 @@ public class ExpoPromotionService {
         this.clock = clock;
         this.refundMaxAttempts = refundMaxAttempts;
         this.refundBackoff = refundBackoff;
+        this.bannerMaxSlots = bannerMaxSlots;
     }
 
     @Transactional
     public ApplyPromotionResponse apply(Long requesterId, ApplyPromotionRequest request) {
         verifyOwnership(request.expoId(), requesterId);
+
+        // 전체 슬롯 수 초과 시 거절
+        if (promotionRepository.countByStatus(ExpoPromotionStatus.ACTIVE) >= bannerMaxSlots) {
+            throw new BusinessException(ErrorCode.PROMOTION_SLOT_FULL);
+        }
 
         // ACTIVE면 환불 먼저 해야 함
         if (promotionRepository.existsByExpoIdAndStatusIn(

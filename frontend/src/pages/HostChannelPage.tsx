@@ -96,8 +96,9 @@ export default function HostChannelPage() {
       toast('VIP 배너 신청이 완료되었습니다!', 'success')
       loadActivePromos()
     } catch (err: unknown) {
-      const e = err as { status?: number }
-      if (e.status === 409) toast('이미 진행 중인 배너 신청이 있습니다', 'error')
+      const code = (err as { body?: { data?: { code?: string } } })?.body?.data?.code
+      if (code === 'PROMOTION_SLOT_FULL') toast('VIP 배너 슬롯이 모두 사용 중입니다. 잠시 후 다시 시도해주세요.', 'error')
+      else if (code === 'PROMOTION_ALREADY_EXISTS') toast('이미 진행 중인 배너 신청이 있습니다', 'error')
       else toast('배너 신청에 실패했습니다', 'error')
     } finally {
       setPromoLoading(p => ({ ...p, [expoId]: false }))
