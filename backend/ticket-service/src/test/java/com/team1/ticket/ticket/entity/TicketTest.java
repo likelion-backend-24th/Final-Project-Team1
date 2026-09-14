@@ -17,10 +17,11 @@ class TicketTest {
     @Test
     @DisplayName("발급하면 ISSUED 상태로 필드가 채워지고 headcount(입장 인원)를 담는다")
     void issuesTicket() {
-        Ticket ticket = Ticket.issue(123L, 10L, 45L, 77L, 3, "tok-1", NOW);
+        Ticket ticket = Ticket.issue(123L, "R-" + 123L, 10L, 45L, 77L, 3, "tok-1", NOW);
 
         assertThat(ticket.getStatus()).isEqualTo(TicketStatus.ISSUED);
         assertThat(ticket.getReservationId()).isEqualTo(123L);
+        assertThat(ticket.getReservationNo()).isEqualTo("R-123");
         assertThat(ticket.getExpoId()).isEqualTo(10L);
         assertThat(ticket.getRoundId()).isEqualTo(45L);
         assertThat(ticket.getUserId()).isEqualTo(77L);
@@ -33,7 +34,16 @@ class TicketTest {
     @Test
     @DisplayName("필수 식별자가 null 이면 발급을 거절한다")
     void rejectsNullIdentifiers() {
-        assertThatThrownBy(() -> Ticket.issue(null, 10L, 45L, 77L, 1, "tok", NOW))
+        assertThatThrownBy(() -> Ticket.issue(null, "R-" + null, 10L, 45L, 77L, 1, "tok", NOW))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.INVALID_REQUEST));
+    }
+
+    @Test
+    @DisplayName("예약번호가 비어 있으면 발급을 거절한다")
+    void rejectsBlankReservationNo() {
+        // 예약번호가 없으면 현장에서 QR 을 못 쓸 때 티켓을 찾을 방법이 사라진다.
+        assertThatThrownBy(() -> Ticket.issue(123L, "  ", 10L, 45L, 77L, 1, "tok", NOW))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.INVALID_REQUEST));
     }
@@ -41,7 +51,7 @@ class TicketTest {
     @Test
     @DisplayName("headcount 가 1 미만이면 발급을 거절한다")
     void rejectsHeadcountBelowOne() {
-        assertThatThrownBy(() -> Ticket.issue(123L, 10L, 45L, 77L, 0, "tok", NOW))
+        assertThatThrownBy(() -> Ticket.issue(123L, "R-" + 123L, 10L, 45L, 77L, 0, "tok", NOW))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.INVALID_REQUEST));
     }
@@ -49,7 +59,7 @@ class TicketTest {
     @Test
     @DisplayName("무효화하면 CANCELLED 로 전이한다")
     void cancelsIssued() {
-        Ticket ticket = Ticket.issue(123L, 10L, 45L, 77L, 1, "tok", NOW);
+        Ticket ticket = Ticket.issue(123L, "R-" + 123L, 10L, 45L, 77L, 1, "tok", NOW);
 
         ticket.cancel();
 
@@ -59,7 +69,7 @@ class TicketTest {
     @Test
     @DisplayName("체크인하면 USED 로 전이하고 사용 시각을 기록한다")
     void checksIn() {
-        Ticket ticket = Ticket.issue(123L, 10L, 45L, 77L, 2, "tok", NOW);
+        Ticket ticket = Ticket.issue(123L, "R-" + 123L, 10L, 45L, 77L, 2, "tok", NOW);
         Instant checkinAt = NOW.plusSeconds(3600);
 
         ticket.checkIn(checkinAt);
@@ -71,7 +81,7 @@ class TicketTest {
     @Test
     @DisplayName("이미 체크인된 티켓은 재체크인을 거부한다 (409)")
     void rejectsAlreadyCheckedIn() {
-        Ticket ticket = Ticket.issue(123L, 10L, 45L, 77L, 1, "tok", NOW);
+        Ticket ticket = Ticket.issue(123L, "R-" + 123L, 10L, 45L, 77L, 1, "tok", NOW);
         ticket.checkIn(NOW);
 
         assertThatThrownBy(() -> ticket.checkIn(NOW.plusSeconds(1)))
@@ -82,7 +92,7 @@ class TicketTest {
     @Test
     @DisplayName("취소된 티켓은 체크인할 수 없다 (409)")
     void rejectsCheckInWhenCancelled() {
-        Ticket ticket = Ticket.issue(123L, 10L, 45L, 77L, 1, "tok", NOW);
+        Ticket ticket = Ticket.issue(123L, "R-" + 123L, 10L, 45L, 77L, 1, "tok", NOW);
         ticket.cancel();
 
         assertThatThrownBy(() -> ticket.checkIn(NOW))

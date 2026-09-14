@@ -51,7 +51,7 @@ class TicketCheckinServiceTest {
     }
 
     private Ticket issuedTicket() {
-        return Ticket.issue(123L, EXPO_ID, 45L, 77L, 2, TOKEN, NOW.minusSeconds(3600));
+        return Ticket.issue(123L, "R-" + 123L, EXPO_ID, 45L, 77L, 2, TOKEN, NOW.minusSeconds(3600));
     }
 
     private void ownedExpo() {

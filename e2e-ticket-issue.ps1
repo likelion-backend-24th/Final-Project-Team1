@@ -186,6 +186,7 @@ $res = Post "$ReservationUrl/api/v1/rounds/$roundId/reservations" `
     @{ headcount = 3; contactName = '홍길동'; contactPhone = '010-1234-5678' } $memberToken
 $reservationId = $res.data.reservationId
 if (-not $reservationId) { $reservationId = $res.data.id }
+$reservationNo = $res.data.reservationNo
 $status = $res.data.status
 if ($status -ne 'CONFIRMED') { Fail "status=$status (CONFIRMED 예상)" }
 Pass "reservationId=$reservationId status=CONFIRMED"
@@ -210,8 +211,8 @@ if (-not $InternalToken) {
     if (-not $InternalToken) { Fail 'internal token 을 못 읽었다. -InternalToken 으로 넘겨줘' }
 }
 $again = Post "$TicketUrl/internal/v1/tickets" `
-    @{ reservationId = $reservationId; expoId = $expoId; roundId = $roundId
-       userId = $userId; headcount = 3 } $InternalToken
+    @{ reservationId = $reservationId; reservationNo = $reservationNo; expoId = $expoId
+       roundId = $roundId; userId = $userId; headcount = 3 } $InternalToken
 
 if (-not $again.ticketId) { Fail '응답에 ticketId 가 없다 — 봉투가 다시 붙었거나 필드명이 다르다' }
 if ($again.ticketId -ne $dbTicketId) {

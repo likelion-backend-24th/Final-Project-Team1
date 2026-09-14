@@ -17,6 +17,7 @@ Request
 ```json
 {
   "reservationId": 123,
+  "reservationNo": "R-4K7Q-W2M8",
   "expoId": 10,
   "roundId": 45,
   "userId": 77,
@@ -34,6 +35,8 @@ Response `201 Created` (raw, 봉투 없음)
 ```
 
 - `headcount` 는 1 이상. 아니면 `400 INVALID_REQUEST`.
+- **`reservationNo` 필수**(Sprint 3 변경). 현장에서 QR 을 못 쓸 때 주최자가 예약번호로 티켓을 찾는 경로(Story 7)가 쓴다. 체크인 경로에 Reservation-Service 호출을 넣으면 A 장애가 입장 줄을 세우므로, 발급 시점에 티켓에 함께 저장한다. 비어 있으면 `400 INVALID_REQUEST`.
+- `tickets.reservation_no` 는 UNIQUE 지만 **NULL 허용**이다 — Sprint 2 에 이미 발급된 티켓에는 채울 값이 없다(예약번호는 reservation 스키마에 있어 ticket DB 안에서 백필 불가). 신규 발급은 애플리케이션이 강제한다.
 - **멱등의 근거는 `tickets.reservation_id` 의 UNIQUE 제약**(마이그레이션 V2)이다. 예약당 1행이므로 유일하며, 이미 있으면 새로 만들지 않고 기존 티켓을 반환한다. 발급 통지가 fail-open(재시도 전제)이라, 동시 재호출로 UNIQUE 위반이 나도 기존 티켓을 반환한다.
 - `checkinToken` 은 티켓당 1개, 현재 불투명 토큰(서버 조회 방식). 서명 토큰 전환 여부는 #74 에서 결정.
 

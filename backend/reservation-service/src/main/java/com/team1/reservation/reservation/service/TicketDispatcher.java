@@ -78,8 +78,8 @@ public class TicketDispatcher {
             return null;
         }
         IssuedTicket issued = ticketClient.issueTicket(new IssueTicketCommand(
-                dispatch.getReservationId(), dispatch.getExpoId(), dispatch.getRoundId(),
-                dispatch.getUserId(), dispatch.getHeadcount()));
+                dispatch.getReservationId(), dispatch.getReservationNo(), dispatch.getExpoId(),
+                dispatch.getRoundId(), dispatch.getUserId(), dispatch.getHeadcount()));
         return issued.ticketId();
     }
 

@@ -1,6 +1,7 @@
 package com.team1.ticket.ticket.dto;
 
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 
@@ -9,6 +10,7 @@ import jakarta.validation.constraints.NotNull;
 // 대응하는 입장 인원(N명분)이며, 티켓에 저장돼 현장 체크인 인원 판단에 쓰인다.
 public record IssueTicketsRequest(
         @NotNull Long reservationId,
+        @NotBlank String reservationNo,
         @NotNull Long expoId,
         @NotNull Long roundId,
         @NotNull Long userId,

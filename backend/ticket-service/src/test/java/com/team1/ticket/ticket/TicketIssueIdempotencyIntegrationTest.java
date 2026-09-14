@@ -37,7 +37,7 @@ class TicketIssueIdempotencyIntegrationTest extends IntegrationTestSupport {
     @Test
     @DisplayName("멱등: 같은 예약으로 재발급하면 같은 티켓을 반환하고 행은 1건만 남는다")
     void reissueReturnsSameTicketAndKeepsOneRow() {
-        IssueTicketsRequest request = new IssueTicketsRequest(RESERVATION_ID, 10L, 45L, 77L, 3);
+        IssueTicketsRequest request = new IssueTicketsRequest(RESERVATION_ID, "R-" + RESERVATION_ID, 10L, 45L, 77L, 3);
 
         IssuedTicketResponse first = ticketService.issue(request);
         IssuedTicketResponse second = ticketService.issue(request);
@@ -51,10 +51,10 @@ class TicketIssueIdempotencyIntegrationTest extends IntegrationTestSupport {
     @DisplayName("reservation_id UNIQUE 제약이 실제로 걸려 있어 같은 예약의 중복 행 저장을 막는다")
     void reservationIdIsUniqueInDatabase() {
         ticketRepository.saveAndFlush(
-                Ticket.issue(RESERVATION_ID, 10L, 45L, 77L, 1, "token-a", NOW));
+                Ticket.issue(RESERVATION_ID, "R-" + RESERVATION_ID, 10L, 45L, 77L, 1, "token-a", NOW));
 
         assertThatThrownBy(() -> ticketRepository.saveAndFlush(
-                Ticket.issue(RESERVATION_ID, 10L, 45L, 77L, 1, "token-b", NOW)))
+                Ticket.issue(RESERVATION_ID, "R-" + RESERVATION_ID, 10L, 45L, 77L, 1, "token-b", NOW)))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 }

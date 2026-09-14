@@ -27,6 +27,10 @@ public class Ticket {
     @Column(name = "reservation_id", nullable = false, unique = true)
     private Long reservationId;
 
+    // DB 는 NULL 을 허용한다(기존 티켓에 채울 값이 없다). 신규 발급은 issue() 가 강제한다.
+    @Column(name = "reservation_no", length = 20)
+    private String reservationNo;
+
     @Column(name = "expo_id", nullable = false)
     private Long expoId;
 
@@ -58,9 +62,10 @@ public class Ticket {
     protected Ticket() {
     }
 
-    private Ticket(Long reservationId, Long expoId, Long roundId, Long userId,
+    private Ticket(Long reservationId, String reservationNo, Long expoId, Long roundId, Long userId,
                    int headcount, String checkinToken, Instant issuedAt) {
         this.reservationId = reservationId;
+        this.reservationNo = reservationNo;
         this.expoId = expoId;
         this.roundId = roundId;
         this.userId = userId;
@@ -70,16 +75,19 @@ public class Ticket {
         this.issuedAt = issuedAt;
     }
 
-    public static Ticket issue(Long reservationId, Long expoId, Long roundId, Long userId,
-                               int headcount, String checkinToken, Instant now) {
+    public static Ticket issue(Long reservationId, String reservationNo, Long expoId, Long roundId,
+                               Long userId, int headcount, String checkinToken, Instant now) {
         if (reservationId == null || expoId == null || roundId == null || userId == null) {
             throw new ApiException(ErrorCode.INVALID_REQUEST,
                     "reservationId, expoId, roundId, userId are required");
         }
+        if (reservationNo == null || reservationNo.isBlank()) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "reservationNo must not be blank");
+        }
         if (headcount < 1) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "headcount must be at least 1");
         }
-        return new Ticket(reservationId, expoId, roundId, userId, headcount, checkinToken, now);
+        return new Ticket(reservationId, reservationNo, expoId, roundId, userId, headcount, checkinToken, now);
     }
 
     // 예약 취소에 따른 무효화. 이미 사용(USED)된 티켓은 취소하지 않는다.
@@ -108,6 +116,10 @@ public class Ticket {
 
     public Long getReservationId() {
         return reservationId;
+    }
+
+    public String getReservationNo() {
+        return reservationNo;
     }
 
     public Long getExpoId() {

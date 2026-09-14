@@ -60,10 +60,12 @@ public class TicketIssueNotifier {
     private TicketDispatch newDispatch(Reservation reservation, TicketDispatchType type) {
         Instant now = clock.instant();
         if (type == TicketDispatchType.REVOKE) {
-            return TicketDispatch.revoke(reservation.getId(), reservation.getExpoId(),
-                    reservation.getRoundId(), reservation.getUserId(), reservation.getHeadcount(), now);
+            return TicketDispatch.revoke(reservation.getId(), reservation.getReservationNo(),
+                    reservation.getExpoId(), reservation.getRoundId(), reservation.getUserId(),
+                    reservation.getHeadcount(), now);
         }
-        return TicketDispatch.issue(reservation.getId(), reservation.getExpoId(),
-                reservation.getRoundId(), reservation.getUserId(), reservation.getHeadcount(), now);
+        return TicketDispatch.issue(reservation.getId(), reservation.getReservationNo(),
+                reservation.getExpoId(), reservation.getRoundId(), reservation.getUserId(),
+                reservation.getHeadcount(), now);
     }
 }

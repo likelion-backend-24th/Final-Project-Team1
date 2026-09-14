@@ -31,7 +31,7 @@ class IssueTicketsRequestValidationTest {
     @Test
     @DisplayName("정상 요청은 위반이 없다")
     void validRequestHasNoViolations() {
-        IssueTicketsRequest request = new IssueTicketsRequest(123L, 10L, 45L, 77L, 3);
+        IssueTicketsRequest request = new IssueTicketsRequest(123L, "R-" + 123L, 10L, 45L, 77L, 3);
 
         assertThat(validator.validate(request)).isEmpty();
     }
@@ -39,16 +39,25 @@ class IssueTicketsRequestValidationTest {
     @Test
     @DisplayName("headcount 가 1 미만이면 위반이 발생한다 (400 대상)")
     void rejectsHeadcountBelowOne() {
-        IssueTicketsRequest request = new IssueTicketsRequest(123L, 10L, 45L, 77L, 0);
+        IssueTicketsRequest request = new IssueTicketsRequest(123L, "R-" + 123L, 10L, 45L, 77L, 0);
 
         assertThat(validator.validate(request))
                 .anyMatch(v -> v.getPropertyPath().toString().equals("headcount"));
     }
 
     @Test
+    @DisplayName("예약번호가 비어 있으면 위반이 발생한다 (400 대상)")
+    void rejectsBlankReservationNo() {
+        IssueTicketsRequest request = new IssueTicketsRequest(123L, "  ", 10L, 45L, 77L, 3);
+
+        assertThat(validator.validate(request))
+                .anyMatch(v -> v.getPropertyPath().toString().equals("reservationNo"));
+    }
+
+    @Test
     @DisplayName("필수 식별자가 null 이면 위반이 발생한다")
     void rejectsNullReservationId() {
-        IssueTicketsRequest request = new IssueTicketsRequest(null, 10L, 45L, 77L, 3);
+        IssueTicketsRequest request = new IssueTicketsRequest(null, "R-" + null, 10L, 45L, 77L, 3);
 
         assertThat(validator.validate(request))
                 .anyMatch(v -> v.getPropertyPath().toString().equals("reservationId"));
