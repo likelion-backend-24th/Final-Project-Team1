@@ -73,6 +73,11 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ─── VIP Banner Strip ─── */}
+      {promotions.length > 0 && (
+        <VipBannerStrip promotions={promotions} onNavigate={(id) => navigate(`/expos/${id}`)} />
+      )}
+
       {/* ─── Content ─── */}
       <div className="container page-wrap">
 
@@ -138,6 +143,56 @@ export default function HomePage() {
         )}
       </div>
     </>
+  )
+}
+
+function VipBannerStrip({ promotions, onNavigate }: {
+  promotions: ActivePromotion[]
+  onNavigate: (expoId: number) => void
+}) {
+  const [idx, setIdx] = useState(0)
+
+  useEffect(() => {
+    if (promotions.length <= 1) return
+    const t = setInterval(() => setIdx(i => (i + 1) % promotions.length), 5000)
+    return () => clearInterval(t)
+  }, [promotions.length])
+
+  const p = promotions[idx]
+  const colors = THUMB_COLORS[p.expoId % THUMB_COLORS.length]
+
+  return (
+    <div className="vip-banner-wrap">
+      <div className="container">
+        <div
+          className="vip-banner"
+          style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})` }}
+          onClick={() => onNavigate(p.expoId)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => e.key === 'Enter' && onNavigate(p.expoId)}
+        >
+          <div className="vip-banner-content">
+            <span className="badge" style={{ background: '#7C3AED', color: '#fff', marginBottom: 10, display: 'inline-block' }}>⭐ VIP 스폰서</span>
+            <h2 className="vip-banner-title">{p.title}</h2>
+            <p className="vip-banner-sub">{[p.category, p.region].filter(Boolean).join(' · ')}</p>
+          </div>
+          <span className="vip-banner-cta">자세히 보기 →</span>
+        </div>
+        {promotions.length > 1 && (
+          <div className="vip-banner-dots">
+            {promotions.map((_, i) => (
+              <button
+                key={i}
+                className={`vip-banner-dot${i === idx ? ' active' : ''}`}
+                onClick={() => setIdx(i)}
+                aria-label={`배너 ${i + 1}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
