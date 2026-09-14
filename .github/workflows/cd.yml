@@ -1,11 +1,13 @@
 name: CD
 
+# 수동 배포 전용: Actions → CD → Run workflow (브랜치 dev 선택)
+# PR 머지로는 배포되지 않는다. 자동 배포로 바꾸려면 아래 주석을 해제한다.
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [dev]
+  # workflow_run:
+  #   workflows: ["CI"]
+  #   types: [completed]
+  #   branches: [dev]
 
 concurrency:
   group: cd-deploy
@@ -17,8 +19,8 @@ env:
 
 jobs:
   build-and-push:
-    # dev 에 push 되어 CI 가 성공했을 때만(PR 로 돈 CI 는 제외). 수동 실행도 허용.
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
+    # 배포는 dev·main 에서만. 기능 브랜치를 실수로 골라 실행하면 건너뛴다.
+    if: ${{ github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -27,8 +29,6 @@ jobs:
       sha: ${{ steps.meta.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - id: meta
         run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
@@ -40,7 +40,7 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      # 테스트는 CI 에서 이미 통과했으므로 jar 만 만든다
+      # dev 에는 PR CI(테스트)를 통과한 코드만 머지되므로 jar 만 만든다
       - name: Build jars
         working-directory: backend
         run: |
@@ -84,8 +84,6 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Copy compose & config to EC2
         uses: appleboy/scp-action@v1
