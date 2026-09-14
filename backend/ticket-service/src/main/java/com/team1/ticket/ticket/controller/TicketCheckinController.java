@@ -28,10 +28,11 @@ public class TicketCheckinController {
         this.checkinService = checkinService;
     }
 
-    // 스캔한 QR 의 체크인 토큰으로 티켓 조회 (미전이). 주최자가 확정 전에 확인한다.
+    // 체크인 토큰(QR) 또는 예약번호로 티켓 조회 (미전이). 둘 중 하나만 받는다.
     @GetMapping("/verify")
-    public ApiResponse<CheckinTicketView> verify(@RequestParam String code) {
-        return ApiResponse.ok(checkinService.verify(code, currentOrganizer()));
+    public ApiResponse<CheckinTicketView> verify(@RequestParam(required = false) String code,
+                                                 @RequestParam(required = false) String reservationNo) {
+        return ApiResponse.ok(checkinService.verify(code, reservationNo, currentOrganizer()));
     }
 
     // 체크인 확정 → USED 전이.

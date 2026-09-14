@@ -10,6 +10,7 @@ import java.time.Instant;
 public record CheckinTicketView(
         Long ticketId,
         String status,
+        String reservationNo,
         Long roundId,
         int headcount,
         Instant issuedAt,
@@ -19,6 +20,7 @@ public record CheckinTicketView(
         return new CheckinTicketView(
                 ticket.getId(),
                 ticket.getStatus().name(),
+                ticket.getReservationNo(),
                 ticket.getRoundId(),
                 ticket.getHeadcount(),
                 ticket.getIssuedAt(),

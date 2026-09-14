@@ -13,10 +13,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.util.Locale;
+import java.util.Optional;
 
 
 // 현장 체크인(Story 7, #74). 주최자가 브라우저에서 호출하는 외부 API 를 서빙한다.
 // 흐름: verify(스캔→조회, 미전이) → checkin(확정→USED). 둘 다 박람회 소유권을 검증한다.
+// 조회 수단은 QR 의 체크인 토큰과 예약번호 두 가지지만, 확정은 checkin() 하나로 모인다.
 @Service
 public class TicketCheckinService {
 
@@ -32,10 +35,10 @@ public class TicketCheckinService {
         this.clock = clock;
     }
 
-    // 스캔한 체크인 토큰으로 티켓을 조회한다. 상태를 바꾸지 않는다(주최자가 확정 전에 확인).
+    // 체크인 토큰 또는 예약번호로 티켓을 조회한다. 상태를 바꾸지 않는다(주최자가 확정 전에 확인).
     @Transactional(readOnly = true)
-    public CheckinTicketView verify(String code, AuthenticatedUser organizer) {
-        Ticket ticket = findByToken(code);
+    public CheckinTicketView verify(String code, String reservationNo, AuthenticatedUser organizer) {
+        Ticket ticket = findTicket(code, reservationNo);
         verifyOwnership(ticket, organizer);
         return CheckinTicketView.from(ticket);
     }
@@ -50,12 +53,23 @@ public class TicketCheckinService {
         return CheckinResult.from(ticket);
     }
 
-    private Ticket findByToken(String code) {
-        if (code == null || code.isBlank()) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST, "code is required");
+    private Ticket findTicket(String code, String reservationNo) {
+        boolean hasCode = hasText(code);
+        boolean hasReservationNo = hasText(reservationNo);
+        // 둘 다 받으면 어느 쪽을 믿을지가 애매해지고, 서로 다른 티켓을 가리킬 수도 있다.
+        if (hasCode == hasReservationNo) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST,
+                    "exactly one of code or reservationNo is required");
         }
-        return ticketRepository.findByCheckinToken(code)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "invalid ticket"));
+        Optional<Ticket> found = hasCode
+                ? ticketRepository.findByCheckinToken(code.trim())
+                : ticketRepository.findByReservationNo(reservationNo.trim().toUpperCase(Locale.ROOT));
+        // 예약번호의 존재 여부를 흘리지 않으려고 토큰 경로와 같은 메시지를 쓴다.
+        return found.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "invalid ticket"));
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     // 주최자만, 그리고 그 티켓 박람회의 소유자만 체크인할 수 있다.

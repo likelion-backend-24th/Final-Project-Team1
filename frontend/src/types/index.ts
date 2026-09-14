@@ -108,6 +108,7 @@ export interface CancelReservationResult {
 export interface CheckinTicketView {
   ticketId: number
   status: string
+  reservationNo?: string
   roundId: number
   headcount: number
   issuedAt: string
