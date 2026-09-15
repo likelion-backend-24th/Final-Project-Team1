@@ -5,6 +5,7 @@ import com.team1.ticket.common.ApiException;
 import com.team1.ticket.common.ErrorCode;
 import com.team1.ticket.support.IntegrationTestSupport;
 import com.team1.ticket.ticket.dto.CheckinTicketView;
+import com.team1.ticket.ticket.entity.CheckinMethod;
 import com.team1.ticket.ticket.entity.Ticket;
 import com.team1.ticket.ticket.entity.TicketStatus;
 import com.team1.ticket.ticket.repository.TicketRepository;
@@ -87,11 +88,11 @@ class CheckinByReservationNoTest extends IntegrationTestSupport {
     @DisplayName("QR 로 체크인한 뒤 예약번호로 재시도하면 409 - 중복 방지가 경로와 무관하다")
     void duplicateCheckinIsBlockedAcrossLookupPaths() {
         Ticket ticket = issued();
-        checkinService.checkin(ticket.getId(), OWNER);
+        checkinService.checkin(ticket.getId(), CheckinMethod.QR, OWNER);
 
         Long sameTicketId = checkinService.verify(null, RESERVATION_NO, OWNER).ticketId();
 
-        assertThatThrownBy(() -> checkinService.checkin(sameTicketId, OWNER))
+        assertThatThrownBy(() -> checkinService.checkin(sameTicketId, CheckinMethod.RESERVATION_NO, OWNER))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.CONFLICT));
         assertThat(ticketRepository.findById(ticket.getId()).orElseThrow().getStatus())

@@ -9,6 +9,8 @@ import com.team1.ticket.common.ErrorCode;
 import com.team1.ticket.common.TraceId;
 import com.team1.ticket.ticket.dto.CheckinResult;
 import com.team1.ticket.ticket.dto.CheckinTicketView;
+import com.team1.ticket.ticket.entity.CheckinAction;
+import com.team1.ticket.ticket.entity.CheckinMethod;
 import com.team1.ticket.ticket.entity.Ticket;
 import com.team1.ticket.ticket.repository.TicketRepository;
 import com.team1.security.AuthenticatedUser;
@@ -37,15 +39,18 @@ public class TicketCheckinService {
     private final TicketRepository ticketRepository;
     private final ExpoClient expoClient;
     private final RoundClient roundClient;
+    private final CheckinLogWriter checkinLogWriter;
     private final Clock clock;
     private final Duration opensBefore;
 
     public TicketCheckinService(TicketRepository ticketRepository, ExpoClient expoClient,
-                                RoundClient roundClient, Clock clock,
+                                RoundClient roundClient, CheckinLogWriter checkinLogWriter,
+                                Clock clock,
                                 @Value("${checkin.opens-before}") Duration opensBefore) {
         this.ticketRepository = ticketRepository;
         this.expoClient = expoClient;
         this.roundClient = roundClient;
+        this.checkinLogWriter = checkinLogWriter;
         this.clock = clock;
         this.opensBefore = opensBefore;
     }
@@ -60,14 +65,26 @@ public class TicketCheckinService {
 
     // 체크인 확정. ISSUED → USED (1회용). 이미 사용/취소면 거부.
     @Transactional
-    public CheckinResult checkin(Long ticketId, AuthenticatedUser organizer) {
+    public CheckinResult checkin(Long ticketId, CheckinMethod method, AuthenticatedUser organizer) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "ticket not found: " + ticketId));
         verifyOwnership(ticket, organizer);
         Instant now = clock.instant();
         requireWithinCheckinWindow(ticket, now);
         ticket.checkIn(now);
+        recordQuietly(ticket.getId(), CheckinAction.CHECK_IN, organizer.userId(), method, now);
         return CheckinResult.from(ticket);
+    }
+
+    // 이력은 부가 기능이다. 기록이 실패해도 체크인은 그대로 둔다.
+    private void recordQuietly(Long ticketId, CheckinAction action, Long actorUserId,
+                               CheckinMethod method, Instant now) {
+        try {
+            checkinLogWriter.record(ticketId, action, actorUserId, method, now);
+        } catch (Exception e) {
+            log.warn("checkin log not written ticketId={} action={} traceId={}",
+                    ticketId, action, TraceId.get(), e);
+        }
     }
 
     private Ticket findTicket(String code, String reservationNo) {

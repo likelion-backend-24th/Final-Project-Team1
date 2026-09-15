@@ -5,6 +5,7 @@ import com.team1.ticket.common.ApiResponse;
 import com.team1.ticket.common.ErrorCode;
 import com.team1.ticket.ticket.dto.CheckinResult;
 import com.team1.ticket.ticket.dto.CheckinTicketView;
+import com.team1.ticket.ticket.entity.CheckinMethod;
 import com.team1.ticket.ticket.service.TicketCheckinService;
 import com.team1.security.AuthContext;
 import com.team1.security.AuthenticatedUser;
@@ -35,10 +36,11 @@ public class TicketCheckinController {
         return ApiResponse.ok(checkinService.verify(code, reservationNo, currentOrganizer()));
     }
 
-    // 체크인 확정 → USED 전이.
+    // 체크인 확정 → USED 전이. method 는 이력용이며, 화면이 안 보내면 null 로 기록된다.
     @PostMapping("/{ticketId}/checkin")
-    public ApiResponse<CheckinResult> checkin(@PathVariable Long ticketId) {
-        return ApiResponse.ok(checkinService.checkin(ticketId, currentOrganizer()));
+    public ApiResponse<CheckinResult> checkin(@PathVariable Long ticketId,
+                                              @RequestParam(required = false) CheckinMethod method) {
+        return ApiResponse.ok(checkinService.checkin(ticketId, method, currentOrganizer()));
     }
 
     private AuthenticatedUser currentOrganizer() {
