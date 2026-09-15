@@ -59,6 +59,14 @@ public class RoundService {
         return rounds.findByExpoIdOrderByStartsAtAsc(expoId);
     }
 
+    // Ticket-Service 의 체크인 시간창 검증이 쓴다(계약 3-4).
+    // 삭제 여부로 거르지 않는다 - 이미 발급된 티켓의 회차 시각을 확인하는 용도다.
+    @Transactional(readOnly = true)
+    public Round getById(Long roundId) {
+        return rounds.findById(roundId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "round not found: " + roundId));
+    }
+
     @Transactional(readOnly = true)
     public List<Round> listByExpo(Long expoId) {
         return rounds.findByExpoIdOrderByStartsAtAsc(expoId);

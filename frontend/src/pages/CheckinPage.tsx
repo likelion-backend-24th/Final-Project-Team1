@@ -9,13 +9,21 @@ function fmtDateTime(dt?: string) {
 }
 
 const TICKET_ERROR_MESSAGES: Record<string, string> = {
-  NOT_FOUND: '해당 코드의 티켓을 찾을 수 없습니다.',
+  NOT_FOUND: '해당 QR 코드 또는 예약번호의 티켓을 찾을 수 없습니다.',
   CONFLICT: '이미 체크인되었거나 취소된 티켓입니다.',
   FORBIDDEN: '해당 박람회의 주최자만 체크인할 수 있습니다.',
+  INVALID_REQUEST: '입력값을 확인해주세요.',
+  CHECKIN_CLOSED: '회차가 종료되어 체크인할 수 없습니다.',
 }
 
 function errorMessage(e: unknown, fallback: string) {
-  const code = (e as { body?: { data?: { code?: string } } } | undefined)?.body?.data?.code
+  const body = (e as { body?: { data?: { code?: string }; message?: string } } | undefined)?.body
+  const code = body?.data?.code
+  if (code === 'CHECKIN_NOT_OPEN') {
+    // 서버가 메시지에 ISO 시각을 담아 보낸다. 못 읽으면 시각 없이 안내한다.
+    const opensAt = body?.message?.match(/\d{4}-\d{2}-\d{2}T[\d:.]+Z/)?.[0]
+    return opensAt ? `아직 체크인할 수 없습니다. ${fmtDateTime(opensAt)}부터 가능합니다.` : '아직 체크인할 수 없습니다.'
+  }
   return (code && TICKET_ERROR_MESSAGES[code]) || fallback
 }
 
@@ -37,7 +45,7 @@ export default function CheckinPage() {
       const res = await ticketApi.verify(code.trim())
       setTicket(res.data)
     } catch (e) {
-      setError(errorMessage(e, '조회에 실패했습니다. 코드를 다시 확인해주세요.'))
+      setError(errorMessage(e, '조회에 실패했습니다. 입력값을 다시 확인해주세요.'))
     } finally {
       setVerifying(false)
     }
@@ -61,17 +69,17 @@ export default function CheckinPage() {
     <div className="container page-wrap" style={{ maxWidth: 560 }}>
       <div className="page-header">
         <h1 className="page-title">현장 체크인</h1>
-        <p className="page-sub">방문객의 QR 체크인 코드를 입력해 입장을 확인하세요.</p>
+        <p className="page-sub">QR 을 스캔하거나, QR 을 쓸 수 없으면 예약번호로 입장을 확인하세요.</p>
       </div>
 
       <form onSubmit={handleVerify} className="card" style={{ padding: 24, marginBottom: 20 }}>
         <div className="form-group" style={{ marginBottom: 12 }}>
-          <label className="form-label">체크인 코드</label>
+          <label className="form-label">QR 코드 또는 예약번호</label>
           <input
             className="form-input"
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="QR 코드 스캔 값 또는 체크인 토큰을 입력하세요"
+            placeholder="QR 스캔 값 또는 예약번호(R-XXXX-XXXX)를 입력하세요"
             autoFocus
           />
         </div>
@@ -90,6 +98,10 @@ export default function CheckinPage() {
             </span>
           </div>
 
+          <div className="form-group">
+            <label className="form-label">예약번호</label>
+            <p>{ticket.reservationNo ?? '-'}</p>
+          </div>
           <div className="form-group">
             <label className="form-label">회차</label>
             <p>round #{ticket.roundId}</p>

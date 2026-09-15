@@ -37,6 +37,16 @@ expo-service:
   connect-timeout: 2s
   read-timeout: 3s
 
+# 체크인 시간창(S7-3): 예약-Service getRoundInternal 호출. 실패해도 체크인은 허용한다(fail-open).
+reservation-service:
+  base-url: ${RESERVATION_SERVICE_URL:http://localhost:8083}
+  connect-timeout: 2s
+  read-timeout: 3s
+
+checkin:
+  # 회차 시작 이 시간 전부터 ~ 회차 종료까지 체크인할 수 있다.
+  opens-before: ${CHECKIN_OPENS_BEFORE:1h}
+
 # 개발·CI 기본값. 실제 값은 JWT_SECRET 환경변수가 덮어쓴다
 jwt:
   secret: ${JWT_SECRET:dev-only-not-a-real-secret-0123456789abcdef}

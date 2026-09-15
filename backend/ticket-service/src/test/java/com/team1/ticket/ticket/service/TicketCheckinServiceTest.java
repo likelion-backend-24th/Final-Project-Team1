@@ -2,6 +2,7 @@ package com.team1.ticket.ticket.service;
 
 import com.team1.ticket.client.ExpoClient;
 import com.team1.ticket.client.ExpoSummary;
+import com.team1.ticket.client.RoundClient;
 import com.team1.ticket.common.ApiException;
 import com.team1.ticket.common.ErrorCode;
 import com.team1.ticket.ticket.dto.CheckinResult;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
@@ -34,6 +36,7 @@ class TicketCheckinServiceTest {
     private static final long EXPO_ID = 10L;
     private static final long OWNER_ID = 7L;
     private static final String TOKEN = "tok-1";
+    private static final String RESERVATION_NO = "R-4K7Q-W2M8";
 
     private static final AuthenticatedUser OWNER = new AuthenticatedUser(OWNER_ID, "ORGANIZER");
     private static final AuthenticatedUser OTHER_ORGANIZER = new AuthenticatedUser(99L, "ORGANIZER");
@@ -41,17 +44,21 @@ class TicketCheckinServiceTest {
 
     private TicketRepository tickets;
     private ExpoClient expoClient;
+    private RoundClient roundClient;
     private TicketCheckinService service;
 
     @BeforeEach
     void setUp() {
         tickets = mock(TicketRepository.class);
         expoClient = mock(ExpoClient.class);
-        service = new TicketCheckinService(tickets, expoClient, Clock.fixed(NOW, ZoneOffset.UTC));
+        // findRound 기본값 null -> 시간창 검증은 fail-open 으로 건너뛴다. 경계는 CheckinTimeWindowTest 가 본다.
+        roundClient = mock(RoundClient.class);
+        service = new TicketCheckinService(tickets, expoClient, roundClient,
+                Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofHours(1));
     }
 
     private Ticket issuedTicket() {
-        return Ticket.issue(123L, "R-" + 123L, EXPO_ID, 45L, 77L, 2, TOKEN, NOW.minusSeconds(3600));
+        return Ticket.issue(123L, RESERVATION_NO, EXPO_ID, 45L, 77L, 2, TOKEN, NOW.minusSeconds(3600));
     }
 
     private void ownedExpo() {
@@ -67,7 +74,7 @@ class TicketCheckinServiceTest {
         when(tickets.findByCheckinToken(TOKEN)).thenReturn(Optional.of(ticket));
         ownedExpo();
 
-        CheckinTicketView view = service.verify(TOKEN, OWNER);
+        CheckinTicketView view = service.verify(TOKEN, null, OWNER);
 
         assertThat(view.status()).isEqualTo("ISSUED");
         assertThat(view.headcount()).isEqualTo(2);
@@ -79,7 +86,7 @@ class TicketCheckinServiceTest {
     void verifyRejectsUnknownToken() {
         when(tickets.findByCheckinToken(TOKEN)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.verify(TOKEN, OWNER))
+        assertThatThrownBy(() -> service.verify(TOKEN, null, OWNER))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.NOT_FOUND));
     }
@@ -89,7 +96,7 @@ class TicketCheckinServiceTest {
     void verifyRejectsNonOrganizer() {
         when(tickets.findByCheckinToken(TOKEN)).thenReturn(Optional.of(issuedTicket()));
 
-        assertThatThrownBy(() -> service.verify(TOKEN, MEMBER))
+        assertThatThrownBy(() -> service.verify(TOKEN, null, MEMBER))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.FORBIDDEN));
 
@@ -102,9 +109,60 @@ class TicketCheckinServiceTest {
         when(tickets.findByCheckinToken(TOKEN)).thenReturn(Optional.of(issuedTicket()));
         ownedExpo();
 
-        assertThatThrownBy(() -> service.verify(TOKEN, OTHER_ORGANIZER))
+        assertThatThrownBy(() -> service.verify(TOKEN, null, OTHER_ORGANIZER))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.FORBIDDEN));
+    }
+
+    @Test
+    @DisplayName("verify: 예약번호로도 같은 티켓을 조회한다 (QR 을 못 쓰는 경우)")
+    void verifyFindsByReservationNo() {
+        Ticket ticket = issuedTicket();
+        when(tickets.findByReservationNo(RESERVATION_NO)).thenReturn(Optional.of(ticket));
+        ownedExpo();
+
+        CheckinTicketView view = service.verify(null, RESERVATION_NO, OWNER);
+
+        assertThat(view.reservationNo()).isEqualTo(RESERVATION_NO);
+        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.ISSUED); // 미전이
+        verify(tickets, never()).findByCheckinToken(any());
+    }
+
+    @Test
+    @DisplayName("verify: 예약번호는 소문자·공백으로 입력해도 조회된다 (창구에서 받아 적는 값이다)")
+    void verifyNormalizesReservationNo() {
+        when(tickets.findByReservationNo(RESERVATION_NO)).thenReturn(Optional.of(issuedTicket()));
+        ownedExpo();
+
+        assertThat(service.verify(null, "  r-4k7q-w2m8  ", OWNER)).isNotNull();
+    }
+
+    @Test
+    @DisplayName("verify: 없는 예약번호는 토큰과 같은 404 메시지를 쓴다 (예약번호 존재 여부를 흘리지 않는다)")
+    void verifyHidesWhetherReservationNoExists() {
+        when(tickets.findByReservationNo(RESERVATION_NO)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.verify(null, RESERVATION_NO, OWNER))
+                .isInstanceOfSatisfying(ApiException.class, e -> {
+                    assertThat(e.code()).isEqualTo(ErrorCode.NOT_FOUND);
+                    assertThat(e.getMessage()).isEqualTo("invalid ticket");
+                });
+    }
+
+    @Test
+    @DisplayName("verify: 토큰과 예약번호를 둘 다 주면 400")
+    void verifyRejectsBothParameters() {
+        assertThatThrownBy(() -> service.verify(TOKEN, RESERVATION_NO, OWNER))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.INVALID_REQUEST));
+    }
+
+    @Test
+    @DisplayName("verify: 둘 다 비어 있으면 400")
+    void verifyRejectsNeitherParameter() {
+        assertThatThrownBy(() -> service.verify("  ", null, OWNER))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.INVALID_REQUEST));
     }
 
     // ---- checkin ----

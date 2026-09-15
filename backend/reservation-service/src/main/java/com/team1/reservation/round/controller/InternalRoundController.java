@@ -4,6 +4,7 @@ import com.team1.reservation.round.service.RoundService;
 import com.team1.reservation.round.dto.ExistsResponse;
 import com.team1.reservation.round.dto.InternalRoundResponse;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,6 +27,13 @@ public class InternalRoundController {
     @GetMapping("/exists")
     public ExistsResponse exists(@RequestParam Long expoId) {
         return new ExistsResponse(roundService.existsByExpo(expoId));
+    }
+
+
+    // 단건 조회(계약 3-4). 숫자만 받아 /exists·/finished-expos 와 겹치지 않게 한다.
+    @GetMapping("/{roundId:\\d+}")
+    public InternalRoundResponse get(@PathVariable Long roundId) {
+        return InternalRoundResponse.from(roundService.getById(roundId));
     }
 
 
