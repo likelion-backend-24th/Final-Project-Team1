@@ -9,6 +9,7 @@ import com.team1.ticket.ticket.dto.CheckinResult;
 import com.team1.ticket.ticket.dto.CheckinTicketView;
 import com.team1.ticket.ticket.entity.Ticket;
 import com.team1.ticket.ticket.entity.TicketStatus;
+import com.team1.ticket.ticket.entity.CheckinMethod;
 import com.team1.ticket.ticket.repository.TicketRepository;
 import com.team1.security.AuthenticatedUser;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -45,6 +47,7 @@ class TicketCheckinServiceTest {
     private TicketRepository tickets;
     private ExpoClient expoClient;
     private RoundClient roundClient;
+    private CheckinLogWriter checkinLogWriter;
     private TicketCheckinService service;
 
     @BeforeEach
@@ -53,8 +56,9 @@ class TicketCheckinServiceTest {
         expoClient = mock(ExpoClient.class);
         // findRound 기본값 null -> 시간창 검증은 fail-open 으로 건너뛴다. 경계는 CheckinTimeWindowTest 가 본다.
         roundClient = mock(RoundClient.class);
+        checkinLogWriter = mock(CheckinLogWriter.class);
         service = new TicketCheckinService(tickets, expoClient, roundClient,
-                Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofHours(1));
+                checkinLogWriter, Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofHours(1));
     }
 
     private Ticket issuedTicket() {
@@ -174,7 +178,7 @@ class TicketCheckinServiceTest {
         when(tickets.findById(anyLong())).thenReturn(Optional.of(ticket));
         ownedExpo();
 
-        CheckinResult result = service.checkin(1L, OWNER);
+        CheckinResult result = service.checkin(1L, CheckinMethod.QR, OWNER);
 
         assertThat(result.status()).isEqualTo("USED");
         assertThat(result.checkedInAt()).isEqualTo(NOW);
@@ -186,7 +190,7 @@ class TicketCheckinServiceTest {
     void checkinRejectsUnknownTicket() {
         when(tickets.findById(anyLong())).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.checkin(1L, OWNER))
+        assertThatThrownBy(() -> service.checkin(1L, CheckinMethod.QR, OWNER))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.NOT_FOUND));
     }
@@ -199,7 +203,7 @@ class TicketCheckinServiceTest {
         when(tickets.findById(anyLong())).thenReturn(Optional.of(ticket));
         ownedExpo();
 
-        assertThatThrownBy(() -> service.checkin(1L, OWNER))
+        assertThatThrownBy(() -> service.checkin(1L, CheckinMethod.QR, OWNER))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.CONFLICT));
     }
@@ -211,11 +215,26 @@ class TicketCheckinServiceTest {
         when(tickets.findById(anyLong())).thenReturn(Optional.of(ticket));
         ownedExpo();
 
-        assertThatThrownBy(() -> service.checkin(1L, OTHER_ORGANIZER))
+        assertThatThrownBy(() -> service.checkin(1L, CheckinMethod.QR, OTHER_ORGANIZER))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.FORBIDDEN));
 
         assertThat(ticket.getStatus()).isEqualTo(TicketStatus.ISSUED);
+    }
+
+    @Test
+    @DisplayName("checkin: 이력 기록이 실패해도 체크인은 성사된다 (이력은 부가 기능)")
+    void checkinSurvivesLoggingFailure() {
+        Ticket ticket = issuedTicket();
+        when(tickets.findById(anyLong())).thenReturn(Optional.of(ticket));
+        ownedExpo();
+        doThrow(new RuntimeException("log db down"))
+                .when(checkinLogWriter).record(any(), any(), any(), any(), any());
+
+        CheckinResult result = service.checkin(1L, CheckinMethod.QR, OWNER);
+
+        assertThat(result.status()).isEqualTo("USED");
+        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.USED);
     }
 
     @Test
@@ -226,7 +245,7 @@ class TicketCheckinServiceTest {
         when(expoClient.getExpo(EXPO_ID))
                 .thenThrow(new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "expo-service unavailable"));
 
-        assertThatThrownBy(() -> service.checkin(1L, OWNER))
+        assertThatThrownBy(() -> service.checkin(1L, CheckinMethod.QR, OWNER))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.DEPENDENCY_UNAVAILABLE));
 

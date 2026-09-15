@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ticketApi } from '../api/ticket'
+import { ticketApi, checkinMethodOf, type CheckinMethod } from '../api/ticket'
 import { useToast } from '../components/Toast'
 import type { CheckinTicketView } from '../types'
 
@@ -31,6 +31,8 @@ export default function CheckinPage() {
   const toast = useToast()
   const [code, setCode] = useState('')
   const [ticket, setTicket] = useState<CheckinTicketView | null>(null)
+  // 확정할 때 이력에 남길 값. 조회에 쓴 수단을 그대로 들고 간다.
+  const [method, setMethod] = useState<CheckinMethod | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [verifying, setVerifying] = useState(false)
   const [checkingIn, setCheckingIn] = useState(false)
@@ -44,6 +46,7 @@ export default function CheckinPage() {
     try {
       const res = await ticketApi.verify(code.trim())
       setTicket(res.data)
+      setMethod(checkinMethodOf(code))
     } catch (e) {
       setError(errorMessage(e, '조회에 실패했습니다. 입력값을 다시 확인해주세요.'))
     } finally {
@@ -55,7 +58,7 @@ export default function CheckinPage() {
     if (!ticket) return
     setCheckingIn(true)
     try {
-      const res = await ticketApi.checkin(ticket.ticketId)
+      const res = await ticketApi.checkin(ticket.ticketId, method)
       setTicket(prev => prev && { ...prev, status: res.data.status, usedAt: res.data.checkedInAt })
       toast('체크인이 완료되었습니다', 'success')
     } catch (e) {

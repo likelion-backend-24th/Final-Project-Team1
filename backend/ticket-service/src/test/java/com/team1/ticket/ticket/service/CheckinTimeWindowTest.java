@@ -6,6 +6,7 @@ import com.team1.ticket.client.RoundClient;
 import com.team1.ticket.client.RoundInfo;
 import com.team1.ticket.common.ApiException;
 import com.team1.ticket.common.ErrorCode;
+import com.team1.ticket.ticket.entity.CheckinMethod;
 import com.team1.ticket.ticket.entity.Ticket;
 import com.team1.ticket.ticket.entity.TicketStatus;
 import com.team1.ticket.ticket.repository.TicketRepository;
@@ -50,7 +51,7 @@ class CheckinTimeWindowTest {
         expoClient = mock(ExpoClient.class);
         roundClient = mock(RoundClient.class);
         service = new TicketCheckinService(tickets, expoClient, roundClient,
-                Clock.fixed(NOW, ZoneOffset.UTC), OPENS_BEFORE);
+                mock(CheckinLogWriter.class), Clock.fixed(NOW, ZoneOffset.UTC), OPENS_BEFORE);
 
         ticket = Ticket.issue(123L, "R-4K7Q-W2M8", EXPO_ID, ROUND_ID, 77L, 2, "tok-1", NOW.minusSeconds(86400));
         when(tickets.findById(anyLong())).thenReturn(Optional.of(ticket));
@@ -69,7 +70,7 @@ class CheckinTimeWindowTest {
     void rejectsOneMinuteBeforeWindowOpens() {
         givenRoundStartingIn(Duration.ofHours(1).plusMinutes(1));
 
-        assertThatThrownBy(() -> service.checkin(1L, OWNER))
+        assertThatThrownBy(() -> service.checkin(1L, CheckinMethod.QR, OWNER))
                 .isInstanceOfSatisfying(ApiException.class, e -> {
                     assertThat(e.code()).isEqualTo(ErrorCode.CHECKIN_NOT_OPEN);
                     assertThat(e.getMessage()).contains(NOW.plusSeconds(60).toString());
@@ -82,7 +83,7 @@ class CheckinTimeWindowTest {
     void allowsExactlyWhenWindowOpens() {
         givenRoundStartingIn(OPENS_BEFORE);
 
-        service.checkin(1L, OWNER);
+        service.checkin(1L, CheckinMethod.QR, OWNER);
 
         assertThat(ticket.getStatus()).isEqualTo(TicketStatus.USED);
     }
@@ -92,7 +93,7 @@ class CheckinTimeWindowTest {
     void allowsDuringRound() {
         givenRoundStartingIn(Duration.ofHours(-1));
 
-        service.checkin(1L, OWNER);
+        service.checkin(1L, CheckinMethod.QR, OWNER);
 
         assertThat(ticket.getStatus()).isEqualTo(TicketStatus.USED);
     }
@@ -102,7 +103,7 @@ class CheckinTimeWindowTest {
     void rejectsAfterRoundEnds() {
         givenRoundStartingIn(Duration.ofHours(-3)); // 2시간짜리 회차가 1시간 전에 끝났다
 
-        assertThatThrownBy(() -> service.checkin(1L, OWNER))
+        assertThatThrownBy(() -> service.checkin(1L, CheckinMethod.QR, OWNER))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.CHECKIN_CLOSED));
         assertThat(ticket.getStatus()).isEqualTo(TicketStatus.ISSUED);
@@ -113,7 +114,7 @@ class CheckinTimeWindowTest {
     void allowsWhenRoundLookupFails() {
         when(roundClient.findRound(ROUND_ID)).thenReturn(null);
 
-        service.checkin(1L, OWNER);
+        service.checkin(1L, CheckinMethod.QR, OWNER);
 
         assertThat(ticket.getStatus()).isEqualTo(TicketStatus.USED);
     }
@@ -125,7 +126,7 @@ class CheckinTimeWindowTest {
         when(expoClient.getExpo(EXPO_ID))
                 .thenThrow(new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "expo-service unavailable"));
 
-        assertThatThrownBy(() -> service.checkin(1L, OWNER))
+        assertThatThrownBy(() -> service.checkin(1L, CheckinMethod.QR, OWNER))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.DEPENDENCY_UNAVAILABLE));
         assertThat(ticket.getStatus()).isEqualTo(TicketStatus.ISSUED);
