@@ -1,15 +1,19 @@
 package com.team1.reservation.reservation.service;
 
+import com.team1.payment.PaymentStatus;
 import com.team1.reservation.reservation.dto.AttendeeResponse;
+import com.team1.reservation.reservation.dto.InternalReservationPaymentResponse;
 import com.team1.reservation.reservation.dto.ReservationSummaryResponse;
 import com.team1.reservation.reservation.dto.RoundStatusHeadcount;
 import com.team1.reservation.reservation.entity.ReservationStatus;
+import com.team1.reservation.reservation.repository.PaymentLookupRepository;
 import com.team1.reservation.reservation.repository.ReservationRepository;
 import com.team1.reservation.round.entity.Round;
 import com.team1.reservation.round.repository.RoundRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -27,10 +31,12 @@ public class ReservationQueryService {
 
     private final ReservationRepository reservations;
     private final RoundRepository rounds;
+    private final PaymentLookupRepository payments;
 
-    public ReservationQueryService(ReservationRepository reservations, RoundRepository rounds) {
+    public ReservationQueryService(ReservationRepository reservations, RoundRepository rounds, PaymentLookupRepository payments) {
         this.reservations = reservations;
         this.rounds = rounds;
+        this.payments = payments;
     }
 
 
@@ -68,6 +74,14 @@ public class ReservationQueryService {
                 : reservations.findByExpoIdAndRoundIdAndStatusInOrderByCreatedAtAsc(expoId, roundId, LISTED);
 
         return found.stream().map(AttendeeResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<InternalReservationPaymentResponse> getPaymentsForSettlement(Instant from, Instant to) {
+        Set<PaymentStatus> statuses = EnumSet.of(PaymentStatus.PAID, PaymentStatus.CANCELLED);
+        return payments.findByStatusInAndUpdatedAtBetween(statuses, from, to).stream()
+                .map(InternalReservationPaymentResponse::of)
+                .toList();
     }
 
     private int headcount(Map<ReservationStatus, Long> byStatus, ReservationStatus status) {
