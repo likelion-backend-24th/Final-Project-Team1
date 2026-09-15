@@ -6,11 +6,16 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-# PortOne storeId·channelKey 는 브라우저 노출값이라 빌드 시점에 주입한다
+# VITE_* 는 런타임이 아니라 빌드 시점에 번들에 박힌다. 서버 환경변수로는 주입되지 않는다.
+# 셋 다 브라우저에 노출되는 값이라 Secret 이 아닌 Variables 로 넘긴다.
 ARG VITE_PORTONE_STORE_ID
 ARG VITE_PORTONE_CHANNEL_KEY
+ARG VITE_CLOUDINARY_CLOUD_NAME
+ARG VITE_CLOUDINARY_UPLOAD_PRESET
 ENV VITE_PORTONE_STORE_ID=${VITE_PORTONE_STORE_ID} \
-    VITE_PORTONE_CHANNEL_KEY=${VITE_PORTONE_CHANNEL_KEY}
+    VITE_PORTONE_CHANNEL_KEY=${VITE_PORTONE_CHANNEL_KEY} \
+    VITE_CLOUDINARY_CLOUD_NAME=${VITE_CLOUDINARY_CLOUD_NAME} \
+    VITE_CLOUDINARY_UPLOAD_PRESET=${VITE_CLOUDINARY_UPLOAD_PRESET}
 RUN npm run build
 
 # 2단계: 정적 파일 서빙 + API 게이트웨이 (설정은 infra/nginx/nginx.prod.conf 를 마운트)

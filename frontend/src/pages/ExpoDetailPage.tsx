@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { expoApi } from '../api/expo'
+import { cdnImage } from '../lib/cloudinary'
 import { useAuth } from '../context/AuthContext'
 import ReservationModal from '../components/ReservationModal'
 import type { Expo, Reservation, Round } from '../types'
@@ -31,6 +32,8 @@ export default function ExpoDetailPage() {
   const [expoLoading, setExpoLoading] = useState(true)
   const [roundsError, setRoundsError] = useState(false)
   const [reservingRound, setReservingRound] = useState<Round | null>(null)
+  const [coverBroken, setCoverBroken] = useState(false)
+  const [descOpen, setDescOpen] = useState(false)
 
   // 회차는 별도 API 로 가져오지 않는다.
   // GET /expos/{id} 응답에 expo-service 가 reservation-service 의 내부 API 를
@@ -84,13 +87,52 @@ export default function ExpoDetailPage() {
   const status = expo.status ?? 'PUBLISHED'
   const colors = THUMB_COLORS[expo.category] ?? ['#1A1A2E', '#374151']
 
+  // 예약 가능한 회차만으로 대표 가격을 정한다. 마감·종료된 회차의 가격을 보여주면 오해를 준다.
+  const now = Date.now()
+  const openRounds = rounds.filter(r => r.remaining > 0 && new Date(r.endsAt).getTime() > now)
+  const lowestFee = openRounds.length ? Math.min(...openRounds.map(r => r.fee)) : 0
+  const isLongDesc = (expo.description?.length ?? 0) > 300
+  const hasDetailImages = (expo.detailImageUrls?.length ?? 0) > 0
+
   return (
     <div style={{ background: 'var(--bg)', minHeight: 'calc(100vh - 64px)' }}>
-      {/* Thumb banner */}
-      <div style={{
-        background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`,
-        height: 280,
-      }} />
+      {/* 커버.
+          주최자가 어떤 비율의 이미지를 넣을지 알 수 없으므로 잘라내지 않는다(contain).
+          비면 허전하니 같은 이미지를 흐리게 깔아 여백을 메운다.
+          이미지가 없거나 불러오지 못하면 카테고리 그라데이션으로 떨어진다. */}
+      <div className="container" style={{ paddingTop: 24 }}>
+        <div style={{
+          position: 'relative',
+          width: '100%',
+          aspectRatio: '1000 / 343',
+          borderRadius: 'var(--r)',
+          overflow: 'hidden',
+          background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`,
+        }}>
+          {expo.thumbnailUrl && !coverBroken && (
+            <>
+              <img
+                src={cdnImage(expo.thumbnailUrl, 400)}
+                alt=""
+                aria-hidden
+                style={{
+                  position: 'absolute', inset: 0, width: '100%', height: '100%',
+                  objectFit: 'cover', filter: 'blur(28px)', transform: 'scale(1.12)', opacity: .5,
+                }}
+              />
+              <img
+                src={cdnImage(expo.thumbnailUrl, 1600)}
+                alt={expo.title}
+                onError={() => setCoverBroken(true)}
+                style={{
+                  position: 'absolute', inset: 0, width: '100%', height: '100%',
+                  objectFit: 'contain',
+                }}
+              />
+            </>
+          )}
+        </div>
+      </div>
 
       <div className="container" style={{ paddingTop: 32, paddingBottom: 80 }}>
         {/* Back */}
@@ -129,19 +171,75 @@ export default function ExpoDetailPage() {
               )}
             </div>
 
-            {expo.description && (
-              <div className="card" style={{ padding: '24px 28px' }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 12 }}>
-                  박람회 소개
+            {(expo.description || hasDetailImages) && (
+              <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                <div style={{ padding: expo.description ? '24px 28px' : '24px 28px 16px' }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: expo.description ? 12 : 0 }}>
+                  행사 소개
                 </h3>
-                <p style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.8 }}>{expo.description}</p>
+                {expo.description && (<>
+                {/* pre-wrap 이 없으면 주최자가 나눠 쓴 문단이 한 덩어리로 붙는다. */}
+                <div style={{ position: 'relative' }}>
+                  <p style={{
+                    fontSize: 15, color: 'var(--text2)', lineHeight: 1.8,
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                    maxHeight: isLongDesc && !descOpen ? 320 : 'none',
+                    overflow: 'hidden',
+                  }}>
+                    {expo.description}
+                  </p>
+                  {/* 페이드는 실제로 잘렸을 때만. 짧은 글에 덮이면 멀쩡한 문장이 흐려 보인다. */}
+                  {isLongDesc && !descOpen && (
+                    <div style={{
+                      position: 'absolute', left: 0, right: 0, bottom: 0, height: 80,
+                      background: 'linear-gradient(to bottom, transparent, var(--surface))',
+                      pointerEvents: 'none',
+                    }} />
+                  )}
+                </div>
+                {isLongDesc && (
+                  <button
+                    className="btn btn-secondary btn-sm btn-block"
+                    style={{ marginTop: 12 }}
+                    onClick={() => setDescOpen(v => !v)}
+                  >
+                    {descOpen ? '접기' : '더보기'}
+                  </button>
+                )}
+                </>)}
+                </div>
+
+                {/* 상세 이미지는 카드 폭을 꽉 채운다. 주최자가 정한 순서대로 이어 붙는다. */}
+                {expo.detailImageUrls?.map((url, i) => (
+                  <img
+                    key={`${url}-${i}`}
+                    src={cdnImage(url, 1200)}
+                    alt=""
+                    loading="lazy"
+                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                    style={{ display: 'block', width: '100%', height: 'auto' }}
+                  />
+                ))}
               </div>
             )}
           </div>
 
-          {/* ─── Right: Rounds ─── */}
-          <div>
-            <div className="card" style={{ padding: 24 }}>
+          {/* ─── Right: Rounds — 스크롤을 따라다닌다(event-us 의 신청 패널과 같은 역할) ─── */}
+          <div style={{ position: 'sticky', top: 84 }}>
+            <div className="card" style={{ padding: 24, maxHeight: 'calc(100vh - 110px)', overflowY: 'auto' }}>
+              {openRounds.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)' }}>
+                    {lowestFee === 0 ? '무료' : `${lowestFee.toLocaleString()}원`}
+                    {openRounds.length > 1 && (
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sub)' }}>부터</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
+                    예약 가능한 회차 {openRounds.length}개
+                  </div>
+                </div>
+              )}
               <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>회차 정보</h2>
               <p style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 20 }}>
                 잔여 정원이 있는 회차에 예약할 수 있습니다.

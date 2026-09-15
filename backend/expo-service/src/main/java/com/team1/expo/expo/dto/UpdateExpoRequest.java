@@ -1,18 +1,21 @@
 package com.team1.expo.expo.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
-public record CreateExpoRequest(
-        @NotBlank @Size(max = 200) String title,
+/**
+ * 박람회 부분 수정(S9-1). <b>보내지 않은 필드(null)는 그대로 둔다.</b>
+ * 값을 지우려면 빈 문자열을 보낸다 - title·category 는 필수라 빈 문자열도 거절한다.
+ * status·channelId 는 여기서 못 바꾼다. 공개 전환은 POST /expos/{id}/publication 이 담당한다.
+ */
+public record UpdateExpoRequest(
+        @Size(max = 200) String title,
         String description,
         @Size(max = 200) String venue,
         @Size(max = 50) String region,
-        @NotBlank @Pattern(regexp = "IT·전자|식품·음료|패션·뷰티|교육·취업|문화·예술|기타") String category,
-        // 지금까지 @Size 뿐이라 아무 문자열이나 들어갔다. 화면이 <img src> 로 쓰므로 형식을 강제한다.
+        @Pattern(regexp = "IT·전자|식품·음료|패션·뷰티|교육·취업|문화·예술|기타") String category,
         @Size(max = 500)
         @Pattern(regexp = "^$|^https?://.+", message = "thumbnailUrl must start with http:// or https://")
         String thumbnailUrl,

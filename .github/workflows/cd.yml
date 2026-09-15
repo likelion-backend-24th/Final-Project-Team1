@@ -72,6 +72,8 @@ jobs:
           build-args: |
             VITE_PORTONE_STORE_ID=${{ vars.VITE_PORTONE_STORE_ID }}
             VITE_PORTONE_CHANNEL_KEY=${{ vars.VITE_PORTONE_CHANNEL_KEY }}
+            VITE_CLOUDINARY_CLOUD_NAME=${{ vars.VITE_CLOUDINARY_CLOUD_NAME }}
+            VITE_CLOUDINARY_UPLOAD_PRESET=${{ vars.VITE_CLOUDINARY_UPLOAD_PRESET }}
           tags: |
             ${{ env.REGISTRY }}/fpt1-web:latest
             ${{ env.REGISTRY }}/fpt1-web:${{ steps.meta.outputs.sha }}

@@ -3,6 +3,7 @@ package com.team1.expo.expo.dto;
 import com.team1.expo.domain.expo.Expo;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record ExpoResponse(
         Long id,
@@ -14,6 +15,7 @@ public record ExpoResponse(
         String category,
         String status,
         String thumbnailUrl,
+        List<String> detailImageUrls,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
@@ -28,6 +30,7 @@ public record ExpoResponse(
                 expo.getCategory(),
                 expo.getStatus().name(),
                 expo.getThumbnailUrl(),
+                List.copyOf(expo.getDetailImageUrls()),
                 expo.getCreatedAt(),
                 expo.getUpdatedAt()
         );

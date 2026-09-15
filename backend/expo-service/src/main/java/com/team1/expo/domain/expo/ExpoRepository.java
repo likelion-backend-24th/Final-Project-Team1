@@ -10,6 +10,9 @@ import java.util.List;
 
 public interface ExpoRepository extends JpaRepository<Expo, Long> {
 
+    // 주최자용 목록. 공개 목록과 달리 HIDDEN·CLOSED 도 보여준다.
+    List<Expo> findByChannelIdOrderByCreatedAtDesc(Long channelId);
+
     @Modifying
     @Query("UPDATE Expo e SET e.status = :to, e.closedAt = :closedAt, e.updatedAt = :closedAt " +
            "WHERE e.id IN :ids AND e.status = :from")
