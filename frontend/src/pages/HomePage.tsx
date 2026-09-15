@@ -4,6 +4,7 @@ import { expoApi } from '../api/expo'
 import type { ExpoSort } from '../api/expo'
 import { expoKey } from '../types'
 import type { ActivePromotion, Expo } from '../types'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const CATS = ['전체', 'IT·전자', '식품·음료', '패션·뷰티', '교육·취업', '문화·예술', '기타']
 
@@ -30,6 +31,7 @@ export default function HomePage() {
   const [category, setCategory] = useState('전체')
   const [sort, setSort] = useState<ExpoSort>('recommended')
   const [promotions, setPromotions] = useState<ActivePromotion[]>([])
+  usePageTitle(category === '전체' ? '박람회 탐색' : `${category} 박람회`)
 
   useEffect(() => {
     let cancelled = false

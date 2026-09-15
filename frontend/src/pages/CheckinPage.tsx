@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ticketApi, checkinMethodOf, type CheckinMethod } from '../api/ticket'
 import { useToast } from '../components/Toast'
+import { usePageTitle } from '../hooks/usePageTitle'
 import type { CheckinTicketView } from '../types'
 
 function fmtDateTime(dt?: string) {
@@ -28,6 +29,7 @@ function errorMessage(e: unknown, fallback: string) {
 }
 
 export default function CheckinPage() {
+  usePageTitle('현장 체크인')
   const toast = useToast()
   const [code, setCode] = useState('')
   const [ticket, setTicket] = useState<CheckinTicketView | null>(null)

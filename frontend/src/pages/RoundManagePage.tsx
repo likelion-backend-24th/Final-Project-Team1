@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { expoApi } from '../api/expo'
 import { roundApi } from '../api/round'
 import { useToast } from '../components/Toast'
+import { usePageTitle } from '../hooks/usePageTitle'
 import type { Expo, Round, RoundSummary } from '../types'
 
 function toLocal(d: Date) {
@@ -25,6 +26,7 @@ export default function RoundManagePage() {
   // 없으면(새로고침 등) 공개 조회로 보완한다.
   const passed = (location.state as { expo?: Expo } | null)?.expo ?? null
   const [expo, setExpo] = useState<Expo | null>(passed)
+  usePageTitle(expo?.title ? `${expo.title} 회차 관리` : '회차 관리')
   const [rounds, setRounds] = useState<Round[]>([])
   const [summary, setSummary] = useState<Record<number, RoundSummary>>({})
   const [publishing, setPublishing] = useState(false)

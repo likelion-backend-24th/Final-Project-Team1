@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { authApi } from '../api/auth'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 export default function AdminPage() {
+  usePageTitle('전체 관리자')
   const { isRole } = useAuth()
   const navigate = useNavigate()
   const toast = useToast()
