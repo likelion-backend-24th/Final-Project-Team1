@@ -1,6 +1,7 @@
 package com.team1.reservation.reservation.controller;
 
 import com.team1.reservation.reservation.dto.AttendeeResponse;
+import com.team1.reservation.reservation.dto.InternalReservationPaymentResponse;
 import com.team1.reservation.reservation.dto.ReservationSummaryResponse;
 import com.team1.reservation.reservation.service.ReservationQueryService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.List;
 
 @RestController
@@ -30,5 +32,11 @@ public class InternalReservationController {
     public List<AttendeeResponse> attendees(@RequestParam Long expoId,
                                             @RequestParam(required = false) Long roundId) {
         return reservationQueryService.attendees(expoId, roundId);
+    }
+
+    @GetMapping("/payments")
+    public List<InternalReservationPaymentResponse> payments(@RequestParam Instant from,
+                                                             @RequestParam Instant to) {
+        return reservationQueryService.getPaymentsForSettlement(from, to);
     }
 }
