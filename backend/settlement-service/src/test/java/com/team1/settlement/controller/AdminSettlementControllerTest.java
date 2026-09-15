@@ -1,0 +1,69 @@
+package com.team1.settlement.controller;
+
+import com.team1.security.AuthContext;
+import com.team1.security.AuthenticatedUser;
+import com.team1.settlement.dto.AdminSettlementResponse;
+import com.team1.settlement.service.SettlementService;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest(controllers = AdminSettlementController.class)
+@AutoConfigureMockMvc(addFilters = false)
+@TestPropertySource(properties = {
+        "jwt.secret=test-secret-key-that-is-at-least-32-bytes-long",
+        "internal.token=test-internal-token"
+})
+class AdminSettlementControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean
+    private SettlementService settlementService;
+
+    @AfterEach
+    void tearDown() {
+        AuthContext.clear();
+    }
+
+    @Test
+    @DisplayName("SUPER_ADMIN이면 정산 데이터를 조회한다")
+    void superAdminCanViewSettlement() throws Exception {
+        AuthContext.set(new AuthenticatedUser(1L, "SUPER_ADMIN"));
+        when(settlementService.getSettlement(2026, 9)).thenReturn(
+                new AdminSettlementResponse(2026, 9, 4500000, 150000, 4350000, 435000, 0.10));
+
+        mockMvc.perform(get("/api/v1/admin/settlement").param("year", "2026").param("month", "9"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalRevenue").value(4500000))
+                .andExpect(jsonPath("$.platformFee").value(435000));
+    }
+
+    @Test
+    @DisplayName("로그인 안 했으면 401")
+    void unauthenticatedIsRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/settlement").param("year", "2026").param("month", "9"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("SUPER_ADMIN이 아니면 403")
+    void nonAdminIsForbidden() throws Exception {
+        AuthContext.set(new AuthenticatedUser(1L, "USER"));
+
+        mockMvc.perform(get("/api/v1/admin/settlement").param("year", "2026").param("month", "9"))
+                .andExpect(status().isForbidden());
+    }
+}
