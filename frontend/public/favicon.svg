@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <!-- 헤더 로고(◈)와 같은 모양·색(--primary #E8380D) -->
+  <!-- 헤더 로고(◈)와 같은 모양, 색은 primary #E8380D -->
   <path d="M32 5 L59 32 L32 59 L5 32 Z" fill="none" stroke="#E8380D" stroke-width="6" stroke-linejoin="round"/>
   <path d="M32 20 L44 32 L32 44 L20 32 Z" fill="#E8380D"/>
 </svg>
