@@ -5,6 +5,7 @@ import { expoApi } from '../api/expo'
 import type { ApplyPromotionResponse } from '../api/expo'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { expoKey } from '../types'
 import type { Channel, Expo } from '../types'
 
@@ -19,6 +20,7 @@ export default function HostChannelPage() {
   const [loadingEx, setLoadingEx] = useState(false)
   const [activePromos, setActivePromos] = useState<Record<number, number>>({})
   const [promoLoading, setPromoLoading] = useState<Record<number, boolean>>({})
+  usePageTitle(channel?.name ? `${channel.name} - 주최자 센터` : '주최자 센터')
 
   function loadExpos(channelId: number) {
     setLoadingEx(true)

@@ -3,12 +3,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi, decodeJwt } from '../api/auth'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 export default function AuthPage() {
   const [params] = useSearchParams()
   const [tab, setTab] = useState<'login' | 'signup'>(
     params.get('tab') === 'signup' ? 'signup' : 'login'
   )
+  usePageTitle(tab === 'signup' ? '회원가입' : '로그인')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const { login } = useAuth()

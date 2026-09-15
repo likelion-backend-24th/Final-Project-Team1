@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { expoApi } from '../api/expo'
 import { useToast } from '../components/Toast'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 export default function ChannelCreatePage() {
+  usePageTitle('채널 만들기')
   const navigate = useNavigate()
   const toast = useToast()
   const [form, setForm] = useState({ name: '', description: '' })

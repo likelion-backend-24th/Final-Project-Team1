@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { reservationApi } from '../api/reservation'
 import { useToast } from '../components/Toast'
+import { usePageTitle } from '../hooks/usePageTitle'
 import type { MyReservation, MyReservationDetail } from '../types'
 
 function fmtDateTime(dt?: string) {
@@ -43,6 +44,7 @@ function cancelErrorMessage(e: unknown, fallback: string) {
 }
 
 export default function MyReservationsPage() {
+  usePageTitle('내 예약')
   const toast = useToast()
   const [reservations, setReservations] = useState<MyReservation[]>([])
   const [loading, setLoading] = useState(true)

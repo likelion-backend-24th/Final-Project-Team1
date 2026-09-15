@@ -1,8 +1,10 @@
 package com.team1.reservation.reservation.repository;
 
+import com.team1.payment.PaymentStatus;
 import com.team1.payment.PaymentTransaction;
 import org.springframework.data.repository.Repository;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
@@ -11,4 +13,6 @@ import java.util.List;
 public interface PaymentLookupRepository extends Repository<PaymentTransaction, Long> {
 
     List<PaymentTransaction> findByRefIdIn(Collection<Long> refIds);
+
+    List<PaymentTransaction> findByStatusInAndUpdatedAtBetween(Collection<PaymentStatus> statuses, Instant from, Instant to);
 }
