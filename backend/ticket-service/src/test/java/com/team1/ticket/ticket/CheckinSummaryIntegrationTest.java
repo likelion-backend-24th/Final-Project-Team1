@@ -1,10 +1,13 @@
 package com.team1.ticket.ticket;
 
+import com.team1.ticket.client.ExpoSummary;
 import com.team1.ticket.support.IntegrationTestSupport;
 import com.team1.ticket.ticket.dto.CheckinSummaryItem;
 import com.team1.ticket.ticket.entity.Ticket;
 import com.team1.ticket.ticket.repository.TicketRepository;
+import com.team1.ticket.ticket.service.TicketCheckinService;
 import com.team1.ticket.ticket.service.TicketService;
+import com.team1.security.AuthenticatedUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +17,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 // #121 체크인 집계 @Query 를 실제 MySQL 로 검증. (Mock 단위테스트로는 JPQL 이 검증되지 않는다.)
 class CheckinSummaryIntegrationTest extends IntegrationTestSupport {
@@ -26,6 +30,9 @@ class CheckinSummaryIntegrationTest extends IntegrationTestSupport {
 
     @Autowired
     private TicketService ticketService;
+
+    @Autowired
+    private TicketCheckinService checkinService;
 
     @BeforeEach
     void clean() {
@@ -62,6 +69,23 @@ class CheckinSummaryIntegrationTest extends IntegrationTestSupport {
         assertThat(summary).containsExactlyInAnyOrder(
                 new CheckinSummaryItem(45L, 5),   // 3 + 2, ISSUED 9 는 미포함
                 new CheckinSummaryItem(46L, 1));   // 47(취소)·99(타 박람회)는 없음
+    }
+
+    @Test
+    @DisplayName("집계: 체크인을 되돌리면 그 인원이 집계에서 빠진다 (S7-4)")
+    void undoneCheckinLeavesAggregate() {
+        // 집계는 별도 카운터가 아니라 status=USED 실시간 합이라, 상태만 되돌리면 자동으로 빠진다.
+        when(expoClient.getExpo(EXPO_ID)).thenReturn(new ExpoSummary(EXPO_ID, 7L, "PUBLISHED"));
+        ticketRepository.save(used(1L, 45L, 3, "u45a"));
+        Ticket undone = ticketRepository.save(used(2L, 45L, 2, "u45b"));
+        AuthenticatedUser owner = new AuthenticatedUser(7L, "ORGANIZER");
+
+        checkinService.cancelCheckin(undone.getId(), owner);
+        // 두 번 눌러도 한 번만 줄어든다(멱등).
+        checkinService.cancelCheckin(undone.getId(), owner);
+
+        assertThat(ticketService.getCheckinSummary(EXPO_ID))
+                .containsExactly(new CheckinSummaryItem(45L, 3));
     }
 
     @Test

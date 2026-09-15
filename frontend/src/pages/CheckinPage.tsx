@@ -36,6 +36,7 @@ export default function CheckinPage() {
   const [error, setError] = useState<string | null>(null)
   const [verifying, setVerifying] = useState(false)
   const [checkingIn, setCheckingIn] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,6 +66,21 @@ export default function CheckinPage() {
       setError(errorMessage(e, '체크인에 실패했습니다. 잠시 후 다시 시도해주세요.'))
     } finally {
       setCheckingIn(false)
+    }
+  }
+
+  const handleCancelCheckin = async () => {
+    if (!ticket) return
+    setError(null)
+    setCancelling(true)
+    try {
+      const res = await ticketApi.cancelCheckin(ticket.ticketId)
+      setTicket(prev => prev && { ...prev, status: res.data.status, usedAt: res.data.checkedInAt })
+      toast('체크인을 되돌렸습니다', 'success')
+    } catch (e) {
+      setError(errorMessage(e, '체크인 취소에 실패했습니다. 잠시 후 다시 시도해주세요.'))
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -127,6 +143,12 @@ export default function CheckinPage() {
           {ticket.status !== 'USED' && (
             <button className="btn btn-primary btn-block" onClick={handleCheckin} disabled={checkingIn}>
               {checkingIn ? '처리 중...' : '체크인 확정'}
+            </button>
+          )}
+
+          {ticket.status === 'USED' && (
+            <button className="btn btn-secondary btn-block" onClick={handleCancelCheckin} disabled={cancelling}>
+              {cancelling ? '처리 중...' : '체크인 취소'}
             </button>
           )}
         </div>
