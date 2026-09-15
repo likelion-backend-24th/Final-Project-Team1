@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { expoApi } from '../api/expo'
 import { useToast } from '../components/Toast'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const CATEGORIES = ['IT·전자', '식품·음료', '패션·뷰티', '교육·취업', '문화·예술', '기타']
 
 export default function ExpoManagePage() {
+  usePageTitle('박람회 등록')
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const channelId = Number(params.get('channelId'))

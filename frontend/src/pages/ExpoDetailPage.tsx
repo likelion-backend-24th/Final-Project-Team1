@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { expoApi } from '../api/expo'
 import { useAuth } from '../context/AuthContext'
 import ReservationModal from '../components/ReservationModal'
+import { usePageTitle } from '../hooks/usePageTitle'
 import type { Expo, Reservation, Round } from '../types'
 
 function fmtDate(dt: string) {
@@ -31,6 +32,7 @@ export default function ExpoDetailPage() {
   const [expoLoading, setExpoLoading] = useState(true)
   const [roundsError, setRoundsError] = useState(false)
   const [reservingRound, setReservingRound] = useState<Round | null>(null)
+  usePageTitle(expo?.title ?? '박람회 상세')
 
   // 회차는 별도 API 로 가져오지 않는다.
   // GET /expos/{id} 응답에 expo-service 가 reservation-service 의 내부 API 를
