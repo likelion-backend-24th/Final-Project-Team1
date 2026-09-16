@@ -90,6 +90,7 @@ export default function ExpoDetailPage() {
   const colors = THUMB_COLORS[expo.category] ?? ['#1A1A2E', '#374151']
 
   // 예약 가능한 회차만으로 대표 가격을 정한다. 마감·종료된 회차의 가격을 보여주면 오해를 준다.
+  // eslint-disable-next-line react-hooks/purity -- 시각 비교는 렌더 시점 스냅샷이면 충분하다(아래 회차 목록과 같은 기준).
   const now = Date.now()
   const openRounds = rounds.filter(r => r.remaining > 0 && new Date(r.endsAt).getTime() > now)
   const lowestFee = openRounds.length ? Math.min(...openRounds.map(r => r.fee)) : 0
