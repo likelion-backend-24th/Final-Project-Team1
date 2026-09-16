@@ -30,6 +30,11 @@ export default function RoundManagePage() {
   const [publishing, setPublishing] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [downloadingRoundId, setDownloadingRoundId] = useState<number | 'all' | null>(null)
+  // 수정 중인 회차. 등록 폼과 같은 모양이라 form 을 공유하지 않고 별도로 둔다.
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editForm, setEditForm] = useState({ startsAt: '', endsAt: '', capacity: 0, fee: 0 })
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState('')
 
   const tmrw = new Date()
   tmrw.setDate(tmrw.getDate() + 1)
@@ -100,6 +105,53 @@ export default function RoundManagePage() {
       else setAddError('회차 등록에 실패했습니다.')
     } finally {
       setAddLoading(false)
+    }
+  }
+
+  function startEdit(r: Round) {
+    setEditError('')
+    setEditingId(r.roundId)
+    // datetime-local 은 로컬 시각 문자열을 받는다. ISO(UTC) 를 그대로 넣으면 9시간 밀린다.
+    setEditForm({
+      startsAt: toLocal(new Date(r.startsAt)),
+      endsAt: toLocal(new Date(r.endsAt)),
+      capacity: r.capacity,
+      fee: r.fee ?? 0,
+    })
+  }
+
+  async function handleUpdateRound(e: React.FormEvent) {
+    e.preventDefault()
+    if (editingId === null) return
+    setEditError('')
+    if (editForm.capacity < 1) { setEditError('정원은 1명 이상이어야 합니다.'); return }
+    setEditLoading(true)
+    try {
+      const r = await roundApi.updateRound(id, editingId, {
+        startsAt: new Date(editForm.startsAt).toISOString(),
+        endsAt: new Date(editForm.endsAt).toISOString(),
+        capacity: editForm.capacity,
+        fee: editForm.fee,
+      })
+      setRounds(prev => prev.map(x => (x.roundId === editingId ? r.data : x)))
+      toast('회차가 수정되었습니다 ✓', 'success')
+      setEditingId(null)
+    } catch (err: unknown) {
+      const e = err as { status?: number; body?: { data?: { code?: string } } }
+      const code = e.body?.data?.code
+      if (code === 'ROUND_HAS_RESERVATIONS') {
+        setEditError('예약이 있는 회차는 수정할 수 없습니다. 예약이 모두 취소되면 다시 수정할 수 있습니다.')
+      } else if (code === 'ROUND_ALREADY_STARTED') {
+        setEditError('이미 시작한 회차는 수정할 수 없습니다.')
+      } else if (e.status === 400) {
+        setEditError('입력값을 확인해주세요. (시작은 미래, 종료 > 시작, 정원 1 이상)')
+      } else if (e.status === 403) {
+        setEditError('이 박람회의 주최자만 수정할 수 있습니다.')
+      } else {
+        setEditError('회차 수정에 실패했습니다.')
+      }
+    } finally {
+      setEditLoading(false)
     }
   }
 
@@ -273,6 +325,57 @@ export default function RoundManagePage() {
               <div>
                 {rounds.map(r => {
                   const s = summary[r.roundId]
+                  // 예약이 한 건이라도 있거나 이미 시작했으면 서버가 409 로 거절한다. 버튼도 미리 막는다.
+                  const hasReservation = r.remaining < r.capacity
+                  // eslint-disable-next-line react-hooks/purity -- 시각 비교는 렌더 시점 스냅샷이면 충분하다.
+                  const started = new Date(r.startsAt).getTime() <= Date.now()
+                  const locked = hasReservation || started
+
+                  if (editingId === r.roundId) {
+                    return (
+                      <form key={r.roundId} className="round-card" onSubmit={handleUpdateRound}
+                            style={{ display: 'block', padding: 16 }}>
+                        {editError && <div className="alert alert-danger" style={{ marginBottom: 12 }}>{editError}</div>}
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label className="form-label">시작</label>
+                            <input className="form-input" type="datetime-local" value={editForm.startsAt}
+                                   onChange={e => setEditForm(p => ({ ...p, startsAt: e.target.value }))} required />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">종료</label>
+                            <input className="form-input" type="datetime-local" value={editForm.endsAt}
+                                   onChange={e => setEditForm(p => ({ ...p, endsAt: e.target.value }))} required />
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label className="form-label">정원</label>
+                            <input className="form-input" type="number" min={1} value={editForm.capacity}
+                                   onChange={e => setEditForm(p => ({ ...p, capacity: Number(e.target.value) }))} required />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">참가비(원)</label>
+                            <input className="form-input" type="number" min={0} value={editForm.fee}
+                                   onChange={e => setEditForm(p => ({ ...p, fee: Number(e.target.value) }))} required />
+                          </div>
+                        </div>
+                        <p className="form-hint" style={{ marginBottom: 12 }}>
+                          참가비를 바꿔도 이미 만들어진 예약의 결제 금액은 변하지 않습니다. 금액은 신청 시점에 고정됩니다.
+                        </p>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button className="btn btn-primary btn-sm" type="submit" disabled={editLoading}>
+                            {editLoading ? '저장 중...' : '저장'}
+                          </button>
+                          <button className="btn btn-secondary btn-sm" type="button"
+                                  onClick={() => setEditingId(null)} disabled={editLoading}>
+                            취소
+                          </button>
+                        </div>
+                      </form>
+                    )
+                  }
+
                   return (
                     <div key={r.roundId} className="round-card">
                       <div style={{ flex: 1 }}>
@@ -292,12 +395,20 @@ export default function RoundManagePage() {
                       </div>
                       <button
                         className="btn btn-secondary btn-sm"
+                        onClick={() => startEdit(r)}
+                        disabled={locked}
+                        title={started ? '이미 시작한 회차는 수정할 수 없습니다'
+                          : hasReservation ? '예약이 있는 회차는 수정할 수 없습니다' : undefined}
+                      >
+                        수정
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-sm"
                         onClick={() => handleDownload(r.roundId)}
                         disabled={downloadingRoundId !== null}
                       >
                         {downloadingRoundId === r.roundId ? '다운로드 중...' : '명단 다운로드'}
                       </button>
-                      {/* 회차 삭제는 Sprint 2 (예약 존재 시 정책 미확정) */}
                     </div>
                   )
                 })}

@@ -24,7 +24,20 @@ export const roundApi = {
       fee?: number
     }
   ) => api.post<ApiResponse<Round>>(`/expos/${expoId}/rounds`, data),
-}
 
-// 회차 삭제(DELETE /expos/{expoId}/rounds/{roundId}) 는 Sprint 1 범위가 아니다.
-// 예약이 걸린 회차의 삭제 정책이 정해져야 하므로 Sprint 2 에서 추가한다.
+  /**
+   * PATCH /api/v1/expos/{expoId}/rounds/{roundId}
+   * 네 값을 모두 보낸다 - 서버가 조건부 UPDATE 로 통째로 덮어쓴다.
+   * 활성 예약이 0건이고 아직 시작하지 않은 회차만 바꿀 수 있다(그 외 409).
+   */
+  updateRound: (
+    expoId: number,
+    roundId: number,
+    data: {
+      startsAt: string // ISO-8601 UTC
+      endsAt: string
+      capacity: number
+      fee: number
+    }
+  ) => api.patch<ApiResponse<Round>>(`/expos/${expoId}/rounds/${roundId}`, data),
+}

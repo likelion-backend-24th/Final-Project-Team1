@@ -5,6 +5,7 @@ import com.team1.reservation.client.ExpoSummary;
 import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.round.dto.CreateRoundRequest;
+import com.team1.reservation.round.dto.UpdateRoundRequest;
 import com.team1.reservation.round.entity.Round;
 import com.team1.reservation.round.repository.RoundRepository;
 import com.team1.security.AuthenticatedUser;
@@ -57,6 +58,43 @@ public class RoundService {
         requireOwnership(expoId, user);
 
         return rounds.findByExpoIdOrderByStartsAtAsc(expoId);
+    }
+
+    /**
+     * 회차 일정·정원·참가비 수정(S9-2). 활성 예약이 한 건이라도 있으면 거절한다.
+     *
+     * <p>참가비를 바꿔도 이미 만들어진 예약의 결제 금액은 변하지 않는다 -
+     * reservations.amount 는 신청 시점에 고정된 값이다. 애초에 활성 예약이 0건일 때만
+     * 수정되므로 영향받을 예약도 없다.
+     */
+    @Transactional
+    public Round update(Long expoId, Long roundId, AuthenticatedUser user, UpdateRoundRequest request) {
+        requireOwnership(expoId, user);
+
+        Round round = rounds.findById(roundId)
+                .filter(r -> Objects.equals(r.getExpoId(), expoId))
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "round not found: " + roundId));
+
+        Instant now = clock.instant();
+        // 이미 시작한 회차는 손대지 않는다. 입장이 진행 중인데 시각·정원이 바뀌면 현장과 어긋난다.
+        if (!round.getStartsAt().isAfter(now)) {
+            throw new ApiException(ErrorCode.ROUND_ALREADY_STARTED,
+                    "round has already started: " + roundId);
+        }
+
+        Round.validate(request.startsAt(), request.endsAt(), request.capacity(), request.fee(), now);
+
+        // 읽고 판단하면 그 사이에 들어온 예약을 놓친다. 조건을 UPDATE 안에 둔다.
+        int updated = rounds.updateIfNoReservation(roundId, request.startsAt(), request.endsAt(),
+                request.capacity(), request.fee());
+        if (updated == 0) {
+            throw new ApiException(ErrorCode.ROUND_HAS_RESERVATIONS,
+                    "round has active reservations: " + roundId);
+        }
+
+        // clearAutomatically 로 영속성 컨텍스트가 비워졌다. 갱신된 값을 다시 읽는다.
+        return rounds.findById(roundId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "round not found: " + roundId));
     }
 
     // Ticket-Service 의 체크인 시간창 검증이 쓴다(계약 3-4).
