@@ -34,4 +34,46 @@ class InternalApiTest extends ApiTestSupport {
                                 """))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void behaviorEvent_예약확정_성공() throws Exception {
+        mockMvc.perform(post("/internal/v1/recommendations/events")
+                        .header("Authorization", "Bearer " + INTERNAL_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "userId": 42,
+                                  "expoId": 1,
+                                  "eventType": "RESERVATION_CONFIRMED"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void behaviorEvent_체크인_성공() throws Exception {
+        mockMvc.perform(post("/internal/v1/recommendations/events")
+                        .header("Authorization", "Bearer " + INTERNAL_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "userId": 42,
+                                  "expoId": 1,
+                                  "eventType": "CHECKED_IN"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void behaviorEvent_토큰없으면_401() throws Exception {
+        mockMvc.perform(post("/internal/v1/recommendations/events")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"userId": 1, "expoId": 1, "eventType": "CHECKED_IN"}
+                                """))
+                .andExpect(status().isUnauthorized());
+    }
 }
