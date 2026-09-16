@@ -51,4 +51,24 @@ public class RestClientExpoClient implements ExpoClient {
             throw new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "expo-service unavailable");
         }
     }
+
+    /**
+     * 실패를 삼키지 않는다. 비공개에 실패했는데 삭제를 진행하면
+     * "회차 0개인 PUBLISHED 박람회" 가 남는다 - #24 가 막으려던 바로 그 상태다.
+     */
+    @Override
+    public void unpublish(Long expoId) {
+        try {
+            restClient.patch()
+                    .uri("/internal/v1/expos/{expoId}/unpublish", expoId)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + internalToken)
+                    .header(TraceId.HEADER, TraceId.get())
+                    .retrieve()
+                    .toBodilessEntity();
+
+        } catch (Exception e) {
+            log.warn("unpublishExpoInternal failed expoId={} traceId={}", expoId, TraceId.get(), e);
+            throw new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "expo-service unavailable");
+        }
+    }
 }

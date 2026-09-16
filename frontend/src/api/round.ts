@@ -40,4 +40,11 @@ export const roundApi = {
       fee: number
     }
   ) => api.patch<ApiResponse<Round>>(`/expos/${expoId}/rounds/${roundId}`, data),
+
+  /**
+   * DELETE /api/v1/expos/{expoId}/rounds/{roundId} — 소프트 삭제. 204.
+   * 마지막 살아있는 회차면 서버가 박람회를 먼저 비공개로 바꾼 뒤 지운다.
+   */
+  deleteRound: (expoId: number, roundId: number) =>
+    api.delete<void>(`/expos/${expoId}/rounds/${roundId}`),
 }

@@ -117,7 +117,7 @@ class RoundServiceTest {
     @DisplayName("HIDDEN 상태 박람회의 회차도 소유 주최자에게는 반환한다")
     void listsRoundsOfHiddenExpoForOwner() {
         when(expoClient.getExpo(1L)).thenReturn(new ExpoSummary(1L, OWNER.userId(), "HIDDEN"));
-        when(rounds.findByExpoIdOrderByStartsAtAsc(1L))
+        when(rounds.findByExpoIdAndDeletedAtIsNullOrderByStartsAtAsc(1L))
                 .thenReturn(java.util.List.of(Round.create(1L, STARTS, ENDS, 50, 0, NOW)));
 
         assertThat(service.listForOrganizer(1L, OWNER)).hasSize(1);

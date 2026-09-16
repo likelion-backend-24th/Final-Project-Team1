@@ -21,6 +21,23 @@ public class ExpoPublicationService {
     private final RoundClient roundClient;
 
     /**
+     * 회차가 없어진 박람회의 자동 비공개(S9-3, 계약 2-3). 예약-Service 가 내부 호출로 트리거한다.
+     *
+     * <p>소유권을 확인하지 않는다 - 사람이 아니라 Service 가 부르는 경로이고,
+     * {@code InternalTokenFilter} 가 이미 호출자를 가른다.
+     *
+     * <p>멱등이다. HIDDEN·CLOSED 는 그대로 두고 현재 상태를 돌려준다.
+     */
+    @Transactional
+    public ExpoPublicationResponse unpublish(Long expoId) {
+        Expo expo = expoRepository.findById(expoId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+
+        expo.unpublish();
+        return ExpoPublicationResponse.from(expo);
+    }
+
+    /**
      * 박람회 공개 전환. 채널 소유자만 가능하며 상태별로 다음과 같이 처리한다.
      * - HIDDEN  : 회차가 하나라도 있으면 PUBLISHED로 전이, 없으면 400(상태는 HIDDEN 유지)
      * - PUBLISHED: 상태를 바꾸지 않고 멱등 200

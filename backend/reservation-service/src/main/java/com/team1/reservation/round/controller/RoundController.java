@@ -12,6 +12,7 @@ import com.team1.security.AuthContext;
 import com.team1.security.AuthenticatedUser;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -61,6 +62,14 @@ public class RoundController {
                                              @Valid @RequestBody UpdateRoundRequest request) {
         return ApiResponse.ok(RoundResponse.from(
                 roundService.update(expoId, roundId, currentUser(), request)));
+    }
+
+
+    // 회차 삭제(소프트). 마지막 살아있는 회차면 박람회가 먼저 비공개로 전환된다.
+    @DeleteMapping("/{roundId}")
+    public ResponseEntity<Void> delete(@PathVariable Long expoId, @PathVariable Long roundId) {
+        roundService.delete(expoId, roundId, currentUser());
+        return ResponseEntity.noContent().build();
     }
 
 

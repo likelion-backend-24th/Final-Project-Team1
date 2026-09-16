@@ -138,6 +138,18 @@ public class Expo {
         this.updatedAt = LocalDateTime.now(Clock.systemUTC());
     }
 
+    /**
+     * 자동 비공개(S9-3). 마지막 회차가 삭제되면 예약-Service 가 이 경로를 트리거한다.
+     * PUBLISHED 가 아니면 아무 일도 하지 않는다 - 재시도해도 상태·이력이 중복 변경되지 않아야 한다.
+     */
+    public void unpublish() {
+        if (this.status != ExpoStatus.PUBLISHED) {
+            return;
+        }
+        this.status = ExpoStatus.HIDDEN;
+        this.updatedAt = LocalDateTime.now(Clock.systemUTC());
+    }
+
     public void close() {
         if (this.status != ExpoStatus.PUBLISHED) {
             return;

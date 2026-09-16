@@ -24,6 +24,9 @@ public class RoundService {
 
     static final String ROLE_ORGANIZER = "ORGANIZER";
 
+    /** 자동 비공개 대상 판정에 쓴다. expo-Service 의 ExpoStatus.PUBLISHED 와 같은 문자열이다. */
+    private static final String EXPO_PUBLISHED = "PUBLISHED";
+
 
     public static final int MAX_FINISHED_EXPO_LIMIT = 1000;
 
@@ -57,7 +60,7 @@ public class RoundService {
     public List<Round> listForOrganizer(Long expoId, AuthenticatedUser user) {
         requireOwnership(expoId, user);
 
-        return rounds.findByExpoIdOrderByStartsAtAsc(expoId);
+        return rounds.findByExpoIdAndDeletedAtIsNullOrderByStartsAtAsc(expoId);
     }
 
     /**
@@ -97,6 +100,42 @@ public class RoundService {
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "round not found: " + roundId));
     }
 
+    /**
+     * 회차 삭제(S9-3). 소프트 삭제이며 활성 예약이 0건이고 아직 시작하지 않은 회차만 지운다.
+     *
+     * <p><b>마지막 살아있는 회차라면 박람회를 먼저 비공개로 바꾼 뒤 지운다.</b>
+     * rounds 와 expos.status 는 다른 Service 소유이고 HTTP 에는 원자성이 없다. 중간에 실패할 때
+     * 남는 상태가 덜 나쁜 쪽을 고른 것이다 - 삭제가 먼저면 "회차 0개인 PUBLISHED 박람회" 가 되고,
+     * 비공개가 먼저면 "회차는 있는데 비공개" 라 주최자가 다시 공개하면 끝난다.
+     */
+    @Transactional
+    public void delete(Long expoId, Long roundId, AuthenticatedUser user) {
+        ExpoSummary expo = requireOwnership(expoId, user);
+
+        Round round = rounds.findById(roundId)
+                .filter(r -> Objects.equals(r.getExpoId(), expoId))
+                .filter(r -> !r.isDeleted())
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "round not found: " + roundId));
+
+        Instant now = clock.instant();
+        if (!round.getStartsAt().isAfter(now)) {
+            throw new ApiException(ErrorCode.ROUND_ALREADY_STARTED,
+                    "round has already started: " + roundId);
+        }
+
+        // 지금 지우는 것이 마지막 살아있는 회차이고 공개 중이면, 비공개가 먼저다.
+        // 실패하면 예외가 올라가 삭제 자체가 일어나지 않는다(fail-closed).
+        if (EXPO_PUBLISHED.equals(expo.status())
+                && rounds.countByExpoIdAndDeletedAtIsNull(expoId) == 1) {
+            expoClient.unpublish(expoId);
+        }
+
+        if (rounds.softDeleteIfNoReservation(roundId, now) == 0) {
+            throw new ApiException(ErrorCode.ROUND_HAS_RESERVATIONS,
+                    "round has active reservations: " + roundId);
+        }
+    }
+
     // Ticket-Service 의 체크인 시간창 검증이 쓴다(계약 3-4).
     // 삭제 여부로 거르지 않는다 - 이미 발급된 티켓의 회차 시각을 확인하는 용도다.
     @Transactional(readOnly = true)
@@ -107,12 +146,12 @@ public class RoundService {
 
     @Transactional(readOnly = true)
     public List<Round> listByExpo(Long expoId) {
-        return rounds.findByExpoIdOrderByStartsAtAsc(expoId);
+        return rounds.findByExpoIdAndDeletedAtIsNullOrderByStartsAtAsc(expoId);
     }
 
     @Transactional(readOnly = true)
     public boolean existsByExpo(Long expoId) {
-        return rounds.existsByExpoId(expoId);
+        return rounds.existsByExpoIdAndDeletedAtIsNull(expoId);
     }
 
     @Transactional(readOnly = true)
@@ -122,7 +161,8 @@ public class RoundService {
     }
 
 
-    private void requireOwnership(Long expoId, AuthenticatedUser user) {
+    /** 조회한 박람회를 그대로 돌려준다 - 삭제 경로가 status 를 다시 묻지 않게 한다. */
+    private ExpoSummary requireOwnership(Long expoId, AuthenticatedUser user) {
         if (user == null) {
             throw new ApiException(ErrorCode.UNAUTHENTICATED);
         }
@@ -134,5 +174,6 @@ public class RoundService {
         if (!Objects.equals(expo.channelOwnerId(), user.userId())) {
             throw new ApiException(ErrorCode.FORBIDDEN, "not the owner of expo " + expoId);
         }
+        return expo;
     }
 }

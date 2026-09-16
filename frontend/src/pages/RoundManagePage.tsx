@@ -35,6 +35,7 @@ export default function RoundManagePage() {
   const [editForm, setEditForm] = useState({ startsAt: '', endsAt: '', capacity: 0, fee: 0 })
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState('')
+  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const tmrw = new Date()
   tmrw.setDate(tmrw.getDate() + 1)
@@ -152,6 +153,42 @@ export default function RoundManagePage() {
       }
     } finally {
       setEditLoading(false)
+    }
+  }
+
+  async function handleDeleteRound(r: Round) {
+    // 마지막 살아있는 회차를 지우면 회차가 없는 공개 박람회가 되므로 서버가 먼저 비공개로 바꾼다.
+    // 목록과 상태를 이미 들고 있어 별도 조회 없이 미리 알릴 수 있다.
+    const isLast = rounds.length === 1
+    const warning = isLast && isPublished
+      ? '현재 회차를 삭제하면 회차가 남지 않아 박람회가 비공개로 전환됩니다. 계속하시겠습니까?'
+      : '이 회차를 삭제하시겠습니까?'
+    if (!confirm(warning)) return
+
+    setDeletingId(r.roundId)
+    try {
+      await roundApi.deleteRound(id, r.roundId)
+      setRounds(prev => prev.filter(x => x.roundId !== r.roundId))
+      if (isLast && isPublished) {
+        setExpo(prev => (prev ? { ...prev, status: 'HIDDEN' } : prev))
+        toast('회차가 삭제되어 박람회가 비공개로 전환되었습니다', 'success')
+      } else {
+        toast('회차가 삭제되었습니다', 'success')
+      }
+    } catch (err: unknown) {
+      const e = err as { status?: number; body?: { data?: { code?: string } } }
+      const code = e.body?.data?.code
+      if (code === 'ROUND_HAS_RESERVATIONS') {
+        toast('예약이 있는 회차는 삭제할 수 없습니다. 예약이 모두 취소되면 다시 삭제할 수 있습니다', 'error')
+      } else if (code === 'ROUND_ALREADY_STARTED') {
+        toast('이미 시작한 회차는 삭제할 수 없습니다', 'error')
+      } else if (e.status === 503) {
+        toast('박람회 비공개 전환에 실패해 삭제하지 않았습니다. 잠시 후 다시 시도해주세요', 'error')
+      } else {
+        toast('회차 삭제에 실패했습니다', 'error')
+      }
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -408,6 +445,15 @@ export default function RoundManagePage() {
                         disabled={downloadingRoundId !== null}
                       >
                         {downloadingRoundId === r.roundId ? '다운로드 중...' : '명단 다운로드'}
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleDeleteRound(r)}
+                        disabled={locked || deletingId !== null}
+                        title={started ? '이미 시작한 회차는 삭제할 수 없습니다'
+                          : hasReservation ? '예약이 있는 회차는 삭제할 수 없습니다' : undefined}
+                      >
+                        {deletingId === r.roundId ? '삭제 중...' : '삭제'}
                       </button>
                     </div>
                   )

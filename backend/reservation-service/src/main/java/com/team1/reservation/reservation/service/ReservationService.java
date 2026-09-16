@@ -71,6 +71,9 @@ public class ReservationService {
 
         Instant now = clock.instant();
         Round round = rounds.findById(roundId)
+                // 삭제된 회차는 없는 것으로 본다. reserve() 의 조건이 마지막 방어선이지만,
+                // 여기서 걸러야 사용자가 "정원 초과" 가 아니라 "없는 회차" 를 본다.
+                .filter(r -> !r.isDeleted())
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "round not found: " + roundId));
 
         // 예약은 회차가 시작하기 전까지만 받는다. 시작한 뒤에는 입장 인원이 이미 확정돼 있어야 하고,
