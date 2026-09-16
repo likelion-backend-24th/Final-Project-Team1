@@ -13,6 +13,22 @@ function fmtDate(dt: string) {
 function fmtTime(dt: string) {
   return new Date(dt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
 }
+function fmtMonthDay(dt: string) {
+  return new Date(dt).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
+}
+/**
+ * 회차 시간 범위. 날짜가 시작 기준으로만 찍혀 있어서, 다음 날 끝나는 회차의 종료일이 화면에서 사라졌다.
+ * 끝나는 날이 다르면 종료 쪽에 날짜를 붙인다.
+ */
+function fmtRange(startsAt: string, endsAt: string) {
+  const sameDay = new Date(startsAt).toDateString() === new Date(endsAt).toDateString()
+  return sameDay
+    ? `${fmtTime(startsAt)} – ${fmtTime(endsAt)}`
+    : `${fmtTime(startsAt)} – ${fmtMonthDay(endsAt)} ${fmtTime(endsAt)}`
+}
+
+/** 환불 창. 서버의 reservation.cancellation.refund-window(1d) 와 같은 값이어야 한다. */
+const REFUND_WINDOW_MS = 24 * 60 * 60 * 1000
 
 const THUMB_COLORS: Record<string, [string, string]> = {
   'IT·전자': ['#1E3A5F', '#1D4ED8'],
@@ -92,7 +108,7 @@ export default function ExpoDetailPage() {
   // 예약 가능한 회차만으로 대표 가격을 정한다. 마감·종료된 회차의 가격을 보여주면 오해를 준다.
   // eslint-disable-next-line react-hooks/purity -- 시각 비교는 렌더 시점 스냅샷이면 충분하다(아래 회차 목록과 같은 기준).
   const now = Date.now()
-  const openRounds = rounds.filter(r => r.remaining > 0 && new Date(r.endsAt).getTime() > now)
+  const openRounds = rounds.filter(r => r.remaining > 0 && new Date(r.startsAt).getTime() > now)
   const lowestFee = openRounds.length ? Math.min(...openRounds.map(r => r.fee)) : 0
   const isLongDesc = (expo.description?.length ?? 0) > 300
   const hasDetailImages = (expo.detailImageUrls?.length ?? 0) > 0
@@ -245,7 +261,7 @@ export default function ExpoDetailPage() {
               )}
               <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>회차 정보</h2>
               <p style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 20 }}>
-                잔여 정원이 있는 회차에 예약할 수 있습니다.
+                예약은 회차가 시작하기 전까지 받습니다. 환불은 시작 24시간 전까지 취소한 경우에만 됩니다.
               </p>
 
               {roundsError ? (
@@ -260,9 +276,15 @@ export default function ExpoDetailPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {rounds.map(r => {
                     // eslint-disable-next-line react-hooks/purity -- 시각 비교는 렌더 시점 스냅샷이면 충분하다(폴링·실시간 갱신 불필요).
-                    const isEnded = new Date(r.endsAt).getTime() <= Date.now()
+                    const nowMs = Date.now()
+                    const startMs = new Date(r.startsAt).getTime()
+                    const isEnded = new Date(r.endsAt).getTime() <= nowMs
+                    // 예약은 회차 시작 전까지만. 진행 중인 회차는 "마감" 이지 "종료" 가 아니다.
+                    const isStarted = startMs <= nowMs
                     const isFull = r.remaining === 0
-                    const isClosed = isEnded || isFull
+                    const isClosed = isStarted || isFull
+                    // 환불은 시작 24시간 전까지 취소한 경우에만 된다(서버 refund-window 와 같은 값).
+                    const noRefund = r.fee > 0 && startMs - nowMs < REFUND_WINDOW_MS
                     const pct = Math.round((r.remaining / r.capacity) * 100)
                     return (
                       <div
@@ -279,7 +301,7 @@ export default function ExpoDetailPage() {
                           {fmtDate(r.startsAt)}
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 10 }}>
-                          {fmtTime(r.startsAt)} – {fmtTime(r.endsAt)}
+                          {fmtRange(r.startsAt, r.endsAt)}
                         </div>
 
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>
@@ -300,10 +322,16 @@ export default function ExpoDetailPage() {
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
                             <span style={{ fontSize: 11, color: 'var(--sub)' }}>정원 {r.capacity}명</span>
                             <span style={{ fontSize: 11, fontWeight: 700, color: isClosed ? 'var(--sub)' : 'var(--teal)' }}>
-                              {isEnded ? '종료' : isFull ? '마감' : `잔여 ${r.remaining}명`}
+                              {isEnded ? '종료' : isStarted ? '예약 마감' : isFull ? '정원 마감' : `잔여 ${r.remaining}명`}
                             </span>
                           </div>
                         </div>
+
+                        {!isClosed && noRefund && (
+                          <p style={{ fontSize: 11, color: 'var(--yellow)', marginBottom: 8 }}>
+                            ⚠ 시작이 24시간 안으로 남아 환불되지 않는 회차입니다
+                          </p>
+                        )}
 
                         {isRole('USER') && (
                           <button
@@ -311,7 +339,7 @@ export default function ExpoDetailPage() {
                             disabled={isClosed}
                             onClick={() => setReservingRound(r)}
                           >
-                            {isEnded ? '종료된 회차' : isFull ? '마감된 회차' : '예약하기'}
+                            {isEnded ? '종료된 회차' : isStarted ? '예약이 마감된 회차' : isFull ? '정원이 찬 회차' : '예약하기'}
                           </button>
                         )}
                         {!isRole('USER') && !isRole('ORGANIZER') && !isRole('SUPER_ADMIN') && (

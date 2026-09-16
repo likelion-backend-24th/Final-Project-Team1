@@ -12,9 +12,19 @@ interface Props {
   onReleased: (reservation: Reservation) => void
 }
 
+/** 환불 창. 서버의 reservation.cancellation.refund-window(1d) 와 같은 값이어야 한다. */
+const REFUND_WINDOW_MS = 24 * 60 * 60 * 1000
+
+function fmtDeadline(dt: string) {
+  return new Date(dt).toLocaleString('ko-KR', {
+    month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
+
 const ERROR_MESSAGES: Record<string, string> = {
   CAPACITY_EXCEEDED: '잔여 정원을 초과했습니다. 인원을 줄여 다시 시도해주세요.',
   DUPLICATE_RESERVATION: '이미 이 회차에 예약이 있습니다.',
+  RESERVATION_CLOSED: '회차가 이미 시작되어 예약이 마감되었습니다.',
   NOT_FOUND: '회차 정보를 찾을 수 없습니다.',
   DEPENDENCY_UNAVAILABLE: '결제 확인이 지연되고 있습니다. 잠시 후 다시 시도해주세요.',
   UNAUTHENTICATED: '로그인이 필요합니다.',
@@ -52,6 +62,10 @@ export default function ReservationModal({ round, onClose, onSuccess, onReleased
   const [paid, setPaid] = useState(false)
 
   const isFree = round.fee === 0
+  // 시작 24시간 안으로 남았으면 취소는 되지만 돈은 돌아오지 않는다. 결제 전에 알려야 한다.
+  const refundDeadline = new Date(round.startsAt).getTime() - REFUND_WINDOW_MS
+  // eslint-disable-next-line react-hooks/purity -- 모달이 열린 시점의 스냅샷이면 충분하다.
+  const noRefund = !isFree && refundDeadline <= Date.now()
 
   const pay = async (reservation: Reservation) => {
     if (!reservation.paymentId) {
@@ -199,6 +213,22 @@ export default function ReservationModal({ round, onClose, onSuccess, onReleased
             <p className="modal-desc">
               {isFree ? '무료 회차입니다. 신청 즉시 예약이 확정됩니다.' : '신청 직후 결제가 진행됩니다.'}
             </p>
+
+            {noRefund ? (
+              <div className="alert alert-warning" style={{ marginBottom: 16, alignItems: 'flex-start' }}>
+                <span>⚠</span>
+                <span>
+                  <b>환불이 불가능한 회차입니다.</b><br />
+                  환불은 회차 시작 24시간 전까지 취소한 경우에만 됩니다. 이 회차의 환불 기한
+                  ({fmtDeadline(new Date(refundDeadline).toISOString())})은 이미 지났습니다.
+                  예약 취소는 회차 시작 직전까지 가능하지만 결제하신 금액은 돌려받을 수 없습니다.
+                </span>
+              </div>
+            ) : !isFree && (
+              <p className="form-hint" style={{ marginBottom: 16 }}>
+                환불은 {fmtDeadline(new Date(refundDeadline).toISOString())}까지 취소한 경우에만 됩니다.
+              </p>
+            )}
 
             {error && <div className="alert alert-danger">{error}</div>}
 

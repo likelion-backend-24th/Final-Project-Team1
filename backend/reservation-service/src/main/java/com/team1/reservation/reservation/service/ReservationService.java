@@ -73,9 +73,16 @@ public class ReservationService {
         Round round = rounds.findById(roundId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "round not found: " + roundId));
 
-        // 종료된 회차·마감된 박람회는 "없는 것" 으로 취급한다. 존재 여부를 흘리지 않기 위해 404 다.
-        if (!round.getEndsAt().isAfter(now)) {
-            throw new ApiException(ErrorCode.NOT_FOUND, "round has already ended: " + roundId);
+        // 예약은 회차가 시작하기 전까지만 받는다. 시작한 뒤에는 입장 인원이 이미 확정돼 있어야 하고,
+        // 진행 중인 행사를 온라인으로 신청하게 두면 현장 인원과 장부가 어긋난다.
+        if (!round.getStartsAt().isAfter(now)) {
+            // 이미 끝난 회차는 "없는 것" 으로 취급한다(기존 동작). 존재 여부를 흘리지 않기 위해 404 다.
+            if (!round.getEndsAt().isAfter(now)) {
+                throw new ApiException(ErrorCode.NOT_FOUND, "round has already ended: " + roundId);
+            }
+            // 진행 중인 회차는 화면에 보이므로 숨길 것이 없다. 마감됐다고 알려 준다.
+            throw new ApiException(ErrorCode.RESERVATION_CLOSED,
+                    "reservation closed, round already started: " + roundId);
         }
         ExpoSummary expo = expoClient.getExpo(round.getExpoId());
         if (!EXPO_OPEN_STATUS.equals(expo.status())) {
