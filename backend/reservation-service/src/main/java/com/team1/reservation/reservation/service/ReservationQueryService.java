@@ -49,7 +49,7 @@ public class ReservationQueryService {
                     .put(row.status(), row.headcount());
         }
 
-        List<Round> roundsOfExpo = rounds.findByExpoIdOrderByStartsAtAsc(expoId);
+        List<Round> roundsOfExpo = rounds.findByExpoIdAndDeletedAtIsNullOrderByStartsAtAsc(expoId);
 
         return roundsOfExpo.stream()
                 .map(round -> {

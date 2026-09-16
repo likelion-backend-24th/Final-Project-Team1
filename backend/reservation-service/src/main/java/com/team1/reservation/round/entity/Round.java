@@ -44,6 +44,11 @@ public class Round {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    // 소프트 삭제(S9-3). NULL 이면 살아있는 회차다.
+    // 예약에 FK 가 걸려 있어 하드 삭제가 불가능하고, 취소된 예약의 이력도 보존해야 한다.
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     protected Round() {
     }
 
@@ -79,6 +84,10 @@ public class Round {
         if (!endsAt.isAfter(startsAt)) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "endsAt must be after startsAt");
         }
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
     }
 
     /** 잔여 정원. 조건부 UPDATE 가 갱신한 reserved_count 를 그대로 반영한다. */

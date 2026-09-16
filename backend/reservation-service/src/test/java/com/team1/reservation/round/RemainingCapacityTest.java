@@ -59,10 +59,10 @@ class RemainingCapacityTest {
 
         Round first = round(10);
         Round second = round(20);
-        when(rounds.findByExpoIdOrderByStartsAtAsc(1L)).thenReturn(List.of(first, second));
+        when(rounds.findByExpoIdAndDeletedAtIsNullOrderByStartsAtAsc(1L)).thenReturn(List.of(first, second));
 
         assertThat(service.listByExpo(1L)).containsExactly(first, second);
-        verify(rounds).findByExpoIdOrderByStartsAtAsc(1L);
+        verify(rounds).findByExpoIdAndDeletedAtIsNullOrderByStartsAtAsc(1L);
     }
 
     @Test
@@ -72,7 +72,7 @@ class RemainingCapacityTest {
         RoundService service = new RoundService(
                 rounds, mock(ExpoClient.class), Clock.fixed(NOW, ZoneOffset.UTC));
 
-        when(rounds.findByExpoIdOrderByStartsAtAsc(99L)).thenReturn(List.of());
+        when(rounds.findByExpoIdAndDeletedAtIsNullOrderByStartsAtAsc(99L)).thenReturn(List.of());
 
         assertThat(service.listByExpo(99L)).isEmpty();
     }
