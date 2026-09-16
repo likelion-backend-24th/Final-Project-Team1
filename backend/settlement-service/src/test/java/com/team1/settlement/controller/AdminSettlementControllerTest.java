@@ -52,6 +52,20 @@ class AdminSettlementControllerTest {
     }
 
     @Test
+    @DisplayName("month 없이 year만 넘기면 연간 정산 데이터를 조회한다")
+    void superAdminCanViewYearlySettlement() throws Exception {
+        AuthContext.set(new AuthenticatedUser(1L, "SUPER_ADMIN"));
+        when(settlementService.getSettlement(2026, null)).thenReturn(
+                new AdminSettlementResponse(2026, null, 54000000, 1800000, 52200000, 5220000, 0.10));
+
+        mockMvc.perform(get("/api/v1/admin/settlement").param("year", "2026"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.month").doesNotExist())
+                .andExpect(jsonPath("$.totalRevenue").value(54000000))
+                .andExpect(jsonPath("$.platformFee").value(5220000));
+    }
+
+    @Test
     @DisplayName("로그인 안 했으면 401")
     void unauthenticatedIsRejected() throws Exception {
         mockMvc.perform(get("/api/v1/admin/settlement").param("year", "2026").param("month", "9"))

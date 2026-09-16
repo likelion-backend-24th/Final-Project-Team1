@@ -23,7 +23,7 @@ public class AdminSettlementController {
 
     @GetMapping("/settlement")
     public AdminSettlementResponse getSettlement(@RequestParam int year,
-                                                 @RequestParam int month) {
+                                                 @RequestParam(required = false) Integer month) {
 
         requireSuperAdmin();
 
