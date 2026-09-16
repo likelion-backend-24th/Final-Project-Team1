@@ -2,15 +2,20 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '../api/auth'
 import { settlementApi, type AdminSettlementResponse } from '../api/settlement'
+import { organizerAdminApi } from '../api/organizerAdmin'
+import type { OrganizerApplicationResponse } from '../api/organizerRequest'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import { usePageTitle } from '../hooks/usePageTitle'
+
+type AdminTab = 'settlement' | 'applications' | 'create'
 
 export default function AdminPage() {
   usePageTitle('전체 관리자')
   const { isRole } = useAuth()
   const navigate = useNavigate()
   const toast = useToast()
+  const [tab, setTab] = useState<AdminTab>('settlement')
 
   useEffect(() => {
     if (!isRole('SUPER_ADMIN')) {
@@ -19,14 +24,42 @@ export default function AdminPage() {
     }
   }, [])
 
+  const TABS: { key: AdminTab; label: string }[] = [
+    { key: 'settlement', label: '정산' },
+    { key: 'applications', label: '계정 관리' },
+    { key: 'create', label: '계정 발급' },
+  ]
+
   return (
     <div style={{ background: 'var(--bg)', minHeight: 'calc(100vh - 64px)' }}>
       <div className="container page-wrap">
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
-          <SettlementDashboard />
+          <div style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '2px solid var(--border)' }}>
+            {TABS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: 'transparent',
+                  fontSize: 14,
+                  fontWeight: tab === t.key ? 700 : 500,
+                  color: tab === t.key ? 'var(--primary)' : 'var(--sub)',
+                  borderBottom: `2px solid ${tab === t.key ? 'var(--primary)' : 'transparent'}`,
+                  marginBottom: -2,
+                  cursor: 'pointer',
+                  transition: '.15s',
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
 
-          {/* 주최자 신청(host-requests) 접수·승인은 Sprint 2 범위라 아직 API 가 없다. */}
-          <CreateOrganizer />
+          {tab === 'settlement' && <SettlementDashboard />}
+          {tab === 'applications' && <OrganizerApplicationsReview />}
+          {tab === 'create' && <CreateOrganizer />}
         </div>
       </div>
     </div>
@@ -187,6 +220,128 @@ function SettlementBarChart({ data }: { data: AdminSettlementResponse }) {
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+function OrganizerApplicationsReview() {
+  const toast = useToast()
+  const [applications, setApplications] = useState<OrganizerApplicationResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState<number | null>(null)
+  const [rejectingId, setRejectingId] = useState<number | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
+
+  function load() {
+    organizerAdminApi.listPending()
+      .then(res => setApplications(res.data))
+      .catch(() => toast('신청 목록을 불러오지 못했습니다', 'error'))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function handleApprove(id: number) {
+    setBusyId(id)
+    try {
+      await organizerAdminApi.approve(id)
+      toast('승인되었습니다 ✓', 'success')
+      load()
+    } catch {
+      toast('승인에 실패했습니다', 'error')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function handleReject(id: number) {
+    setBusyId(id)
+    try {
+      await organizerAdminApi.reject(id, rejectReason)
+      toast('거절되었습니다', 'success')
+      setRejectingId(null)
+      setRejectReason('')
+      load()
+    } catch {
+      toast('거절에 실패했습니다', 'error')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  return (
+    <div className="card" style={{ padding: 32 }}>
+      <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+        주최자 신청 관리
+      </h2>
+      <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 24 }}>
+        기존 회원이 셀프로 신청한 주최자 승격 요청입니다. 승인하면 즉시 ORGANIZER 권한이 부여됩니다.
+      </p>
+
+      {loading ? (
+        <p style={{ color: 'var(--sub)', textAlign: 'center', padding: '40px 0' }}>불러오는 중...</p>
+      ) : applications.length === 0 ? (
+        <div className="empty-state">
+          <p className="es-desc">대기 중인 신청이 없습니다.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {applications.map(a => (
+            <div key={a.id} className="card" style={{ padding: 16 }}>
+              <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 4 }}>
+                <strong>User #{a.userId}</strong>
+              </div>
+              <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 12 }}>{a.reason || '(신청 사유 없음)'}</p>
+
+              {rejectingId === a.id ? (
+                <div>
+                  <input
+                    className="form-input"
+                    style={{ marginBottom: 8 }}
+                    placeholder="거절 사유 (선택)"
+                    value={rejectReason}
+                    onChange={e => setRejectReason(e.target.value)}
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      disabled={busyId === a.id}
+                      onClick={() => handleReject(a.id)}
+                    >
+                      거절 확정
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => { setRejectingId(null); setRejectReason('') }}
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    disabled={busyId === a.id}
+                    onClick={() => handleApprove(a.id)}
+                  >
+                    승인
+                  </button>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    disabled={busyId === a.id}
+                    onClick={() => setRejectingId(a.id)}
+                  >
+                    거절
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
