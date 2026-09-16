@@ -58,6 +58,15 @@ public class Round {
 
 
     public static Round create(Long expoId, Instant startsAt, Instant endsAt, int capacity, int fee, Instant now) {
+        validate(startsAt, endsAt, capacity, fee, now);
+        return new Round(expoId, startsAt, endsAt, capacity, fee, now);
+    }
+
+    /**
+     * 등록과 수정이 공유하는 불변식. 수정은 조건부 UPDATE 로 나가 엔티티를 거치지 않으므로
+     * 검증을 여기 static 으로 둔다 - 두 경로가 다른 규칙을 쓰는 일이 없어야 한다.
+     */
+    public static void validate(Instant startsAt, Instant endsAt, int capacity, int fee, Instant now) {
         if (capacity < 1) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "capacity must be at least 1");
         }
@@ -70,7 +79,6 @@ public class Round {
         if (!endsAt.isAfter(startsAt)) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "endsAt must be after startsAt");
         }
-        return new Round(expoId, startsAt, endsAt, capacity, fee, now);
     }
 
     /** 잔여 정원. 조건부 UPDATE 가 갱신한 reserved_count 를 그대로 반영한다. */

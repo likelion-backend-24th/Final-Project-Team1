@@ -6,12 +6,14 @@ import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.round.service.RoundService;
 import com.team1.reservation.round.dto.CreateRoundRequest;
 import com.team1.reservation.round.dto.RoundResponse;
+import com.team1.reservation.round.dto.UpdateRoundRequest;
 import com.team1.reservation.round.entity.Round;
 import com.team1.security.AuthContext;
 import com.team1.security.AuthenticatedUser;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -49,6 +51,16 @@ public class RoundController {
                 .map(RoundResponse::from)
                 .toList();
         return ApiResponse.ok(body);
+    }
+
+
+    // 회차 수정. 활성 예약이 0건이고 아직 시작하지 않은 회차만 바꿀 수 있다.
+    @PatchMapping("/{roundId}")
+    public ApiResponse<RoundResponse> update(@PathVariable Long expoId,
+                                             @PathVariable Long roundId,
+                                             @Valid @RequestBody UpdateRoundRequest request) {
+        return ApiResponse.ok(RoundResponse.from(
+                roundService.update(expoId, roundId, currentUser(), request)));
     }
 
 
