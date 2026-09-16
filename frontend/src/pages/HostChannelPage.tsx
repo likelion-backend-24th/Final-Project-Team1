@@ -24,8 +24,9 @@ export default function HostChannelPage() {
 
   function loadExpos(channelId: number) {
     setLoadingEx(true)
-    expoApi.listPublished({ size: 100 })
-      .then(res => setExpos((res.data ?? []).filter(e => e.channelId === channelId)))
+    // 주최자 목록이라 HIDDEN·CLOSED 도 함께 온다. 공개 목록을 거르면 비공개가 통째로 빠진다.
+    expoApi.listMyExpos(channelId)
+      .then(res => setExpos(res.data ?? []))
       .catch(() => toast('박람회 목록을 불러오지 못했습니다', 'error'))
       .finally(() => setLoadingEx(false))
   }
@@ -162,10 +163,6 @@ export default function HostChannelPage() {
               </button>
             </div>
 
-            <div className="alert alert-warning" style={{ marginBottom: 16 }}>
-              ⚑ 공개(PUBLISHED)된 박람회만 표시됩니다. 비공개 박람회 목록 조회는 Sprint 2 범위입니다.
-            </div>
-
             {loadingEx ? (
               <p style={{ color: 'var(--sub)', padding: '40px 0' }}>불러오는 중...</p>
             ) : expos.length === 0 ? (
@@ -192,6 +189,7 @@ export default function HostChannelPage() {
                       hasActivePromo={promoId != null}
                       promoLoading={busy}
                       onManage={() => navigate(`/host/expos/${eid}/rounds`, { state: { expo } })}
+                      onEdit={() => navigate(`/host/expos/${eid}/edit`)}
                       onApplyPromo={() => handleApply(eid)}
                       onRefundPromo={() => handleRefund(eid, promoId)}
                     />
@@ -207,12 +205,13 @@ export default function HostChannelPage() {
 }
 
 function ExpoRow({
-  expo, hasActivePromo, promoLoading, onManage, onApplyPromo, onRefundPromo,
+  expo, hasActivePromo, promoLoading, onManage, onEdit, onApplyPromo, onRefundPromo,
 }: {
   expo: Expo
   hasActivePromo: boolean
   promoLoading: boolean
   onManage: () => void
+  onEdit: () => void
   onApplyPromo: () => void
   onRefundPromo: () => void
 }) {
@@ -273,6 +272,9 @@ function ExpoRow({
             {promoLoading ? '처리중...' : '⭐ VIP 배너 신청'}
           </button>
         )}
+        <button className="btn btn-secondary btn-sm" onClick={onEdit}>
+          정보 수정
+        </button>
         <button
           className="btn btn-secondary btn-sm"
           onClick={onManage}

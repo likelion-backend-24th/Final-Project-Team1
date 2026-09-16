@@ -10,7 +10,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 
-import java.time.Duration;
 import java.time.Instant;
 
 /**
@@ -122,18 +121,17 @@ public class TicketDispatch {
     }
 
 
-     //시도 실패를 기록하고 다음 시도 시각을 미룬다.
-
-    public void failed(String reason, int maxAttempts, Duration backoff, Instant now) {
+    // 시도 실패를 기록하고 다음 시도 시각을 미룬다. 상한·간격은 type 별 정책이 정한다.
+    public void failed(String reason, RetryPolicy policy, Instant now) {
         this.attempts++;
         this.lastError = truncate(reason);
         this.updatedAt = now;
 
-        if (attempts >= maxAttempts) {
+        if (attempts >= policy.maxAttempts()) {
             this.status = TicketDispatchStatus.GAVE_UP;
             return;
         }
-        this.nextAttemptAt = now.plus(backoff.multipliedBy(1L << (attempts - 1)));
+        this.nextAttemptAt = now.plus(policy.delayFor(attempts));
     }
 
     private static String truncate(String reason) {

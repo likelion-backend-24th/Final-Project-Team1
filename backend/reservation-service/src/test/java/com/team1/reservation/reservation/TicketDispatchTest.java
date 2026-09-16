@@ -24,6 +24,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -123,6 +124,57 @@ class TicketDispatchTest {
         // 포기한 뒤에는 아무리 불러도 나가지 않는다.
         dispatcher.dispatch(dispatch.getId());
         verify(ticketClient, times(TicketDispatchStub.MAX_ATTEMPTS)).issueTicket(any());
+    }
+
+    @Test
+    @DisplayName("무효화는 발급이 포기한 뒤에도 계속 시도한다 (S7-6)")
+    void revokeRetriesLongerThanIssue() {
+        // 발급 실패는 "티켓이 안 나옴", 무효화 실패는 "취소된 예약으로 입장 가능" 이다.
+        TicketDispatch issue = enqueued();
+        TicketDispatch revoke = enqueuedRevoke();
+        when(ticketClient.issueTicket(any())).thenThrow(new IllegalStateException("boom"));
+        doThrow(new IllegalStateException("boom")).when(ticketClient).revokeTicket(any());
+
+        for (int i = 0; i < TicketDispatchStub.MAX_ATTEMPTS; i++) {
+            dispatcher.dispatch(issue.getId());
+            dispatcher.dispatch(revoke.getId());
+        }
+
+        assertThat(issue.getStatus()).isEqualTo(TicketDispatchStatus.GAVE_UP);
+        assertThat(revoke.getStatus()).isEqualTo(TicketDispatchStatus.PENDING);
+    }
+
+    @Test
+    @DisplayName("무효화 백오프는 상한에서 멈춘다 - 간격이 배로 벌어지면 구멍이 그만큼 열려 있다")
+    void revokeBackoffStopsAtCeiling() {
+        TicketDispatch revoke = enqueuedRevoke();
+        doThrow(new IllegalStateException("boom")).when(ticketClient).revokeTicket(any());
+
+        // 1·2·4·8·16·32분까지는 두 배씩, 그 다음부터는 상한(1h) 고정
+        for (long expected : new long[]{1, 2, 4, 8, 16, 32, 60, 60}) {
+            dispatcher.dispatch(revoke.getId());
+            assertThat(revoke.getNextAttemptAt()).isEqualTo(NOW.plus(Duration.ofMinutes(expected)));
+        }
+    }
+
+    @Test
+    @DisplayName("포기한 무효화 건을 조회할 수 있다 - ERROR 로그는 아무도 보지 않는다")
+    void gaveUpRevokesAreQueryable() {
+        TicketDispatch revoke = enqueuedRevoke();
+        doThrow(new IllegalStateException("boom")).when(ticketClient).revokeTicket(any());
+        when(queue.findByStatusAndTypeOrderByUpdatedAtAsc(any(), any(), any()))
+                .thenReturn(List.of(revoke));
+
+        for (int i = 0; i < TicketDispatchStub.REVOKE_POLICY.maxAttempts(); i++) {
+            dispatcher.dispatch(revoke.getId());
+        }
+
+        assertThat(revoke.getStatus()).isEqualTo(TicketDispatchStatus.GAVE_UP);
+        TicketDispatchService service =
+                new TicketDispatchService(queue, dispatcher, Clock.fixed(NOW, ZoneOffset.UTC), 100);
+        assertThat(service.gaveUp(TicketDispatchType.REVOKE, 100))
+                .extracting(TicketDispatch::getReservationId)
+                .containsExactly(revoke.getReservationId());
     }
 
     @Test

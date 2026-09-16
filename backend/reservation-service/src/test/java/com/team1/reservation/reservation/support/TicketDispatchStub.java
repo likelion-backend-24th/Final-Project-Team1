@@ -2,6 +2,7 @@ package com.team1.reservation.reservation.support;
 
 import com.team1.reservation.client.TicketClient;
 import com.team1.reservation.config.AfterCommitExecutor;
+import com.team1.reservation.reservation.entity.RetryPolicy;
 import com.team1.reservation.reservation.entity.TicketDispatch;
 import com.team1.reservation.reservation.repository.TicketDispatchRepository;
 import com.team1.reservation.reservation.service.TicketDispatcher;
@@ -28,8 +29,13 @@ import static org.mockito.Mockito.when;
  */
 public final class TicketDispatchStub {
 
+    // application.yml 의 값과 같게 유지한다. 발급과 무효화는 상한이 다르다(S7-6).
     public static final int MAX_ATTEMPTS = 6;
     public static final Duration BACKOFF = Duration.ofMinutes(1);
+    public static final RetryPolicy ISSUE_POLICY =
+            new RetryPolicy(MAX_ATTEMPTS, BACKOFF, Duration.ofMinutes(16));
+    public static final RetryPolicy REVOKE_POLICY =
+            new RetryPolicy(12, BACKOFF, Duration.ofHours(1));
 
     private TicketDispatchStub() {
     }
@@ -42,7 +48,7 @@ public final class TicketDispatchStub {
 
     public static TicketDispatcher dispatcher(TicketDispatchRepository queue,
                                               TicketClient ticketClient, Clock clock) {
-        return new TicketDispatcher(queue, ticketClient, clock, MAX_ATTEMPTS, BACKOFF);
+        return new TicketDispatcher(queue, ticketClient, clock, ISSUE_POLICY, REVOKE_POLICY);
     }
 
     /** id 를 붙여 저장하고 다시 찾아 주는 최소한의 가짜 Repository. */

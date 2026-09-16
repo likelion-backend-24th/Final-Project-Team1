@@ -1,6 +1,8 @@
-import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { expoApi } from '../api/expo'
+import DetailImagesField from '../components/DetailImagesField'
+import ImageUploadField from '../components/ImageUploadField'
 import { useToast } from '../components/Toast'
 import { usePageTitle } from '../hooks/usePageTitle'
 
@@ -10,8 +12,13 @@ export default function ExpoManagePage() {
   usePageTitle('박람회 등록')
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const channelId = Number(params.get('channelId'))
+  const { expoId } = useParams<{ expoId: string }>()
   const toast = useToast()
+
+  // /host/expos/:expoId/edit 로 들어오면 수정, /host/expos/new?channelId= 면 등록.
+  const editingId = expoId ? Number(expoId) : null
+  const isEdit = editingId !== null
+  const [channelId, setChannelId] = useState(Number(params.get('channelId')) || 0)
 
   const [form, setForm] = useState({
     title: '',
@@ -19,9 +26,32 @@ export default function ExpoManagePage() {
     category: CATEGORIES[0],
     region: '',
     venue: '',
+    thumbnailUrl: '',
+    detailImageUrls: [] as string[],
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [loadingExpo, setLoadingExpo] = useState(isEdit)
+
+  useEffect(() => {
+    if (!isEdit) return
+    expoApi.getMyExpoById(editingId)
+      .then(res => {
+        const e = res.data
+        setChannelId(e.channelId)
+        setForm({
+          title: e.title ?? '',
+          description: e.description ?? '',
+          category: e.category ?? CATEGORIES[0],
+          region: e.region ?? '',
+          venue: e.venue ?? '',
+          thumbnailUrl: e.thumbnailUrl ?? '',
+          detailImageUrls: e.detailImageUrls ?? [],
+        })
+      })
+      .catch(() => setError('박람회 정보를 불러오지 못했습니다.'))
+      .finally(() => setLoadingExpo(false))
+  }, [editingId])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -29,14 +59,21 @@ export default function ExpoManagePage() {
     if (!channelId) { setError('채널을 먼저 생성해주세요.'); return }
     setLoading(true)
     try {
+      if (isEdit) {
+        await expoApi.updateExpo(channelId, editingId, form)
+        toast('박람회 정보가 수정되었습니다', 'success')
+        navigate(`/host/expos/${editingId}/rounds`)
+        return
+      }
       const res = await expoApi.createExpo(channelId, form)
       toast('박람회가 등록되었습니다 (HIDDEN)', 'success')
-      // HIDDEN 박람회는 GET /expos/{id} 로 다시 못 읽으므로(404) 등록 응답을 그대로 넘긴다.
       navigate(`/host/expos/${res.data.id}/rounds`, { state: { expo: res.data } })
     } catch (err: unknown) {
       const e = err as { status?: number }
-      if (e.status === 403) setError('해당 채널의 소유자만 등록할 수 있습니다.')
-      else setError('박람회 등록에 실패했습니다.')
+      if (e.status === 409) setError('종료된 박람회는 수정할 수 없습니다.')
+      else if (e.status === 404) setError('해당 채널의 박람회를 찾을 수 없습니다.')
+      else if (e.status === 403) setError('해당 채널의 소유자만 등록할 수 있습니다.')
+      else setError(isEdit ? '박람회 수정에 실패했습니다.' : '박람회 등록에 실패했습니다.')
     } finally {
       setLoading(false)
     }
@@ -51,11 +88,15 @@ export default function ExpoManagePage() {
 
         <div style={{ maxWidth: 660 }}>
           <div className="page-header">
-            <h1 className="page-title">박람회 등록</h1>
-            <p className="page-sub">등록 후 회차를 추가하면 공개 버튼이 활성화됩니다.</p>
+            <h1 className="page-title">{isEdit ? '박람회 수정' : '박람회 등록'}</h1>
+            <p className="page-sub">
+              {isEdit
+                ? '공개된 박람회를 수정하면 방문자 화면에 즉시 반영됩니다.'
+                : '등록 후 회차를 추가하면 공개 버튼이 활성화됩니다.'}
+            </p>
           </div>
 
-          {!channelId && (
+          {!channelId && !isEdit && (
             <div className="alert alert-warning" style={{ marginBottom: 20 }}>
               ⚠ 채널을 먼저 생성해야 박람회를 등록할 수 있습니다.{' '}
               <span
@@ -119,22 +160,39 @@ export default function ExpoManagePage() {
                 </div>
               </div>
 
+              <ImageUploadField
+                value={form.thumbnailUrl}
+                onChange={url => setForm(p => ({ ...p, thumbnailUrl: url }))}
+              />
+
+              <DetailImagesField
+                value={form.detailImageUrls}
+                onChange={urls => setForm(p => ({ ...p, detailImageUrls: urls }))}
+              />
+
               <div className="form-group" style={{ marginBottom: 28 }}>
                 <label className="form-label">박람회 소개</label>
                 <textarea
                   className="form-input"
-                  placeholder="방문자에게 보여질 박람회 소개를 입력하세요"
+                  placeholder={'방문자에게 보여질 박람회 소개를 입력하세요.\n\n줄을 바꾸면 화면에도 그대로 나옵니다.'}
                   value={form.description}
                   onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                  rows={10}
+                  style={{ minHeight: 220, resize: 'vertical', lineHeight: 1.7 }}
                 />
+                <p style={{ fontSize: 12, color: 'var(--sub)' }}>
+                  줄바꿈과 문단이 상세 페이지에 그대로 유지됩니다. 길이 제한은 없습니다
+                  {form.description.length > 0 && ` (현재 ${form.description.length.toLocaleString()}자)`}.
+                  {form.description.length > 300 && ' 300자를 넘으면 상세 페이지에서 접히고 “더보기”가 붙습니다.'}
+                </p>
               </div>
 
               <button
                 type="submit"
                 className="btn btn-primary btn-block btn-lg"
-                disabled={loading || !channelId}
+                disabled={loading || loadingExpo || !channelId}
               >
-                {loading ? '등록 중...' : '박람회 등록'}
+                {loading ? '저장 중...' : isEdit ? '수정 저장' : '박람회 등록'}
               </button>
             </form>
           </div>

@@ -12,6 +12,7 @@ import com.team1.ticket.ticket.dto.CheckinTicketView;
 import com.team1.ticket.ticket.entity.CheckinAction;
 import com.team1.ticket.ticket.entity.CheckinMethod;
 import com.team1.ticket.ticket.entity.Ticket;
+import com.team1.ticket.ticket.entity.TicketStatus;
 import com.team1.ticket.ticket.repository.TicketRepository;
 import com.team1.security.AuthenticatedUser;
 import org.slf4j.Logger;
@@ -73,6 +74,23 @@ public class TicketCheckinService {
         requireWithinCheckinWindow(ticket, now);
         ticket.checkIn(now);
         recordQuietly(ticket.getId(), CheckinAction.CHECK_IN, organizer.userId(), method, now);
+        return CheckinResult.from(ticket);
+    }
+
+    // 체크인 되돌리기. USED → ISSUED. 시간창은 보지 않는다 - 창이 닫힌 뒤에도 오처리는 복구돼야 한다.
+    @Transactional
+    public CheckinResult cancelCheckin(Long ticketId, AuthenticatedUser organizer) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "ticket not found: " + ticketId));
+        verifyOwnership(ticket, organizer);
+
+        boolean wasCheckedIn = ticket.getStatus() == TicketStatus.USED;
+        Instant now = clock.instant();
+        ticket.cancelCheckIn();
+        // 실제로 되돌린 경우에만 남긴다. 두 번 눌렀다고 이력이 두 줄이면 이력이 거짓말을 한다.
+        if (wasCheckedIn) {
+            recordQuietly(ticket.getId(), CheckinAction.CANCEL, organizer.userId(), null, now);
+        }
         return CheckinResult.from(ticket);
     }
 

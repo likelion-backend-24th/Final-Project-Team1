@@ -63,6 +63,38 @@ export const expoApi = {
   // GET /api/v1/channels/my — 채널이 없으면 404
   getMyChannel: () => api.get<ApiResponse<Channel>>('/channels/my'),
 
+  /**
+   * GET /api/v1/channels/{channelId}/expos — 주최자용 목록. HIDDEN·CLOSED 도 내려온다.
+   * 공개 목록(listPublished)을 channelId 로 거르면 비공개 박람회가 통째로 빠진다.
+   */
+  listMyExpos: (channelId: number) =>
+    api.get<ApiResponse<Expo[]>>(`/channels/${channelId}/expos`),
+
+  /** GET /api/v1/channels/{channelId}/expos/{expoId} — 본인 채널이면 HIDDEN 도 200, 남의 것은 404. */
+  getMyExpo: (channelId: number, expoId: number) =>
+    api.get<ApiResponse<Expo>>(`/channels/${channelId}/expos/${expoId}`),
+
+  /** channelId 를 모르는 화면용. 내 채널을 먼저 찾아 비공개 박람회까지 읽는다. */
+  getMyExpoById: async (expoId: number) => {
+    const ch = await expoApi.getMyChannel()
+    return expoApi.getMyExpo(ch.data.id, expoId)
+  },
+
+  /** PATCH /api/v1/channels/{channelId}/expos/{expoId} — 보내지 않은 필드는 그대로 둔다. */
+  updateExpo: (
+    channelId: number,
+    expoId: number,
+    data: {
+      title?: string
+      description?: string
+      category?: string
+      region?: string
+      venue?: string
+      thumbnailUrl?: string
+      detailImageUrls?: string[]
+    }
+  ) => api.patch<ApiResponse<Expo>>(`/channels/${channelId}/expos/${expoId}`, data),
+
   // POST /api/v1/channels/{channelId}/expos — 생성 직후 상태는 HIDDEN
   createExpo: (
     channelId: number,
@@ -73,6 +105,7 @@ export const expoApi = {
       region?: string
       venue?: string
       thumbnailUrl?: string
+      detailImageUrls?: string[]
     }
   ) => api.post<ApiResponse<Expo>>(`/channels/${channelId}/expos`, data),
 
@@ -121,5 +154,4 @@ export const expoApi = {
   },
 }
 
-// 주최자용 "내 채널의 박람회 목록" 엔드포인트는 아직 없다(Sprint 2).
-// HostChannelPage 는 공개 목록을 channelId 로 걸러서 대신 보여준다.
+

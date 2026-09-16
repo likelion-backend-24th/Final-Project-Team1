@@ -20,6 +20,7 @@ public record ExpoDetailResponse(
         String status,
         String thumbnailUrl,
         LocalDateTime createdAt,
+        List<String> detailImageUrls,
         boolean roundsAvailable,
         List<RoundView> rounds
 ) {
@@ -35,6 +36,7 @@ public record ExpoDetailResponse(
                 expo.getStatus().name(),
                 expo.getThumbnailUrl(),
                 expo.getCreatedAt(),
+                List.copyOf(expo.getDetailImageUrls()),
                 roundsAvailable,
                 rounds
         );

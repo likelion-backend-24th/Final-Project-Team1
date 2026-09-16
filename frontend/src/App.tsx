@@ -28,6 +28,7 @@ export default function App() {
             <Route path="/host/channel" element={<HostChannelPage />} />
             <Route path="/host/channel/new" element={<ChannelCreatePage />} />
             <Route path="/host/expos/new" element={<ExpoManagePage />} />
+            <Route path="/host/expos/:expoId/edit" element={<ExpoManagePage />} />
             <Route path="/host/expos/:expoId/rounds" element={<RoundManagePage />} />
             <Route path="/my/reservations" element={<MyReservationsPage />} />
             <Route path="/host/checkin" element={<CheckinPage />} />

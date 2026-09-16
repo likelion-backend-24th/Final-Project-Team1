@@ -49,14 +49,25 @@ scheduler:
     # PG 조회가 필요한 갈래에만 걸리는 상한. 배치가 외부 호출에 밀리지 않게 한다.
     pg-batch-size: 50
 
-  # 티켓 발급 통지 재시도(#79). 즉시 시도에 실패한 건을 회수한다.
+  # 티켓 발급·무효화 통지 재시도(#79). 즉시 시도에 실패한 건을 회수한다.
   ticket-dispatch:
     enabled: ${TICKET_DISPATCH_ENABLED:true}
     cron: "0 * * * * *"
     batch-size: 100
-    max-attempts: 6
-    # 지수 백오프의 기준값. 1·2·4·8·16분 뒤에 재시도하고 6회째에 포기한다.
-    backoff: 1m
+
+    # 발급 실패는 "티켓이 안 나옴" 이다. 사용자가 알아채고 문의할 수 있다.
+    # 1·2·4·8·16분 뒤에 재시도하고 6회째에 포기한다(약 31분).
+    issue:
+      max-attempts: 6
+      backoff: 1m
+      max-backoff: 16m
+
+    # 무효화 실패는 "취소된 예약으로 입장 가능" 이다. 아무도 모르는 채 구멍이 열린다.
+    # 1·2·4·8·16·32·60·60·60·60·60분 = 약 6시간까지 시도한다.
+    revoke:
+      max-attempts: 12
+      backoff: 1m
+      max-backoff: 1h
 
   # 환불 실패 재시도(#125). REFUND_FAILED 로 남은 건만 회수한다.
   refund-retry:

@@ -25,4 +25,8 @@ export const ticketApi = {
   checkin: (ticketId: number, method?: CheckinMethod) =>
     api.post<ApiResponse<CheckinResult>>(
       `/tickets/${ticketId}/checkin${method ? `?method=${method}` : ''}`, {}),
+
+  /** POST /api/v1/tickets/{ticketId}/checkin/cancellation — 체크인 되돌리기(ISSUED 전이). */
+  cancelCheckin: (ticketId: number) =>
+    api.post<ApiResponse<CheckinResult>>(`/tickets/${ticketId}/checkin/cancellation`, {}),
 }

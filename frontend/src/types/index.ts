@@ -21,6 +21,7 @@ export interface Expo {
   region?: string
   venue?: string
   thumbnailUrl?: string
+  detailImageUrls?: string[]                 // 행사 소개 이미지. 목록 응답에는 없다
   status?: 'HIDDEN' | 'PUBLISHED' | 'CLOSED' // 목록 응답에는 없다(항상 PUBLISHED)
   createdAt?: string
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { expoApi } from '../api/expo'
+import { cdnImage } from '../lib/cloudinary'
 import type { ExpoSort } from '../api/expo'
 import { expoKey } from '../types'
 import type { ActivePromotion, Expo } from '../types'
@@ -204,13 +205,26 @@ function ExpoCard({ expo, colors, isVip, onClick }: {
   isVip?: boolean
   onClick: () => void
 }) {
+  // 외부 주소라 404·hotlink 차단이 흔하다. 깨지면 카테고리 그라데이션으로 떨어뜨린다.
+  const [broken, setBroken] = useState(false)
+
   return (
     <div className="expo-card" onClick={onClick} role="button" tabIndex={0}>
       <div className="expo-card-thumb">
         <div
           className="expo-card-thumb-inner"
           style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})` }}
-        />
+        >
+          {expo.thumbnailUrl && !broken && (
+            <img
+              src={cdnImage(expo.thumbnailUrl, 600)}
+              alt=""
+              loading="lazy"
+              onError={() => setBroken(true)}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          )}
+        </div>
         <div className="expo-card-thumb-badge">
           {isVip && <span className="badge" style={{ background: '#7C3AED', color: '#fff', marginRight: 4 }}>⭐ VIP</span>}
           <span className="badge badge-published">● 공개중</span>

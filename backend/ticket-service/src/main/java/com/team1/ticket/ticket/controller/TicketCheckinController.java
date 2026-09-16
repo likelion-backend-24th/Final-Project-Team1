@@ -43,6 +43,12 @@ public class TicketCheckinController {
         return ApiResponse.ok(checkinService.checkin(ticketId, method, currentOrganizer()));
     }
 
+    // 체크인 되돌리기 → ISSUED 전이. 잘못 스캔·오입력 복구용.
+    @PostMapping("/{ticketId}/checkin/cancellation")
+    public ApiResponse<CheckinResult> cancelCheckin(@PathVariable Long ticketId) {
+        return ApiResponse.ok(checkinService.cancelCheckin(ticketId, currentOrganizer()));
+    }
+
     private AuthenticatedUser currentOrganizer() {
         AuthenticatedUser user = AuthContext.get();
         if (user == null) {

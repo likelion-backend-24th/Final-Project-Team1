@@ -21,9 +21,7 @@ export default function RoundManagePage() {
   const toast = useToast()
   const id = Number(expoId)
 
-  // GET /expos/{id} 는 PUBLISHED 만 내려준다(HIDDEN 은 404).
-  // 방금 등록한 HIDDEN 박람회를 관리하려면 이동할 때 넘겨받은 값을 먼저 쓰고,
-  // 없으면(새로고침 등) 공개 조회로 보완한다.
+  // 주최자 조회(getMyExpoById)는 HIDDEN 도 내려준다. 넘겨받은 값이 있으면 그걸 먼저 쓴다.
   const passed = (location.state as { expo?: Expo } | null)?.expo ?? null
   const [expo, setExpo] = useState<Expo | null>(passed)
   usePageTitle(expo?.title ? `${expo.title} 회차 관리` : '회차 관리')
@@ -49,9 +47,9 @@ export default function RoundManagePage() {
 
   useEffect(() => {
     if (!passed) {
-      expoApi.getExpo(id)
+      expoApi.getMyExpoById(id)
         .then(r => setExpo(r.data))
-        .catch(() => toast('박람회 정보를 불러오지 못했습니다 (비공개 박람회는 주최자 센터에서 들어와주세요)', 'error'))
+        .catch(() => toast('박람회 정보를 불러오지 못했습니다', 'error'))
     }
     // 주최자용 회차 목록. 채널 소유자만 조회된다.
     roundApi.listByExpo(id)

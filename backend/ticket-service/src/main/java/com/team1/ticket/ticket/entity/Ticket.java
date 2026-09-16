@@ -110,6 +110,16 @@ public class Ticket {
         this.usedAt = now;
     }
 
+    // 체크인 되돌리기(S7-4). 잘못 스캔하거나 예약번호를 잘못 입력한 체크인을 복구한다.
+    // ISSUED 는 멱등으로 통과시킨다 - 두 번 누른 것과 처음부터 안 찍은 것을 구분할 필요가 없다.
+    public void cancelCheckIn() {
+        if (this.status == TicketStatus.CANCELLED) {
+            throw new ApiException(ErrorCode.CONFLICT, "cancelled ticket has no check-in to undo");
+        }
+        this.status = TicketStatus.ISSUED;
+        this.usedAt = null;
+    }
+
     public Long getId() {
         return id;
     }
