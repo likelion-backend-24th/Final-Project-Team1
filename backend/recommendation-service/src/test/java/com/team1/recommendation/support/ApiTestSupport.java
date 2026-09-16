@@ -1,6 +1,7 @@
 package com.team1.recommendation.support;
 
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -9,9 +10,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 import java.util.Date;
-import java.util.HexFormat;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -26,10 +25,12 @@ public abstract class ApiTestSupport {
     protected static final String USER_JWT;
     protected static final String ORGANIZER_JWT;
 
+    private static final String TEST_JWT_SECRET =
+            "48cb046985eb576b3360e3049e5fdb9b8849bac7b8aa9cefdfa8ec9ece8dd7cd";
+
     static {
-        byte[] keyBytes = HexFormat.of().parseHex(
-                "48cb046985eb576b3360e3049e5fdb9b8849bac7b8aa9cefdfa8ec9ece8dd7cd");
-        SecretKey key = new SecretKeySpec(keyBytes, "HmacSHA256");
+        // JwtValidator.java와 동일하게 secret.getBytes()로 키 생성
+        SecretKey key = Keys.hmacShaKeyFor(TEST_JWT_SECRET.getBytes());
         Date farFuture = new Date(9_999_999_999_000L);
 
         USER_JWT = Jwts.builder()
