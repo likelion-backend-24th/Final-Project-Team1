@@ -6,7 +6,7 @@ import { api } from './client'
  */
 export interface AdminSettlementResponse {
   year: number
-  month: number
+  month: number | null
   totalRevenue: number
   totalRefund: number
   netRevenue: number
@@ -16,6 +16,7 @@ export interface AdminSettlementResponse {
 
 export const settlementApi = {
   // GET /api/v1/admin/settlement?year=&month=  (SUPER_ADMIN 전용)
-  getSettlement: (year: number, month: number) =>
-    api.get<AdminSettlementResponse>(`/admin/settlement?year=${year}&month=${month}`),
+  // month 를 생략하면 해당 연도 전체를 집계한 연간 정산으로 조회된다.
+  getSettlement: (year: number, month?: number) =>
+    api.get<AdminSettlementResponse>(`/admin/settlement?year=${year}${month != null ? `&month=${month}` : ''}`),
 }
