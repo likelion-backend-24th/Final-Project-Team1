@@ -71,6 +71,14 @@ public class User {
         return "User[id=" + id + ", email=" + email + ", name=" + name + "]";
     }
 
+    public void changeName(String name) {
+        this.name = name;
+    }
+
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     public Role primaryRole() {
         return roles.stream()
                 .map(GrantedRole::getRole)

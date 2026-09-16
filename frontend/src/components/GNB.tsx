@@ -43,12 +43,13 @@ export default function GNB() {
         {user ? (
           <div className="gnb-user">
             <div className="gnb-avatar">{user.name[0]}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span className="gnb-name">{user.name}</span>
               <span className="gnb-role-badge">{roleLabel(user.role)}</span>
             </div>
+            <Link to="/my/profile" className={`btn btn-secondary btn-sm ${isActive('/my/profile')}`}>마이페이지</Link>
             <div className="gnb-divider" />
-            <button className="btn btn-ghost btn-sm" onClick={handleLogout}>로그아웃</button>
+            <button className="btn btn-danger btn-sm" onClick={handleLogout}>로그아웃</button>
           </div>
         ) : (
           <>
