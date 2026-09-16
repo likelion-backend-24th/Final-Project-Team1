@@ -1,11 +1,11 @@
-package com.team1.recommendation.interest.entity;
+package com.team1.recommendation.preference.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user_interests")
-public class UserInterest {
+public class UserPreference {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -16,7 +16,7 @@ public class UserInterest {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
-    private InterestType type;
+    private PreferenceType type;
 
     @Column(nullable = false, length = 100)
     private String value;
@@ -24,18 +24,18 @@ public class UserInterest {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    protected UserInterest() {}
+    protected UserPreference() {}
 
-    public static UserInterest of(Long userId, InterestType type, String value, LocalDateTime now) {
-        UserInterest ui = new UserInterest();
-        ui.userId = userId;
-        ui.type = type;
-        ui.value = value;
-        ui.createdAt = now;
-        return ui;
+    public static UserPreference of(Long userId, PreferenceType type, String value, LocalDateTime now) {
+        UserPreference up = new UserPreference();
+        up.userId = userId;
+        up.type = type;
+        up.value = value;
+        up.createdAt = now;
+        return up;
     }
 
     public Long getUserId() { return userId; }
-    public InterestType getType() { return type; }
+    public PreferenceType getType() { return type; }
     public String getValue() { return value; }
 }

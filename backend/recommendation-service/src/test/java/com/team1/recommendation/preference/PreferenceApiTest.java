@@ -1,4 +1,4 @@
-package com.team1.recommendation.interest;
+package com.team1.recommendation.preference;
 
 import com.team1.recommendation.support.ApiTestSupport;
 import org.junit.jupiter.api.Test;
@@ -7,7 +7,7 @@ import org.springframework.http.MediaType;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-class InterestApiTest extends ApiTestSupport {
+class PreferenceApiTest extends ApiTestSupport {
 
     @Test
     void upsertInterests_성공() throws Exception {
