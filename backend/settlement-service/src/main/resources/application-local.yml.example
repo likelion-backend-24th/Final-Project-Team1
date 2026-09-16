@@ -1,0 +1,14 @@
+# 로컬 실행용 시크릿 템플릿.
+# 이 파일을 같은 디렉터리에 application-local.yml 로 복사한 뒤 실제 값으로 채운다.
+# application-local.yml 은 .gitignore 대상(커밋 금지)이며, 이 .example 만 커밋한다.
+#
+# Settlement-Service는 DB가 없어서 datasource 설정은 필요 없다.
+# 대신 다른 서비스(identity·expo·reservation)가 발급/검증하는 값과 반드시 똑같이 맞춰야 한다 —
+# 안 맞추면 로그인은 되는데 정산 API 호출 시 401(토큰 불일치)이 난다.
+# 값은 팀 공유 채널의 로컬 개발용 시크릿 참고(identity-service 등 다른 서비스의
+# application-local.yml과 동일한 값을 그대로 복사).
+jwt:
+  secret: <다른 서비스들과 동일한 jwt.secret 값>
+
+internal:
+  token: <다른 서비스들과 동일한 internal.token 값>
