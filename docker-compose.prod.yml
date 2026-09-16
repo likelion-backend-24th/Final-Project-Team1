@@ -98,6 +98,21 @@ services:
       # fail-open 이라 오류 없이 시간창 검증만 조용히 건너뛴다.
       RESERVATION_SERVICE_URL: http://reservation-service:8083
 
+  settlement-service:
+    restart: unless-stopped
+    image: ${REGISTRY:-ghcr.io/likelion-backend-24th}/fpt1-settlement-service:${IMAGE_TAG:-latest}
+    build:
+      context: ./backend
+      args:
+        SERVICE: settlement-service
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JWT_SECRET: ${JWT_SECRET}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
+      RESERVATION_SERVICE_URL: http://reservation-service:8083
+      EXPO_SERVICE_URL: http://expo-service:8082
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms64m -Xmx200m -XX:MaxMetaspaceSize=150m -Xss512k -XX:+UseSerialGC -XX:TieredStopAtLevel=1}
+
   web:
     image: ${REGISTRY:-ghcr.io/likelion-backend-24th}/fpt1-web:${IMAGE_TAG:-latest}
     build:
