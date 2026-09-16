@@ -77,4 +77,8 @@ public class User {
                 .max(Comparator.comparingInt(Enum::ordinal))
                 .orElseThrow(() -> new IllegalStateException("Role이 없는 사용자입니다. id=" + id));
     }
+
+    public void addRole(Role role, LocalDateTime grantedAt) {
+        roles.add(new GrantedRole(role, grantedAt));
+    }
 }
