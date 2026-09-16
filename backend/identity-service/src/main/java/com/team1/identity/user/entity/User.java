@@ -71,10 +71,22 @@ public class User {
         return "User[id=" + id + ", email=" + email + ", name=" + name + "]";
     }
 
+    public void changeName(String name) {
+        this.name = name;
+    }
+
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     public Role primaryRole() {
         return roles.stream()
                 .map(GrantedRole::getRole)
                 .max(Comparator.comparingInt(Enum::ordinal))
                 .orElseThrow(() -> new IllegalStateException("Role이 없는 사용자입니다. id=" + id));
+    }
+
+    public void addRole(Role role, LocalDateTime grantedAt) {
+        roles.add(new GrantedRole(role, grantedAt));
     }
 }

@@ -8,6 +8,7 @@ import com.team1.settlement.dto.AdminSettlementResponse;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -26,10 +27,18 @@ public class SettlementService {
         this.expoPromotionPaymentClient = expoPromotionPaymentClient;
     }
 
-    public AdminSettlementResponse getSettlement(int year, int month) {
-        YearMonth target = YearMonth.of(year, month);
-        Instant from = target.atDay(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-        Instant to = target.atEndOfMonth().atTime(23, 59, 59).atZone(ZoneOffset.UTC).toInstant();
+    public AdminSettlementResponse getSettlement(int year, Integer month) {
+        Instant from;
+        Instant to;
+
+        if (month != null) {
+            YearMonth target = YearMonth.of(year, month);
+            from = target.atDay(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+            to = target.atEndOfMonth().atTime(23, 59, 59).atZone(ZoneOffset.UTC).toInstant();
+        } else {
+            from = LocalDate.of(year, 1, 1).atStartOfDay(ZoneOffset.UTC).toInstant();
+            to = LocalDate.of(year, 12, 31).atTime(23, 59, 59).atZone(ZoneOffset.UTC).toInstant();
+        }
 
         List<ReservationPaymentItem> reservationPayments = reservationPaymentClient.getPayments(from, to);
         List<ExpoPromotionPaymentItem> promotionPayments = expoPromotionPaymentClient.getPayments(from, to);
