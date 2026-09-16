@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:tc:mysql:8.0:///recommendation?TC_REUSE_CONTAINER=true
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+internal:
+  token: test-internal-token
+
+jwt:
+  secret: 48cb046985eb576b3360e3049e5fdb9b8849bac7b8aa9cefdfa8ec9ece8dd7cd
