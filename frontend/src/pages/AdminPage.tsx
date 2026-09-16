@@ -290,13 +290,39 @@ function OrganizerApplicationsReview() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {applications.map(a => (
             <div key={a.id} className="card" style={{ padding: 16 }}>
-              <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 4 }}>
-                <strong>User #{a.userId}</strong>
-              </div>
-              <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 12 }}>{a.reason || '(신청 사유 없음)'}</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 4 }}>
+                    <strong>{a.userName ?? `User #${a.userId}`}</strong>
+                    {a.userEmail && (
+                      <span style={{ color: 'var(--sub)', fontWeight: 400 }}> · {a.userEmail}</span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: 13, color: 'var(--sub)' }}>{a.reason || '(신청 사유 없음)'}</p>
+                </div>
 
-              {rejectingId === a.id ? (
-                <div>
+                {rejectingId !== a.id && (
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      disabled={busyId === a.id}
+                      onClick={() => handleApprove(a.id)}
+                    >
+                      승인
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      disabled={busyId === a.id}
+                      onClick={() => setRejectingId(a.id)}
+                    >
+                      거절
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {rejectingId === a.id && (
+                <div style={{ marginTop: 12 }}>
                   <input
                     className="form-input"
                     style={{ marginBottom: 8 }}
@@ -304,7 +330,13 @@ function OrganizerApplicationsReview() {
                     value={rejectReason}
                     onChange={e => setRejectReason(e.target.value)}
                   />
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => { setRejectingId(null); setRejectReason('') }}
+                    >
+                      취소
+                    </button>
                     <button
                       className="btn btn-danger btn-sm"
                       disabled={busyId === a.id}
@@ -312,30 +344,7 @@ function OrganizerApplicationsReview() {
                     >
                       거절 확정
                     </button>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => { setRejectingId(null); setRejectReason('') }}
-                    >
-                      취소
-                    </button>
                   </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    className="btn btn-primary btn-sm"
-                    disabled={busyId === a.id}
-                    onClick={() => handleApprove(a.id)}
-                  >
-                    승인
-                  </button>
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    disabled={busyId === a.id}
-                    onClick={() => setRejectingId(a.id)}
-                  >
-                    거절
-                  </button>
                 </div>
               )}
             </div>

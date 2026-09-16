@@ -45,7 +45,7 @@ export default function GNB() {
             <div className="gnb-avatar">{user.name[0]}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span className="gnb-name">{user.name}</span>
-              <span className="gnb-role-badge">{roleLabel(user.role)}</span>
+              <span className="gnb-role-badge" style={roleBadgeStyle(user.role)}>{roleLabel(user.role)}</span>
             </div>
             <Link to="/my/profile" className={`btn btn-secondary btn-sm ${isActive('/my/profile')}`}>마이페이지</Link>
             <div className="gnb-divider" />
@@ -66,4 +66,10 @@ function roleLabel(role: string) {
   if (role === 'SUPER_ADMIN') return '관리자'
   if (role === 'ORGANIZER') return '주최자'
   return '일반회원'
+}
+
+function roleBadgeStyle(role: string) {
+  if (role === 'SUPER_ADMIN') return { background: 'var(--red-l)', color: 'var(--red)' }
+  if (role === 'ORGANIZER') return { background: 'var(--blue-l)', color: 'var(--blue)' }
+  return { background: 'var(--gray2)', color: 'var(--text2)' }
 }

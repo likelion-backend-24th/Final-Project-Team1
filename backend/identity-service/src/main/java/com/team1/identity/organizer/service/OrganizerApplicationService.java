@@ -55,7 +55,13 @@ public class OrganizerApplicationService {
     public List<OrganizerApplicationResponse> listApplications() {
         CurrentUser.requireRole(Role.SUPER_ADMIN);
         return applicationRepository.findByStatusOrderByCreatedAtAsc(OrganizerApplicationStatus.PENDING)
-                .stream().map(OrganizerApplicationResponse::from).toList();
+                .stream()
+                .map(a -> {
+                    User applicant = userRepository.findById(a.getUserId())
+                            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+                    return OrganizerApplicationResponse.from(a, applicant);
+                })
+                .toList();
     }
 
     @Transactional

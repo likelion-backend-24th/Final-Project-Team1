@@ -4,6 +4,8 @@ import type { ApiResponse } from '../types'
 export interface OrganizerApplicationResponse {
   id: number
   userId: number
+  userName: string | null
+  userEmail: string | null
   status: string // 'PENDING' | 'APPROVED' | 'REJECTED'
   reason: string
   rejectReason: string | null
