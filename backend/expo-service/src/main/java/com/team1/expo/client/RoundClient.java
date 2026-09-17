@@ -1,5 +1,6 @@
 package com.team1.expo.client;
 
+import com.team1.expo.expo.dto.ExpoFeeView;
 import com.team1.expo.expo.dto.RoundView;
 
 import java.time.Instant;
@@ -16,6 +17,9 @@ public interface RoundClient {
 
     /** GET /internal/v1/rounds?expoId= — 박람회 상세의 회차·잔여 정원 병합용. */
     List<RoundView> listByExpo(Long expoId);
+
+    /** GET /internal/v1/rounds/fee-summary?expoIds= — 목록 유료/무료 배지용 일괄 조회. */
+    List<ExpoFeeView> feeSummaries(List<Long> expoIds);
 
     /** GET /internal/v1/rounds/finished-expos?before= — 자동 마감 대상 expoId 목록. */
     List<Long> finishedExpoIds(Instant before, int limit);

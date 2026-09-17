@@ -47,6 +47,7 @@ public abstract class PaymentTestFixture {
         // Transaction 이 없으므로 AfterCommitExecutor 는 통지를 그 자리에서 실행한다.
         TicketIssueNotifier notifier = TicketDispatchStub.notifier(ticketClient, Clock.fixed(NOW, ZoneOffset.UTC));
         service = new ReservationPaymentService(reservations, rounds, paymentService, notifier,
+                mock(com.team1.reservation.client.RecommendationEventNotifier.class),
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

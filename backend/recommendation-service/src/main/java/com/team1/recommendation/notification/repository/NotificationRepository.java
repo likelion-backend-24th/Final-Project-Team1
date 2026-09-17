@@ -8,4 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
     Slice<Notification> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
     Slice<Notification> findByUserIdAndIsReadFalseOrderByCreatedAtDesc(Long userId, Pageable pageable);
+    boolean existsByUserIdAndExpoId(Long userId, Long expoId);
 }

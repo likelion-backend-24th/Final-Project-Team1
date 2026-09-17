@@ -25,6 +25,10 @@ export interface Expo {
   status?: 'HIDDEN' | 'PUBLISHED' | 'CLOSED' // 목록 응답에는 없다(항상 PUBLISHED)
   createdAt?: string
 
+  // 목록 전용. 예약 가능한 회차 중 하나라도 유료면 true, 전부 무료면 false.
+  // null/undefined 는 판정 불가(예약 가능한 회차가 없거나 회차 조회 실패) → 배지를 숨긴다.
+  paid?: boolean | null
+
   // 상세(ExpoDetailResponse) 에만 있다.
   // roundsAvailable=false 는 reservation-service 호출이 실패했다는 뜻(부분 실패 허용).
   roundsAvailable?: boolean

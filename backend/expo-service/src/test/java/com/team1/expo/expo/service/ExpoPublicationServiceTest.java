@@ -1,5 +1,6 @@
 package com.team1.expo.expo.service;
 
+import com.team1.expo.client.RecommendationNotifier;
 import com.team1.expo.client.RoundClient;
 import com.team1.expo.common.exception.BusinessException;
 import com.team1.expo.common.exception.ErrorCode;
@@ -36,6 +37,8 @@ class ExpoPublicationServiceTest {
     private ChannelRepository channelRepository;
     @Mock
     private RoundClient roundClient;
+    @Mock
+    private RecommendationNotifier recommendationNotifier;
     @InjectMocks
     private ExpoPublicationService service;
 
