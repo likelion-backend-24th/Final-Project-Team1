@@ -20,6 +20,18 @@ public class PreferenceService {
         this.repository = repository;
     }
 
+    @Transactional(readOnly = true)
+    public PreferencesResponse get(Long userId) {
+        List<UserPreference> prefs = repository.findByUserId(userId);
+        List<String> categories = prefs.stream()
+                .filter(p -> PreferenceType.CATEGORY.equals(p.getType()))
+                .map(UserPreference::getValue).toList();
+        List<String> keywords = prefs.stream()
+                .filter(p -> PreferenceType.KEYWORD.equals(p.getType()))
+                .map(UserPreference::getValue).toList();
+        return new PreferencesResponse(categories, keywords);
+    }
+
     @Transactional
     public PreferencesResponse upsert(Long userId, UpsertPreferencesRequest request) {
         repository.deleteAllByUserId(userId);

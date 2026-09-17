@@ -209,7 +209,7 @@ export default function AuthPage() {
         )}
 
         <div className="auth-host-hint">
-          <p>주최자 계정은 관리자가 직접 발급합니다.</p>
+          <p>주최자 계정은 가입 후 마이페이지에서 신청하거나, 관리자가 직접 발급할 수 있습니다.</p>
         </div>
       </div>
     </div>

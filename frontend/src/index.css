@@ -109,17 +109,6 @@ input, select, textarea { font-family: inherit; }
 .gnb-links a.active { color: var(--primary); font-weight: 700; }
 .gnb-auth { display: flex; gap: 8px; align-items: center; margin-left: auto; }
 .gnb-divider { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
-.gnb-user { display: flex; align-items: center; gap: 8px; }
-.gnb-avatar {
-  width: 34px; height: 34px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: #fff;
-  font-weight: 700;
-  font-size: 13px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
 .gnb-name { font-size: 13px; font-weight: 600; color: var(--text); }
 .gnb-role-badge {
   font-size: 11px;
@@ -129,6 +118,55 @@ input, select, textarea { font-family: inherit; }
   background: var(--primary-l);
   color: var(--primary);
 }
+
+.gnb-user-menu { position: relative; }
+.gnb-user-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px 4px 4px;
+  border-radius: 20px;
+  transition: background .15s;
+}
+.gnb-user-trigger:hover { background: var(--gray2); }
+.gnb-caret { font-size: 15px; font-weight: 700; color: var(--text2); line-height: 1; transition: transform .15s; }
+.gnb-caret.open { transform: rotate(180deg); }
+.gnb-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 168px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-md);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 200;
+}
+.gnb-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+}
+.gnb-dropdown-item:hover { background: var(--gray2); }
+.gnb-dropdown-item.active { color: var(--primary); font-weight: 700; }
+.gnb-dropdown-item.danger { color: var(--red); }
+.gnb-dropdown-item.danger:hover { background: var(--red-l); }
 
 /* ─── Notification bell ─── */
 .notif { position: relative; }

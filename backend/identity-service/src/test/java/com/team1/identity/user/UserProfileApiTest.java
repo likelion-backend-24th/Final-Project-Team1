@@ -57,6 +57,26 @@ class UserProfileApiTest extends ApiTestSupport {
     }
 
     @Test
+    @DisplayName("프로필 이미지를 변경하면 이후 조회에도 반영된다")
+    void 프로필_이미지_변경() {
+        String email = uniqueEmail();
+        post("/api/v1/auth/signup", """
+                {"email":"%s","password":"password123","name":"테스터"}
+                """.formatted(email));
+        String token = loginAndGetToken(email, "password123");
+
+        ResponseEntity<JsonNode> response = patch("/api/v1/users/me/profile-image", """
+                {"imageUrl":"https://res.cloudinary.com/demo/image/upload/avatar.png"}
+                """, token);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().path("data").path("profileImageUrl").asText())
+                .isEqualTo("https://res.cloudinary.com/demo/image/upload/avatar.png");
+        assertThat(get("/api/v1/users/me", token).getBody().path("data").path("profileImageUrl").asText())
+                .isEqualTo("https://res.cloudinary.com/demo/image/upload/avatar.png");
+    }
+
+    @Test
     @DisplayName("아무도 쓰지 않는 닉네임은 사용 가능하다")
     void 닉네임_중복확인_사용가능() {
         String email = uniqueEmail();

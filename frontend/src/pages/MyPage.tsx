@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { userApi } from '../api/user'
 import { organizerRequestApi, type OrganizerApplicationResponse } from '../api/organizerRequest'
+import { recommendationApi, type Interests } from '../api/recommendation'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import { usePageTitle } from '../hooks/usePageTitle'
+import Avatar from '../components/Avatar'
+import { uploadImage, UploadError } from '../lib/cloudinary'
 
 export default function MyPage() {
   usePageTitle('마이페이지')
@@ -30,12 +33,77 @@ export default function MyPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <ProfileImageCard />
             <ProfileCard />
             <ChangeNameCard onChanged={name => login({ ...user, name })} />
             <ChangePasswordCard />
+            {isRole('USER') && <InterestsCard />}
             {isRole('USER') && <OrganizerRequestCard />}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function ProfileImageCard() {
+  const { user, login } = useAuth()
+  const toast = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+
+  useEffect(() => {
+    if (!user) return
+    userApi.getMe()
+      .then(res => login({ ...user, name: res.data.name, profileImageUrl: res.data.profileImageUrl }))
+      .catch(() => {})
+  }, [])
+
+  if (!user) return null
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const imageUrl = await uploadImage(file)
+      const res = await userApi.changeProfileImage(imageUrl)
+      login({ ...user!, profileImageUrl: res.data.profileImageUrl })
+      toast('프로필 사진이 변경되었습니다 ✓', 'success')
+    } catch (err) {
+      toast(err instanceof UploadError ? err.message : '이미지 변경에 실패했습니다', 'error')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="card" style={{ padding: 32, display: 'flex', alignItems: 'center', gap: 20 }}>
+      <Avatar userId={user.id} name={user.name} imageUrl={user.profileImageUrl} size={72} />
+      <div>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+          프로필 사진
+        </h2>
+        <p style={{ fontSize: 12.5, color: 'var(--sub)', marginBottom: 12 }}>
+          JPG · PNG · WEBP · GIF, 10MB 이하
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {uploading ? '업로드 중...' : '사진 변경'}
+        </button>
       </div>
     </div>
   )
@@ -220,6 +288,116 @@ function ChangePasswordCard() {
           {loading ? '변경 중...' : '비밀번호 변경'}
         </button>
       </form>
+    </div>
+  )
+}
+
+const CATS = ['IT·전자', '식품·음료', '패션·뷰티', '교육·취업', '문화·예술', '기타']
+
+function InterestsCard() {
+  const toast = useToast()
+  const navigate = useNavigate()
+  const [interests, setInterests] = useState<Interests>({ categories: [], keywords: [] })
+  const [keyword, setKeyword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [fetching, setFetching] = useState(true)
+
+  useEffect(() => {
+    recommendationApi.getInterests()
+      .then(res => { if (res.data) setInterests(res.data) })
+      .catch(() => {})
+      .finally(() => setFetching(false))
+  }, [])
+
+  function toggleCategory(cat: string) {
+    setInterests(prev => ({
+      ...prev,
+      categories: prev.categories.includes(cat)
+        ? prev.categories.filter(c => c !== cat)
+        : [...prev.categories, cat],
+    }))
+  }
+
+  function addKeyword() {
+    const kw = keyword.trim()
+    if (!kw || interests.keywords.includes(kw)) return
+    setInterests(prev => ({ ...prev, keywords: [...prev.keywords, kw] }))
+    setKeyword('')
+  }
+
+  function removeKeyword(kw: string) {
+    setInterests(prev => ({ ...prev, keywords: prev.keywords.filter(k => k !== kw) }))
+  }
+
+  async function handleSave() {
+    setLoading(true)
+    try {
+      await recommendationApi.saveInterests(interests)
+      toast('관심사가 저장되었습니다 ✓', 'success')
+    } catch {
+      toast('저장에 실패했습니다', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (fetching) return null
+
+  return (
+    <div className="card" style={{ padding: 32 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>관심사 설정</h2>
+        <button className="btn btn-secondary btn-sm" onClick={() => navigate('/my/recommendations')}>
+          내 추천 보기 →
+        </button>
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 20 }}>
+        선택한 관심사로 맞춤 박람회를 추천해드립니다.
+      </p>
+
+      <div style={{ marginBottom: 20 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 10 }}>카테고리</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {CATS.map(cat => (
+            <button
+              key={cat}
+              type="button"
+              className={`cat-chip ${interests.categories.includes(cat) ? 'active' : ''}`}
+              onClick={() => toggleCategory(cat)}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 24 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 10 }}>키워드</p>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <input
+            className="form-input"
+            style={{ flex: 1 }}
+            placeholder="예: AI, 스타트업, 친환경"
+            value={keyword}
+            onChange={e => setKeyword(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addKeyword())}
+          />
+          <button type="button" className="btn btn-secondary" onClick={addKeyword}>추가</button>
+        </div>
+        {interests.keywords.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {interests.keywords.map(kw => (
+              <span key={kw} className="badge badge-blue" style={{ cursor: 'pointer' }} onClick={() => removeKeyword(kw)}>
+                #{kw} ✕
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button className="btn btn-primary btn-block" onClick={handleSave} disabled={loading}>
+        {loading ? '저장 중...' : '관심사 저장'}
+      </button>
     </div>
   )
 }

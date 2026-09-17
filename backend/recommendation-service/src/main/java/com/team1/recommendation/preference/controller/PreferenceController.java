@@ -21,6 +21,13 @@ public class PreferenceController {
         this.preferenceService = preferenceService;
     }
 
+    @GetMapping("/interests")
+    public ApiResponse<PreferencesResponse> getInterests() {
+        AuthenticatedUser user = AuthContext.get();
+        if (user == null) throw new ApiException(ErrorCode.UNAUTHENTICATED, "authentication required");
+        return ApiResponse.ok(preferenceService.get(user.userId()));
+    }
+
     @PutMapping("/interests")
     public ApiResponse<PreferencesResponse> upsertInterests(
             @Valid @RequestBody UpsertPreferencesRequest request) {
