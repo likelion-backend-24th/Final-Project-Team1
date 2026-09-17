@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -127,16 +129,24 @@ public class NotificationService {
             List<String> tags = tagMap.get(expo.expoId());
             if (tags == null || tags.isEmpty()) continue;
 
-            // 태그 중 하나라도 점수가 있는 사용자에게 알림
+            // 사용자별 매칭 태그를 모아서 한 번에 알림 생성 — 태그가 여러 개 매칭되면 모두 문구에 포함
+            Map<Long, List<String>> userMatchedTags = new HashMap<>();
             for (String tag : tags) {
                 scoreRepository.findByTagValueAndScoreGreaterThan(tag, MIN_SCORE_THRESHOLD)
-                        .forEach(score -> {
-                            Long userId = score.getUserId();
-                            if (repository.existsByUserIdAndExpoId(userId, expo.expoId())) return;
-                            String message = "관심 분야 박람회가 열렸습니다: " + expo.title();
-                            repository.save(Notification.recommendation(userId, expo.expoId(), message, now));
-                        });
+                        .forEach(score -> userMatchedTags
+                                .computeIfAbsent(score.getUserId(), k -> new ArrayList<>())
+                                .add(tag));
             }
+
+            userMatchedTags.forEach((userId, matchedTags) -> {
+                if (repository.existsByUserIdAndExpoId(userId, expo.expoId())) return;
+                String tagStr = matchedTags.stream()
+                        .distinct().limit(3)
+                        .map(t -> "#" + t)
+                        .collect(Collectors.joining(" "));
+                String message = "'" + expo.title() + "' 박람회가 열렸어요! " + tagStr + " 관심사와 딱 맞아요.";
+                repository.save(Notification.recommendation(userId, expo.expoId(), message, now));
+            });
         }
         log.info("notification generation done");
     }
