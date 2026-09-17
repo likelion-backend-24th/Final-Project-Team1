@@ -4,6 +4,7 @@ public record MyProfileResponse(
         Long id,
         String email,
         String name,
-        String role
+        String role,
+        String profileImageUrl
 ) {
 }

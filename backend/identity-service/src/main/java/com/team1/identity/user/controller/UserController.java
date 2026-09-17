@@ -3,6 +3,7 @@ package com.team1.identity.user.controller;
 import com.team1.identity.common.response.ApiResponse;
 import com.team1.identity.user.dto.ChangeNameRequest;
 import com.team1.identity.user.dto.ChangePasswordRequest;
+import com.team1.identity.user.dto.ChangeProfileImageRequest;
 import com.team1.identity.user.dto.MyProfileResponse;
 import com.team1.identity.user.dto.NameAvailabilityResponse;
 import com.team1.identity.user.service.UserProfileService;
@@ -44,6 +45,12 @@ public class UserController {
     @GetMapping("/me/name-availability")
     public ApiResponse<NameAvailabilityResponse> checkNameAvailability(@RequestParam String name) {
         return ApiResponse.ok(new NameAvailabilityResponse(userProfileService.isNameAvailable(name)));
+    }
+
+    @Operation(summary = "프로필 이미지 변경")
+    @PatchMapping("/me/profile-image")
+    public ApiResponse<MyProfileResponse> changeProfileImage(@Valid @RequestBody ChangeProfileImageRequest request) {
+        return ApiResponse.ok(userProfileService.changeProfileImage(request));
     }
 
     @Operation(summary = "닉네임 변경")

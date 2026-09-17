@@ -6,6 +6,7 @@ export interface MyProfileResponse {
   email: string
   name: string
   role: string
+  profileImageUrl: string | null
 }
 
 export interface NameAvailabilityResponse {
@@ -20,6 +21,9 @@ export const userApi = {
     api.get<ApiResponse<NameAvailabilityResponse>>(`/users/me/name-availability?name=${encodeURIComponent(name)}`),
   // PATCH /api/v1/users/me/name
   changeName: (name: string) => api.patch<ApiResponse<MyProfileResponse>>('/users/me/name', { name }),
+  // PATCH /api/v1/users/me/profile-image
+  changeProfileImage: (imageUrl: string) =>
+    api.patch<ApiResponse<MyProfileResponse>>('/users/me/profile-image', { imageUrl }),
   // PATCH /api/v1/users/me/password
   changePassword: (currentPassword: string, newPassword: string) =>
     api.patch<ApiResponse<null>>('/users/me/password', { currentPassword, newPassword }),

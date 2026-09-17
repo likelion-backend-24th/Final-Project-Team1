@@ -1,21 +1,46 @@
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import NotificationBell from './NotificationBell'
 import { useToast } from './Toast'
+import Avatar from './Avatar'
 
 export default function GNB() {
   const { user, logout, isRole } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const toast = useToast()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const handleLogout = () => {
+    setMenuOpen(false)
     logout()
     toast('로그아웃 되었습니다')
     navigate('/')
   }
 
   const isActive = (path: string) => pathname.startsWith(path) ? 'active' : ''
+
+  useEffect(() => {
+    if (!menuOpen) return
+
+    function handleOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', handleOutside)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [menuOpen])
 
   return (
     <nav className="gnb">
@@ -42,17 +67,41 @@ export default function GNB() {
 
       <div className="gnb-auth">
         {user ? (
-          <div className="gnb-user">
-            <div className="gnb-avatar">{user.name[0]}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span className="gnb-name">{user.name}</span>
-              <span className="gnb-role-badge" style={roleBadgeStyle(user.role)}>{roleLabel(user.role)}</span>
-            </div>
-            <Link to="/my/profile" className={`btn btn-secondary btn-sm ${isActive('/my/profile')}`}>마이페이지</Link>
-            <div className="gnb-divider" />
-            <button className="btn btn-danger btn-sm" onClick={handleLogout}>로그아웃</button>
+          <>
             <NotificationBell />
-          </div>
+            <div className="gnb-user-menu" ref={menuRef}>
+              <button
+                type="button"
+                className="gnb-user-trigger"
+                onClick={() => setMenuOpen(o => !o)}
+                aria-haspopup="true"
+                aria-expanded={menuOpen}
+              >
+                <Avatar userId={user.id} name={user.name} imageUrl={user.profileImageUrl} size={34} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="gnb-name">{user.name}</span>
+                  <span className="gnb-role-badge" style={roleBadgeStyle(user.role)}>{roleLabel(user.role)}</span>
+                </div>
+                <span className={`gnb-caret ${menuOpen ? 'open' : ''}`}>▾</span>
+              </button>
+
+              {menuOpen && (
+                <div className="gnb-dropdown" role="menu">
+                  <Link
+                    to="/my/profile"
+                    className={`gnb-dropdown-item ${isActive('/my/profile')}`}
+                    role="menuitem"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    마이페이지
+                  </Link>
+                  <button type="button" className="gnb-dropdown-item danger" role="menuitem" onClick={handleLogout}>
+                    로그아웃
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
         ) : (
           <>
             <Link to="/auth" className="btn btn-ghost btn-sm">로그인</Link>
