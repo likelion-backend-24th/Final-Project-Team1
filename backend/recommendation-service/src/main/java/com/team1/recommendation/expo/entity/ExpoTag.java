@@ -33,4 +33,7 @@ public class ExpoTag {
         tag.createdAt = now;
         return tag;
     }
+
+    public Long getExpoId() { return expoId; }
+    public String getTagValue() { return tagValue; }
 }
