@@ -78,7 +78,7 @@ public class ExpoTagService {
                     """.formatted(objectMapper.writeValueAsString(prompt));
 
             String responseBody = geminiClient.post()
-                    .uri("/v1beta/models/gemini-1.5-flash:generateContent?key={key}", geminiApiKey)
+                    .uri("/v1beta/models/gemini-flash-latest:generateContent?key={key}", geminiApiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(requestBody)
                     .retrieve()

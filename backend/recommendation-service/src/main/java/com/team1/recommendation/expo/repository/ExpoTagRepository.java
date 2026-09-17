@@ -11,6 +11,8 @@ public interface ExpoTagRepository extends JpaRepository<ExpoTag, Long> {
 
     List<ExpoTag> findByExpoId(Long expoId);
 
+    List<ExpoTag> findByExpoIdIn(List<Long> expoIds);
+
     void deleteByExpoId(Long expoId);
 
     @Query("""
