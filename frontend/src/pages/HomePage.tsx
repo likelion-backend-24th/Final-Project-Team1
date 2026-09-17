@@ -101,8 +101,8 @@ export default function HomePage() {
       {/* ─── Hero Carousel (VIP 슬라이드 포함) ─── */}
       <HeroCarousel promotions={promotions} onNavigate={id => navigate(`/expos/${id}`)} />
 
-      {/* ─── AI 추천 배너: 추천 있으면 AI추천, 없으면 VIP promotions fallback ─── */}
-      {(recommendations.length > 0 || promotions.length > 0) && (
+      {/* ─── AI 추천 배너: AI 추천 있을 때만 표시 ─── */}
+      {recommendations.length > 0 && (
         <AiRecommendBanner
           recommendations={recommendations.slice(0, 6)}
           promotions={promotions}
