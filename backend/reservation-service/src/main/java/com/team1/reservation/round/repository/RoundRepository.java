@@ -31,6 +31,21 @@ public interface RoundRepository extends JpaRepository<Round, Long> {
     List<Long> findExpoIdsWithPaidOpenRounds(@Param("expoIds") Collection<Long> expoIds, @Param("now") Instant now);
 
 
+    // 내 예약 화면이 회차 번호를 매기려면 그 박람회의 살아있는 회차를 전부 알아야 한다.
+    List<Round> findByExpoIdInAndDeletedAtIsNull(Collection<Long> expoIds);
+
+
+    /**
+     * 이 회차보다 앞선 회차 수. +1 이 곧 회차 번호다(단건 조회용).
+     * 조건이 {@code RoundSequence.ORDER} 와 정확히 같아야 목록과 단건의 번호가 어긋나지 않는다.
+     */
+    @Query("select count(r) from Round r where r.expoId = :expoId and r.deletedAt is null "
+            + "and (r.startsAt < :startsAt or (r.startsAt = :startsAt and r.id < :roundId))")
+    long countEarlierRounds(@Param("expoId") Long expoId,
+                            @Param("startsAt") Instant startsAt,
+                            @Param("roundId") Long roundId);
+
+
     // 박람회 공개 조건(#24). 삭제된 회차만 있는 박람회가 공개되면 안 된다.
     boolean existsByExpoIdAndDeletedAtIsNull(Long expoId);
 

@@ -1,5 +1,6 @@
 package com.team1.reservation.round;
 
+import com.team1.reservation.reservation.repository.ReservationRepository;
 import com.team1.reservation.round.dto.ExpoFeeSummaryResponse;
 import com.team1.reservation.round.entity.Round;
 import com.team1.reservation.round.repository.RoundRepository;
@@ -43,12 +44,18 @@ class ExpoFeeSummaryTest extends IntegrationTestSupport {
     private RoundRepository rounds;
 
     @Autowired
+    private ReservationRepository reservations;
+
+    @Autowired
     private PlatformTransactionManager transactionManager;
 
     private Instant now;
 
     @BeforeEach
     void setUp() {
+        // reservations.round_id 에 FK 가 걸려 있어 예약을 먼저 지워야 회차가 지워진다.
+        // Container 를 공유하므로 앞선 Test 클래스가 남긴 예약이 있을 수 있다.
+        reservations.deleteAll();
         rounds.deleteAll();
         now = Instant.now().truncatedTo(ChronoUnit.MICROS);
     }

@@ -64,8 +64,12 @@ public class TicketCheckinService {
     @Transactional(readOnly = true)
     public CheckinTicketView verify(String code, String reservationNo, AuthenticatedUser organizer) {
         Ticket ticket = findTicket(code, reservationNo);
-        verifyOwnership(ticket, organizer);
-        return CheckinTicketView.from(ticket);
+        ExpoSummary expo = verifyOwnership(ticket, organizer);
+        // 회차 번호는 보여주기용이라 못 받아와도 조회를 막지 않는다 - 시간창과 같은 fail-open 이다.
+        RoundInfo round = roundClient.findRound(ticket.getRoundId());
+        return CheckinTicketView.from(ticket,
+                expo.title(),
+                round == null ? null : round.sequence());
     }
 
     // 체크인 확정. ISSUED → USED (1회용). 이미 사용/취소면 거부.
@@ -149,7 +153,8 @@ public class TicketCheckinService {
 
     // 주최자만, 그리고 그 티켓 박람회의 소유자만 체크인할 수 있다.
     // 소유권은 박람회-Service 만 알고 있어 getExpoInternal 로 확인한다(#7). 실패는 fail-closed.
-    private void verifyOwnership(Ticket ticket, AuthenticatedUser organizer) {
+    /** 조회한 박람회를 그대로 돌려준다 - 체크인 화면이 제목을 쓰려고 다시 묻지 않게 한다. */
+    private ExpoSummary verifyOwnership(Ticket ticket, AuthenticatedUser organizer) {
         if (organizer == null || !ROLE_ORGANIZER.equals(organizer.role())) {
             throw new ApiException(ErrorCode.FORBIDDEN, "organizer role required");
         }
@@ -157,5 +162,6 @@ public class TicketCheckinService {
         if (!expo.channelOwnerId().equals(organizer.userId())) {
             throw new ApiException(ErrorCode.FORBIDDEN, "not the owner of this expo");
         }
+        return expo;
     }
 }

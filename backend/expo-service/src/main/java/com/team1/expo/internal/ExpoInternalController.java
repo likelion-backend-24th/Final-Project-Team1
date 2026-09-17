@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -22,12 +23,16 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ExpoInternalController {
 
+    /** 내 예약 한 화면이 넘길 수 있는 박람회 수를 훌쩍 넘는 값. 내부 호출부 실수를 막는 상한이다. */
+    private static final int MAX_TITLE_IDS = 200;
+
     private final ExpoRepository expoRepository;
     private final ChannelRepository channelRepository;
     private final ExpoPublicationService expoPublicationService;
 
     // Envelope 없이 원본 반환 — reservation-service 파서가 이 형태로 읽음
-    @GetMapping("/{expoId}")
+    // title 은 현장 체크인 화면이 쓴다. 소유권 검증이 이미 이 API 를 부르므로 호출이 늘지 않는다.
+    @GetMapping("/{expoId:\\d+}")
     public ResponseEntity<Map<String, Object>> getExpo(@PathVariable Long expoId) {
         return expoRepository.findById(expoId)
                 .map(expo -> {
@@ -37,10 +42,27 @@ public class ExpoInternalController {
                     return ResponseEntity.ok(Map.<String, Object>of(
                             "expoId", expo.getId(),
                             "channelOwnerId", ownerId,
-                            "status", expo.getStatus().name()
+                            "status", expo.getStatus().name(),
+                            "title", expo.getTitle() != null ? expo.getTitle() : ""
                     ));
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * 제목 일괄 조회. 내 예약 화면이 "무슨 박람회"인지 보여주는 데 쓴다.
+     * 지난 예약의 박람회는 HIDDEN·CLOSED 일 수 있으므로 상태로 거르지 않는다.
+     */
+    @GetMapping("/titles")
+    public List<Map<String, Object>> titles(@RequestParam List<Long> expoIds) {
+        if (expoIds.isEmpty() || expoIds.size() > MAX_TITLE_IDS) {
+            return List.of();
+        }
+        return expoRepository.findAllById(expoIds).stream()
+                .map(e -> Map.<String, Object>of(
+                        "expoId", e.getId(),
+                        "title", e.getTitle() != null ? e.getTitle() : ""))
+                .toList();
     }
 
     @GetMapping

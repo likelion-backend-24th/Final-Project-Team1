@@ -57,14 +57,14 @@ class CheckinTimeWindowTest {
 
         ticket = Ticket.issue(123L, "R-4K7Q-W2M8", EXPO_ID, ROUND_ID, 77L, 2, "tok-1", NOW.minusSeconds(86400));
         when(tickets.findById(anyLong())).thenReturn(Optional.of(ticket));
-        when(expoClient.getExpo(EXPO_ID)).thenReturn(new ExpoSummary(EXPO_ID, OWNER_ID, "PUBLISHED"));
+        when(expoClient.getExpo(EXPO_ID)).thenReturn(new ExpoSummary(EXPO_ID, OWNER_ID, "PUBLISHED", "테크 잡페어"));
     }
 
     // 회차가 NOW 기준 startsIn 뒤에 시작해 두 시간 동안 열린다.
     private void givenRoundStartingIn(Duration startsIn) {
         Instant startsAt = NOW.plus(startsIn);
         when(roundClient.findRound(ROUND_ID))
-                .thenReturn(new RoundInfo(ROUND_ID, startsAt, startsAt.plus(Duration.ofHours(2))));
+                .thenReturn(new RoundInfo(ROUND_ID, 1, startsAt, startsAt.plus(Duration.ofHours(2))));
     }
 
     @Test

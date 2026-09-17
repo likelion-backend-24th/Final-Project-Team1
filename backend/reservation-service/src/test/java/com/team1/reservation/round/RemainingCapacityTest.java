@@ -42,7 +42,7 @@ class RemainingCapacityTest {
     void internalResponseCarriesRemaining() {
         Round round = round(50);
 
-        InternalRoundResponse response = InternalRoundResponse.from(round);
+        InternalRoundResponse response = InternalRoundResponse.from(round, 1);
 
         assertThat(response.capacity()).isEqualTo(50);
         assertThat(response.remaining()).isEqualTo(round.remaining());

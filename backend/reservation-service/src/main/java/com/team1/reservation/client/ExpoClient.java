@@ -1,10 +1,19 @@
 package com.team1.reservation.client;
 
+import java.util.Collection;
+import java.util.Map;
+
 
 public interface ExpoClient {
 
 
     ExpoSummary getExpo(Long expoId);
+
+    /**
+     * 박람회 제목 일괄 조회. 내 예약 화면 표시용이라 <b>실패해도 예외를 던지지 않고</b>
+     * 빈 Map 을 돌려준다 - 제목 하나 때문에 예약 목록이 막히면 안 된다.
+     */
+    Map<Long, String> titles(Collection<Long> expoIds);
 
     /**
      * 박람회를 비공개로 되돌린다(계약 2-3). 마지막 회차를 삭제하기 <b>직전</b>에 부른다.

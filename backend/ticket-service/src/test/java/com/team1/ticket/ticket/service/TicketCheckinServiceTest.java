@@ -68,7 +68,7 @@ class TicketCheckinServiceTest {
     }
 
     private void ownedExpo() {
-        when(expoClient.getExpo(EXPO_ID)).thenReturn(new ExpoSummary(EXPO_ID, OWNER_ID, "PUBLISHED"));
+        when(expoClient.getExpo(EXPO_ID)).thenReturn(new ExpoSummary(EXPO_ID, OWNER_ID, "PUBLISHED", "테크 잡페어"));
     }
 
     // ---- verify ----

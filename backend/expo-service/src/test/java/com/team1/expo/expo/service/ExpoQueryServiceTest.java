@@ -102,7 +102,7 @@ class ExpoQueryServiceTest {
     void detail_mergesRounds() {
         Expo expo = expoWithStatus(ExpoStatus.PUBLISHED);
         when(expoQueryRepository.findById(EXPO_ID)).thenReturn(Optional.of(expo));
-        List<RoundView> rounds = List.of(new RoundView(5L, Instant.now(), Instant.now(), 100, 40, 10000));
+        List<RoundView> rounds = List.of(new RoundView(5L, 1, Instant.now(), Instant.now(), 100, 40, 10000));
         when(roundClient.listByExpo(EXPO_ID)).thenReturn(rounds);
 
         ExpoDetailResponse res = service.getPublishedExpo(EXPO_ID);

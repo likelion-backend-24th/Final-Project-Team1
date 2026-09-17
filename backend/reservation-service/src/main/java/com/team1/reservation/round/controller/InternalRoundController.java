@@ -4,6 +4,7 @@ import com.team1.reservation.round.service.RoundService;
 import com.team1.reservation.round.dto.ExistsResponse;
 import com.team1.reservation.round.dto.ExpoFeeSummaryResponse;
 import com.team1.reservation.round.dto.InternalRoundResponse;
+import com.team1.reservation.round.entity.Round;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,16 +35,14 @@ public class InternalRoundController {
     // 단건 조회(계약 2 getRoundInternal). 숫자만 받아 /exists·/finished-expos 와 겹치지 않게 한다.
     @GetMapping("/{roundId:\\d+}")
     public InternalRoundResponse get(@PathVariable Long roundId) {
-        return InternalRoundResponse.from(roundService.getById(roundId));
+        Round round = roundService.getById(roundId);
+        return InternalRoundResponse.from(round, roundService.sequenceOf(round));
     }
 
 
     @GetMapping
     public List<InternalRoundResponse> list(@RequestParam Long expoId) {
-        return roundService.listByExpo(expoId)
-                .stream()
-                .map(InternalRoundResponse::from)
-                .toList();
+        return InternalRoundResponse.listOf(roundService.listByExpo(expoId));
     }
 
 
