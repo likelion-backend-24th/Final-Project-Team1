@@ -298,6 +298,11 @@ input, select, textarea { font-family: inherit; }
   top: 10px;
   left: 10px;
 }
+.expo-card-thumb-fee {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
 .expo-card-body { padding: 14px 16px 16px; }
 .expo-card-cat {
   font-size: 11px;
@@ -486,6 +491,11 @@ input, select, textarea { font-family: inherit; }
 .badge-closed { background: var(--gray2); color: var(--gray6); }
 .badge-primary { background: var(--primary-l); color: var(--primary); }
 .badge-blue { background: var(--blue-l); color: var(--blue); }
+/* 썸네일 위에 올라간다. 어두운 이미지에 묻히지 않게 왼쪽 '공개중' 과 같은 밝은 배경 + 색 글자로 둔다. */
+.badge-paid,
+.badge-free { background: rgba(255, 255, 255, .95); box-shadow: var(--shadow-sm); }
+.badge-paid { color: var(--primary); }
+.badge-free { color: var(--green); }
 
 /* ─── Forms ─── */
 .form-group { margin-bottom: 20px; }

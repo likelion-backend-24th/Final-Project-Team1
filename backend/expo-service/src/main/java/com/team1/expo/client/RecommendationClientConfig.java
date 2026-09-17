@@ -1,4 +1,4 @@
-package com.team1.reservation.client;
+package com.team1.expo.client;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

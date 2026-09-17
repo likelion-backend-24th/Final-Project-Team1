@@ -6,6 +6,7 @@ import com.team1.payment.PgCommunicationException;
 import com.team1.reservation.client.ExpoClient;
 import com.team1.reservation.client.ExpoSummary;
 import com.team1.reservation.client.IssueTicketCommand;
+import com.team1.reservation.client.RecommendationEventNotifier;
 import com.team1.reservation.client.TicketClient;
 import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
@@ -13,7 +14,6 @@ import com.team1.reservation.reservation.dto.CreateReservationRequest;
 import com.team1.reservation.reservation.entity.Reservation;
 import com.team1.reservation.reservation.entity.ReservationStatus;
 import com.team1.reservation.reservation.repository.ReservationRepository;
-import com.team1.reservation.reservation.service.RecommendationEventNotifier;
 import com.team1.reservation.reservation.service.ReservationCreation;
 import com.team1.reservation.reservation.service.ReservationNoGenerator;
 import com.team1.reservation.reservation.service.ReservationService;
@@ -175,7 +175,8 @@ class CreateReservationServiceTest {
 
         Reservation saved = service.create(ROUND_ID, MEMBER, request(1)).reservation();
 
-        verify(recommendationNotifier).reservationConfirmed(saved);
+        verify(recommendationNotifier).reservationConfirmed(
+                saved.getUserId(), EXPO_ID, saved.getId(), "R-4K7Q-W2M8");
     }
 
     @Test

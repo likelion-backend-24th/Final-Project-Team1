@@ -1,4 +1,4 @@
-package com.team1.reservation.client;
+package com.team1.recommendation.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -10,13 +10,13 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 
 @Configuration
-public class RecommendationClientConfig {
+public class ExpoClientConfig {
 
     @Bean
-    public RestClient recommendationRestClient(
-            @Value("${recommendation-service.base-url}") String baseUrl,
-            @Value("${recommendation-service.connect-timeout}") Duration connectTimeout,
-            @Value("${recommendation-service.read-timeout}") Duration readTimeout) {
+    public RestClient expoRestClient(
+            @Value("${expo-service.base-url}") String baseUrl,
+            @Value("${expo-service.connect-timeout}") Duration connectTimeout,
+            @Value("${expo-service.read-timeout}") Duration readTimeout) {
 
         HttpClient httpClient = HttpClient.newBuilder().connectTimeout(connectTimeout).build();
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);

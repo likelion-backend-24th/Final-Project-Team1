@@ -3,6 +3,7 @@ package com.team1.expo.internal;
 import com.team1.expo.domain.channel.ChannelRepository;
 import com.team1.expo.domain.expo.Expo;
 import com.team1.expo.domain.expo.ExpoRepository;
+import com.team1.expo.domain.expo.ExpoStatus;
 import com.team1.expo.expo.dto.ExpoPublicationResponse;
 import com.team1.expo.expo.service.ExpoPublicationService;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -39,6 +41,17 @@ public class ExpoInternalController {
                     ));
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping
+    public List<Map<String, Object>> listPublished() {
+        return expoRepository.findAll().stream()
+                .filter(e -> ExpoStatus.PUBLISHED.equals(e.getStatus()))
+                .map(e -> Map.<String, Object>of(
+                        "expoId", e.getId(),
+                        "title", e.getTitle() != null ? e.getTitle() : "",
+                        "description", e.getDescription() != null ? e.getDescription() : ""))
+                .toList();
     }
 
     /**

@@ -6,6 +6,8 @@ import com.team1.expo.common.exception.ErrorCode;
 import com.team1.expo.domain.expo.Expo;
 import com.team1.expo.domain.expo.ExpoStatus;
 import com.team1.expo.expo.dto.ExpoDetailResponse;
+import com.team1.expo.expo.dto.ExpoFeeView;
+import com.team1.expo.expo.dto.ExpoSummaryResponse;
 import com.team1.expo.expo.dto.RoundView;
 import com.team1.expo.expo.repository.ExpoQueryRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +16,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
@@ -22,6 +26,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -49,6 +55,46 @@ class ExpoQueryServiceTest {
         assertThatThrownBy(() -> service.listPublished(null, "없는카테고리", "recommended", 1, 20))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.INVALID_REQUEST);
+    }
+
+    private void givenOnePublishedExpo() {
+        when(expoQueryRepository.findPublished(isNull(), isNull(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(expoWithStatus(ExpoStatus.PUBLISHED))));
+    }
+
+    @Test
+    @DisplayName("예약 가능한 회차 중 유료가 있으면 목록에 paid=true")
+    void list_paidBadge() {
+        givenOnePublishedExpo();
+        when(roundClient.feeSummaries(List.of(EXPO_ID)))
+                .thenReturn(List.of(new ExpoFeeView(EXPO_ID, true)));
+
+        assertThat(service.listPublished(null, null, "newest", 1, 20).getContent())
+                .singleElement()
+                .extracting(ExpoSummaryResponse::paid).isEqualTo(true);
+    }
+
+    @Test
+    @DisplayName("판정할 회차가 없으면 paid=null - 프론트가 배지를 숨긴다")
+    void list_noOpenRound_badgeHidden() {
+        givenOnePublishedExpo();
+        when(roundClient.feeSummaries(List.of(EXPO_ID))).thenReturn(List.of());
+
+        assertThat(service.listPublished(null, null, "newest", 1, 20).getContent())
+                .singleElement()
+                .extracting(ExpoSummaryResponse::paid).isNull();
+    }
+
+    @Test
+    @DisplayName("회차 조회가 실패해도 목록은 200 - 배지만 빠진다(부분 실패 허용)")
+    void list_feeSummaryFailure_stillReturnsList() {
+        givenOnePublishedExpo();
+        when(roundClient.feeSummaries(List.of(EXPO_ID)))
+                .thenThrow(new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE));
+
+        assertThat(service.listPublished(null, null, "newest", 1, 20).getContent())
+                .singleElement()
+                .extracting(ExpoSummaryResponse::paid).isNull();
     }
 
     @Test
