@@ -2,6 +2,7 @@ package com.team1.ticket.ticket.service;
 
 import com.team1.ticket.client.ExpoClient;
 import com.team1.ticket.client.ExpoSummary;
+import com.team1.ticket.client.RecommendationClient;
 import com.team1.ticket.client.RoundClient;
 import com.team1.ticket.common.ApiException;
 import com.team1.ticket.common.ErrorCode;
@@ -58,7 +59,8 @@ class TicketCheckinServiceTest {
         roundClient = mock(RoundClient.class);
         checkinLogWriter = mock(CheckinLogWriter.class);
         service = new TicketCheckinService(tickets, expoClient, roundClient,
-                checkinLogWriter, Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofHours(1));
+                checkinLogWriter, mock(RecommendationClient.class),
+                Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofHours(1));
     }
 
     private Ticket issuedTicket() {
