@@ -9,6 +9,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -39,6 +41,9 @@ class ExpoFeeSummaryTest extends IntegrationTestSupport {
 
     @Autowired
     private RoundRepository rounds;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     private Instant now;
 
@@ -102,7 +107,11 @@ class ExpoFeeSummaryTest extends IntegrationTestSupport {
         Long paidRoundId = round(EXPO_A, PAID, future());
         round(EXPO_A, FREE, future());
 
-        assertThat(rounds.softDeleteIfNoReservation(paidRoundId, now)).isEqualTo(1);
+        // softDeleteIfNoReservation 은 @Modifying 이라 Transaction 을 요구한다.
+        // 클래스에 @Transactional 을 걸면 삭제가 커밋되지 않아 판정 쿼리가 못 보므로 이 줄만 감싼다.
+        Integer deleted = new TransactionTemplate(transactionManager)
+                .execute(status -> rounds.softDeleteIfNoReservation(paidRoundId, now));
+        assertThat(deleted).isEqualTo(1);
 
         assertThat(summaries(EXPO_A)).containsEntry(EXPO_A, false);
     }
