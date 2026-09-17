@@ -43,12 +43,19 @@ public class SettlementService {
         List<ReservationPaymentItem> reservationPayments = reservationPaymentClient.getPayments(from, to);
         List<ExpoPromotionPaymentItem> promotionPayments = expoPromotionPaymentClient.getPayments(from, to);
 
-        long totalRevenue = sumReservation(reservationPayments, "PAID") + sumPromotion(promotionPayments, "PAID");
-        long totalRefund = sumReservation(reservationPayments, "CANCELLED") + sumPromotion(promotionPayments, "CANCELLED");
+        long reservationRevenue = sumReservation(reservationPayments, "PAID");
+        long reservationRefund = sumReservation(reservationPayments, "CANCELLED");
+        long promotionRevenue = sumPromotion(promotionPayments, "PAID");
+        long promotionRefund = sumPromotion(promotionPayments, "CANCELLED");
+
+        long totalRevenue = reservationRevenue + promotionRevenue;
+        long totalRefund = reservationRefund + promotionRefund;
         long netRevenue = totalRevenue - totalRefund;
         long platformFee = Math.round(netRevenue * FEE_RATE);
 
-        return new AdminSettlementResponse(year, month, totalRevenue, totalRefund, netRevenue, platformFee, FEE_RATE);
+        return new AdminSettlementResponse(
+                year, month, totalRevenue, totalRefund, netRevenue, platformFee, FEE_RATE,
+                reservationRevenue, reservationRefund, promotionRevenue, promotionRefund);
     }
 
     private long sumReservation(List<ReservationPaymentItem> items, String status) {
