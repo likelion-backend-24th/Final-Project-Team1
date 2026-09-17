@@ -256,6 +256,13 @@ export default function RoundManagePage() {
                 )}
               </div>
 
+              {isClosed && (
+                <div className="alert alert-warning" style={{ marginTop: 16, marginBottom: 0 }}>
+                  ⚑ 모든 회차가 종료되어 박람회가 자동으로 마감되었습니다. 박람회 탐색 목록에는 더 이상 노출되지 않습니다.
+                  종료된 회차는 수정·삭제할 수 없습니다.
+                </div>
+              )}
+
               {!isPublished && !isClosed && (
                 <div className="alert alert-warning" style={{ marginTop: 16, marginBottom: 0 }}>
                   {rounds.length === 0
@@ -417,6 +424,9 @@ export default function RoundManagePage() {
                     <div key={r.roundId} className="round-card">
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
+                          {r.sequence > 0 && (
+                            <span style={{ color: 'var(--primary)', marginRight: 8 }}>{r.sequence}회차</span>
+                          )}
                           {fmt(r.startsAt)} – {fmt(r.endsAt)}
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--sub)' }}>

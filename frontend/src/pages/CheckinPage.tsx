@@ -120,12 +120,17 @@ export default function CheckinPage() {
           </div>
 
           <div className="form-group">
+            <label className="form-label">박람회</label>
+            <p>{ticket.expoTitle || `박람회 #${ticket.expoId ?? '-'}`}</p>
+          </div>
+          <div className="form-group">
             <label className="form-label">예약번호</label>
             <p>{ticket.reservationNo ?? '-'}</p>
           </div>
           <div className="form-group">
             <label className="form-label">회차</label>
-            <p>round #{ticket.roundId}</p>
+            {/* 번호는 표시용이라 서버가 못 채울 수 있다. 그때만 roundId 로 물러난다. */}
+            <p>{ticket.roundSequence ? `${ticket.roundSequence}회차` : `round #${ticket.roundId}`}</p>
           </div>
           <div className="form-group">
             <label className="form-label">인원</label>

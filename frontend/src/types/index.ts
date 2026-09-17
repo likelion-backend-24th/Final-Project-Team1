@@ -46,6 +46,7 @@ export function expoKey(e: Expo): number {
  */
 export interface Round {
   roundId: number
+  sequence: number // 날짜순 회차 번호(1-base). 서버가 조회할 때마다 다시 매긴다
   startsAt: string
   endsAt: string
   capacity: number
@@ -75,7 +76,9 @@ export interface MyReservation {
   reservationId: number
   reservationNo: string
   expoId: number
+  expoTitle?: string      // 표시용. 박람회-Service 조회가 실패하면 없다
   roundId: number
+  roundSequence?: number  // 표시용. 삭제된 회차를 가리키는 지난 예약은 없다
   startsAt?: string
   endsAt?: string
   headcount: number
@@ -114,7 +117,10 @@ export interface CheckinTicketView {
   ticketId: number
   status: string
   reservationNo?: string
+  expoId?: number
+  expoTitle?: string      // 표시용. 없으면 화면이 회차 번호·roundId 로 물러난다
   roundId: number
+  roundSequence?: number
   headcount: number
   issuedAt: string
   usedAt?: string

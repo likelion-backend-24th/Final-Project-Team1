@@ -75,7 +75,7 @@ class CheckinSummaryIntegrationTest extends IntegrationTestSupport {
     @DisplayName("집계: 체크인을 되돌리면 그 인원이 집계에서 빠진다 (S7-4)")
     void undoneCheckinLeavesAggregate() {
         // 집계는 별도 카운터가 아니라 status=USED 실시간 합이라, 상태만 되돌리면 자동으로 빠진다.
-        when(expoClient.getExpo(EXPO_ID)).thenReturn(new ExpoSummary(EXPO_ID, 7L, "PUBLISHED"));
+        when(expoClient.getExpo(EXPO_ID)).thenReturn(new ExpoSummary(EXPO_ID, 7L, "PUBLISHED", "테크 잡페어"));
         ticketRepository.save(used(1L, 45L, 3, "u45a"));
         Ticket undone = ticketRepository.save(used(2L, 45L, 2, "u45b"));
         AuthenticatedUser owner = new AuthenticatedUser(7L, "ORGANIZER");

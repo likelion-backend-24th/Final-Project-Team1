@@ -10,6 +10,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 @Component
 public class RestClientExpoClient implements ExpoClient {
 
@@ -49,6 +54,34 @@ public class RestClientExpoClient implements ExpoClient {
 
             log.warn("getExpoInternal failed expoId={} traceId={}", expoId, TraceId.get(), e);
             throw new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "expo-service unavailable");
+        }
+    }
+
+    @Override
+    public Map<Long, String> titles(Collection<Long> expoIds) {
+        if (expoIds.isEmpty()) {
+            return Map.of();
+        }
+        // expoIds 는 Long 이라 인코딩할 문자가 없다. 반복 파라미터로 붙여 콤마 구분 모호함을 피한다.
+        String query = expoIds.stream().map(id -> "expoIds=" + id).collect(Collectors.joining("&"));
+        try {
+            ExpoTitle[] found = restClient.get()
+                    .uri("/internal/v1/expos/titles?" + query)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + internalToken)
+                    .header(TraceId.HEADER, TraceId.get())
+                    .retrieve()
+                    .body(ExpoTitle[].class);
+
+            if (found == null) {
+                return Map.of();
+            }
+            return Arrays.stream(found)
+                    .filter(t -> t.expoId() != null && t.title() != null)
+                    .collect(Collectors.toMap(ExpoTitle::expoId, ExpoTitle::title, (a, b) -> a));
+
+        } catch (Exception e) {
+            log.warn("expoTitles failed count={} traceId={}", expoIds.size(), TraceId.get(), e);
+            return Map.of();
         }
     }
 

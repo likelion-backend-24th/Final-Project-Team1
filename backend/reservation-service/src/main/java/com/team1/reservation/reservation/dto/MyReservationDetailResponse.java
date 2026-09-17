@@ -16,7 +16,9 @@ import java.time.Instant;
 public record MyReservationDetailResponse(Long reservationId,
                                           String reservationNo,
                                           Long expoId,
+                                          String expoTitle,
                                           Long roundId,
+                                          Integer roundSequence,
                                           Instant startsAt,
                                           Instant endsAt,
                                           String contactName,
@@ -30,12 +32,15 @@ public record MyReservationDetailResponse(Long reservationId,
                                           Instant createdAt) {
 
     public static MyReservationDetailResponse of(Reservation reservation, Round round,
+                                                 String expoTitle, Integer roundSequence,
                                                  RefundState refundState, ReservationTicketView ticket) {
         return new MyReservationDetailResponse(
                 reservation.getId(),
                 reservation.getReservationNo(),
                 reservation.getExpoId(),
+                expoTitle,
                 reservation.getRoundId(),
+                roundSequence,
                 round == null ? null : round.getStartsAt(),
                 round == null ? null : round.getEndsAt(),
                 reservation.getContactName(),

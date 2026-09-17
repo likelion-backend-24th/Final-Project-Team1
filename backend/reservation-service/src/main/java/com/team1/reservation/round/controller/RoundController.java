@@ -41,17 +41,13 @@ public class RoundController {
         Round saved = roundService.create(expoId, currentUser(), request);
         return ResponseEntity
                 .created(URI.create("/api/v1/expos/" + expoId + "/rounds/" + saved.getId()))
-                .body(ApiResponse.ok(RoundResponse.from(saved)));
+                .body(ApiResponse.ok(RoundResponse.from(saved, roundService.sequenceOf(saved))));
     }
 
 
     @GetMapping
     public ApiResponse<List<RoundResponse>> list(@PathVariable Long expoId) {
-        List<RoundResponse> body = roundService.listForOrganizer(expoId, currentUser())
-                .stream()
-                .map(RoundResponse::from)
-                .toList();
-        return ApiResponse.ok(body);
+        return ApiResponse.ok(RoundResponse.listOf(roundService.listForOrganizer(expoId, currentUser())));
     }
 
 
@@ -60,8 +56,8 @@ public class RoundController {
     public ApiResponse<RoundResponse> update(@PathVariable Long expoId,
                                              @PathVariable Long roundId,
                                              @Valid @RequestBody UpdateRoundRequest request) {
-        return ApiResponse.ok(RoundResponse.from(
-                roundService.update(expoId, roundId, currentUser(), request)));
+        Round updated = roundService.update(expoId, roundId, currentUser(), request);
+        return ApiResponse.ok(RoundResponse.from(updated, roundService.sequenceOf(updated)));
     }
 
 

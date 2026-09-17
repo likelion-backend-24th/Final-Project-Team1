@@ -109,6 +109,14 @@ export default function MyReservationsPage() {
                   )}
                 </div>
                 <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
+                  {r.expoTitle || `박람회 #${r.expoId}`}
+                  {r.roundSequence && (
+                    <span style={{ marginLeft: 6, fontSize: 13, fontWeight: 600, color: 'var(--primary)' }}>
+                      {r.roundSequence}회차
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 2 }}>
                   {fmtDateTime(r.startsAt)} – {fmtDateTime(r.endsAt)}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--sub)' }}>
@@ -187,6 +195,13 @@ function ReservationDetailModal({ reservationId, onClose, onCancelled }: {
               )}
             </div>
 
+            <div className="form-group">
+              <label className="form-label">박람회</label>
+              <p>
+                {detail.expoTitle || `박람회 #${detail.expoId}`}
+                {detail.roundSequence && ` · ${detail.roundSequence}회차`}
+              </p>
+            </div>
             <div className="form-group">
               <label className="form-label">예약번호</label>
               <p>{detail.reservationNo}</p>

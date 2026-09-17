@@ -66,7 +66,7 @@ public class RoundService {
     public List<Round> listForOrganizer(Long expoId, AuthenticatedUser user) {
         requireOwnership(expoId, user);
 
-        return rounds.findByExpoIdAndDeletedAtIsNullOrderByStartsAtAsc(expoId);
+        return RoundSequence.ordered(rounds.findByExpoIdAndDeletedAtIsNullOrderByStartsAtAsc(expoId));
     }
 
     /**
@@ -152,7 +152,14 @@ public class RoundService {
 
     @Transactional(readOnly = true)
     public List<Round> listByExpo(Long expoId) {
-        return rounds.findByExpoIdAndDeletedAtIsNullOrderByStartsAtAsc(expoId);
+        return RoundSequence.ordered(rounds.findByExpoIdAndDeletedAtIsNullOrderByStartsAtAsc(expoId));
+    }
+
+    /** 단건의 회차 번호. 목록이 없을 때만 쓴다 - 목록은 정렬 순서로 매기는 편이 쿼리 없이 끝난다. */
+    @Transactional(readOnly = true)
+    public int sequenceOf(Round round) {
+        return (int) rounds.countEarlierRounds(
+                round.getExpoId(), round.getStartsAt(), round.getId()) + 1;
     }
 
     /**

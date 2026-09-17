@@ -44,7 +44,7 @@ class CheckinByReservationNoTest extends IntegrationTestSupport {
     @BeforeEach
     void setUp() {
         ticketRepository.deleteAll();
-        when(expoClient.getExpo(EXPO_ID)).thenReturn(new ExpoSummary(EXPO_ID, OWNER_ID, "PUBLISHED"));
+        when(expoClient.getExpo(EXPO_ID)).thenReturn(new ExpoSummary(EXPO_ID, OWNER_ID, "PUBLISHED", "테크 잡페어"));
     }
 
     private Ticket issued() {

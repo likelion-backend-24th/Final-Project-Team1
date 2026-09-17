@@ -2,6 +2,7 @@ package com.team1.reservation.reservation.support;
 
 import com.team1.payment.PaymentStatus;
 import com.team1.payment.PaymentTransaction;
+import com.team1.reservation.client.ExpoClient;
 import com.team1.reservation.client.TicketClient;
 import com.team1.reservation.reservation.entity.Reservation;
 import com.team1.reservation.reservation.entity.ReservationStatus;
@@ -16,6 +17,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -41,6 +43,7 @@ public abstract class MyReservationFixture {
     protected RoundRepository rounds;
     protected PaymentLookupRepository payments;
     protected TicketClient ticketClient;
+    protected ExpoClient expoClient;
     protected MyReservationService service;
 
     protected void initMocks() {
@@ -48,13 +51,16 @@ public abstract class MyReservationFixture {
         rounds = mock(RoundRepository.class);
         payments = mock(PaymentLookupRepository.class);
         ticketClient = mock(TicketClient.class);
+        expoClient = mock(ExpoClient.class);
 
         service = new MyReservationService(reservations, rounds, payments, ticketClient,
-                MAX_REFUND_ATTEMPTS);
+                expoClient, MAX_REFUND_ATTEMPTS);
 
         when(payments.findByRefIdIn(any())).thenReturn(List.of());
         when(rounds.findById(ROUND_ID)).thenReturn(Optional.of(round()));
         when(rounds.findAllById(any())).thenReturn(List.of(round()));
+        when(rounds.findByExpoIdInAndDeletedAtIsNull(any())).thenReturn(List.of(round()));
+        when(expoClient.titles(any())).thenReturn(Map.of(EXPO_ID, "테크 잡페어"));
     }
 
     protected Round round() {

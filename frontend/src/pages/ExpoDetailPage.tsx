@@ -297,8 +297,15 @@ export default function ExpoDetailPage() {
                           opacity: isClosed ? .6 : 1,
                         }}
                       >
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                          {fmtDate(r.startsAt)}
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+                          {r.sequence > 0 && (
+                            <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--primary)' }}>
+                              {r.sequence}회차
+                            </span>
+                          )}
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                            {fmtDate(r.startsAt)}
+                          </span>
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 10 }}>
                           {fmtRange(r.startsAt, r.endsAt)}
