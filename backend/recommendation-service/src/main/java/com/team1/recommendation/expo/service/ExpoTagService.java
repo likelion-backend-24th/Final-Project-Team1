@@ -104,13 +104,11 @@ public class ExpoTagService {
         }
     }
 
-    @Transactional
     private void saveKeywords(Long expoId, List<String> keywords) {
         LocalDateTime now = LocalDateTime.now();
         keywords.forEach(kw -> repository.save(ExpoTag.of(expoId, kw, null, now)));
     }
 
-    @Transactional
     private void saveFallback(Long expoId) {
         repository.save(ExpoTag.of(expoId, "UNTAGGED", null, LocalDateTime.now()));
     }

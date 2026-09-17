@@ -70,14 +70,9 @@ public class NotificationService {
 
     // 매일 09:00 — 관심 점수 높은 사용자에게 신규 박람회 알림 생성
     @Scheduled(cron = "0 0 9 * * *")
+    @Transactional
     public void generateNotifications() {
         log.info("notification generation started");
-        generateNow();
-        log.info("notification generation done");
-    }
-
-    @Transactional
-    public void generateNow() {
         List<ExpoSummary> expos = expoClient.listPublished();
         if (expos.isEmpty()) return;
 
@@ -105,5 +100,6 @@ public class NotificationService {
                         });
             }
         }
+        log.info("notification generation done");
     }
 }

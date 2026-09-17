@@ -45,14 +45,9 @@ public class PreferenceScoreService {
 
     // 매일 새벽 2시 실행
     @Scheduled(cron = "0 0 2 * * *")
+    @Transactional
     public void recalculate() {
         log.info("preference score recalculation started");
-        recalculateNow();
-        log.info("preference score recalculation done");
-    }
-
-    @Transactional
-    public void recalculateNow() {
         List<UserActivity> activities = activityRepository.findAll();
 
         // expoId → 태그 목록 (UNTAGGED 제외)
@@ -90,5 +85,6 @@ public class PreferenceScoreService {
                         )
                 )
         );
+        log.info("preference score recalculation done");
     }
 }
