@@ -41,6 +41,7 @@ export default function HomePage() {
 
   useEffect(() => {
     let cancelled = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     expoApi.listPublished({
       category: category === '전체' ? undefined : category,
@@ -194,6 +195,7 @@ function HeroCarousel({ promotions, onNavigate }: {
   useEffect(() => {
     resetTimer()
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [total])
 
   function go(i: number) {
@@ -320,6 +322,7 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
   useEffect(() => {
     resetTimer()
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recommendations.length])
 
   function go(i: number) {
