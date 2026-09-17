@@ -5,6 +5,7 @@ import com.team1.reservation.client.ExpoSummary;
 import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.round.dto.CreateRoundRequest;
+import com.team1.reservation.round.dto.ExpoFeeSummaryResponse;
 import com.team1.reservation.round.dto.UpdateRoundRequest;
 import com.team1.reservation.round.entity.Round;
 import com.team1.reservation.round.repository.RoundRepository;
@@ -15,8 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @Service
 public class RoundService {
@@ -29,6 +32,9 @@ public class RoundService {
 
 
     public static final int MAX_FINISHED_EXPO_LIMIT = 1000;
+
+    /** 목록 한 페이지(최대 100)를 넘는 요청은 내부 호출부의 실수로 본다. */
+    static final int MAX_FEE_SUMMARY_IDS = 200;
 
     private final RoundRepository rounds;
     private final ExpoClient expoClient;
@@ -136,7 +142,7 @@ public class RoundService {
         }
     }
 
-    // Ticket-Service 의 체크인 시간창 검증이 쓴다(계약 3-4).
+    // Ticket-Service 의 체크인 시간창 검증이 쓴다(계약 2 getRoundInternal).
     // 삭제 여부로 거르지 않는다 - 이미 발급된 티켓의 회차 시각을 확인하는 용도다.
     @Transactional(readOnly = true)
     public Round getById(Long roundId) {
@@ -147,6 +153,26 @@ public class RoundService {
     @Transactional(readOnly = true)
     public List<Round> listByExpo(Long expoId) {
         return rounds.findByExpoIdAndDeletedAtIsNullOrderByStartsAtAsc(expoId);
+    }
+
+    /**
+     * 목록 배지용 유료/무료 판정(계약 2 feeSummaries). 예약 가능한 회차 중 fee > 0 이 하나라도 있으면 유료다.
+     * 예약 가능한 회차가 0개인 박람회는 결과에서 빠져 호출부가 배지를 숨긴다.
+     */
+    @Transactional(readOnly = true)
+    public List<ExpoFeeSummaryResponse> feeSummaries(Collection<Long> expoIds) {
+        if (expoIds == null || expoIds.isEmpty()) {
+            return List.of();
+        }
+        if (expoIds.size() > MAX_FEE_SUMMARY_IDS) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST,
+                    "too many expoIds: " + expoIds.size());
+        }
+        Instant now = clock.instant();
+        Set<Long> paid = Set.copyOf(rounds.findExpoIdsWithPaidOpenRounds(expoIds, now));
+        return rounds.findExpoIdsWithOpenRounds(expoIds, now).stream()
+                .map(expoId -> new ExpoFeeSummaryResponse(expoId, paid.contains(expoId)))
+                .toList();
     }
 
     @Transactional(readOnly = true)

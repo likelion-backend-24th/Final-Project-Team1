@@ -3,6 +3,7 @@ package com.team1.expo.client;
 import com.team1.expo.common.TraceId;
 import com.team1.expo.common.exception.BusinessException;
 import com.team1.expo.common.exception.ErrorCode;
+import com.team1.expo.expo.dto.ExpoFeeView;
 import com.team1.expo.expo.dto.RoundView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class RestClientRoundClient implements RoundClient {
@@ -63,6 +65,28 @@ public class RestClientRoundClient implements RoundClient {
             return rounds == null ? List.of() : List.of(rounds);
         } catch (Exception e) {
             log.warn("listRoundsByExpo 호출 실패 expoId={} traceId={}", expoId, TraceId.get(), e);
+            throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        }
+    }
+
+    @Override
+    public List<ExpoFeeView> feeSummaries(List<Long> expoIds) {
+        if (expoIds.isEmpty()) {
+            return List.of();
+        }
+        // expoIds 가 Long 이라 인코딩할 문자가 없다. 반복 파라미터로 붙여 콤마 구분 모호함을 피한다.
+        String query = expoIds.stream().map(id -> "expoIds=" + id).collect(Collectors.joining("&"));
+        try {
+            ExpoFeeView[] summaries = restClient.get()
+                    .uri("/internal/v1/rounds/fee-summary?" + query)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + internalToken)
+                    .header(TraceId.HEADER, TraceId.get())
+                    .retrieve()
+                    .body(ExpoFeeView[].class);
+
+            return summaries == null ? List.of() : List.of(summaries);
+        } catch (Exception e) {
+            log.warn("feeSummaries 호출 실패 count={} traceId={}", expoIds.size(), TraceId.get(), e);
             throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
         }
     }

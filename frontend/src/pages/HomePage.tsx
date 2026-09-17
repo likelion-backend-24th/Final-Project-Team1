@@ -229,6 +229,13 @@ function ExpoCard({ expo, colors, isVip, onClick }: {
           {isVip && <span className="badge" style={{ background: '#7C3AED', color: '#fff', marginRight: 4 }}>⭐ VIP</span>}
           <span className="badge badge-published">● 공개중</span>
         </div>
+        {expo.paid != null && (
+          <div className="expo-card-thumb-fee">
+            <span className={`badge ${expo.paid ? 'badge-paid' : 'badge-free'}`}>
+              {expo.paid ? '유료' : '무료'}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="expo-card-body">
