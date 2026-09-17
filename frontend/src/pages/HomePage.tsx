@@ -185,6 +185,7 @@ function HeroCarousel({ promotions, onNavigate }: {
   const total = 1 + promotions.length
   const [idx, setIdx] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const swipeRef = useRef<{ startX: number; swiped: boolean }>({ startX: 0, swiped: false })
 
   function resetTimer() {
     if (timerRef.current) clearInterval(timerRef.current)
@@ -203,6 +204,18 @@ function HeroCarousel({ promotions, onNavigate }: {
     resetTimer()
   }
 
+  function handlePointerDown(e: React.PointerEvent) {
+    swipeRef.current = { startX: e.clientX, swiped: false }
+  }
+
+  function handlePointerUp(e: React.PointerEvent) {
+    const diff = e.clientX - swipeRef.current.startX
+    if (Math.abs(diff) > 50) {
+      swipeRef.current.swiped = true
+      go(diff < 0 ? (idx + 1) % total : (idx - 1 + total) % total)
+    }
+  }
+
   const vip = idx > 0 ? promotions[idx - 1] : null
 
   return (
@@ -217,7 +230,9 @@ function HeroCarousel({ promotions, onNavigate }: {
         display: 'flex',
         alignItems: 'center',
       }}
-      onClick={() => vip && onNavigate(vip.expoId)}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onClick={() => { if (swipeRef.current.swiped) { swipeRef.current.swiped = false; return }; if (vip) onNavigate(vip.expoId) }}
       role={vip ? 'button' : undefined}
       tabIndex={vip ? 0 : undefined}
       onKeyDown={e => vip && e.key === 'Enter' && onNavigate(vip.expoId)}
@@ -355,6 +370,7 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
 
   const [idx, setIdx] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const swipeRef = useRef<{ startX: number; swiped: boolean }>({ startX: 0, swiped: false })
 
   function resetTimer() {
     if (timerRef.current) clearInterval(timerRef.current)
@@ -371,6 +387,18 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
   }, [slides.length])
 
   function go(i: number) { setIdx(i); resetTimer() }
+
+  function handlePointerDown(e: React.PointerEvent) {
+    swipeRef.current = { startX: e.clientX, swiped: false }
+  }
+
+  function handlePointerUp(e: React.PointerEvent) {
+    const diff = e.clientX - swipeRef.current.startX
+    if (Math.abs(diff) > 50) {
+      swipeRef.current.swiped = true
+      go(diff < 0 ? (idx + 1) % slides.length : (idx - 1 + slides.length) % slides.length)
+    }
+  }
 
   const slide = slides[idx]
   if (!slide) return null
@@ -389,7 +417,9 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
         alignItems: 'center',
         background: slide.thumbnailUrl ? undefined : `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`,
       }}
-      onClick={() => onNavigate(slide.id)}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onClick={() => { if (swipeRef.current.swiped) { swipeRef.current.swiped = false; return }; onNavigate(slide.id) } }
       role="button"
       tabIndex={0}
       onKeyDown={e => e.key === 'Enter' && onNavigate(slide.id)}
