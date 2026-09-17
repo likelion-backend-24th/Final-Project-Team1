@@ -2,6 +2,7 @@ package com.team1.reservation.round.controller;
 
 import com.team1.reservation.round.service.RoundService;
 import com.team1.reservation.round.dto.ExistsResponse;
+import com.team1.reservation.round.dto.ExpoFeeSummaryResponse;
 import com.team1.reservation.round.dto.InternalRoundResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,7 +31,7 @@ public class InternalRoundController {
     }
 
 
-    // 단건 조회(계약 3-4). 숫자만 받아 /exists·/finished-expos 와 겹치지 않게 한다.
+    // 단건 조회(계약 2 getRoundInternal). 숫자만 받아 /exists·/finished-expos 와 겹치지 않게 한다.
     @GetMapping("/{roundId:\\d+}")
     public InternalRoundResponse get(@PathVariable Long roundId) {
         return InternalRoundResponse.from(roundService.getById(roundId));
@@ -43,6 +44,13 @@ public class InternalRoundController {
                 .stream()
                 .map(InternalRoundResponse::from)
                 .toList();
+    }
+
+
+    // 목록 배지용 일괄 조회(계약 2 feeSummaries). 박람회 수만큼 호출하지 않으려고 한 번에 받는다.
+    @GetMapping("/fee-summary")
+    public List<ExpoFeeSummaryResponse> feeSummary(@RequestParam List<Long> expoIds) {
+        return roundService.feeSummaries(expoIds);
     }
 
 

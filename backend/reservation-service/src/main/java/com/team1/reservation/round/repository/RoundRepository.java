@@ -8,12 +8,28 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 
 public interface RoundRepository extends JpaRepository<Round, Long> {
 
     // 삭제된 회차는 "미래의 행동" 을 받는 경로에서 전부 빠진다(S9-3).
     List<Round> findByExpoIdAndDeletedAtIsNullOrderByStartsAtAsc(Long expoId);
+
+    /**
+     * 목록 배지용 - 예약 가능한 회차가 하나라도 남은 박람회 id.
+     * 삭제됐거나 이미 시작한 회차는 예약을 받지 못하므로 배지 판정에서도 빠진다.
+     */
+    @Query("select distinct r.expoId from Round r "
+            + "where r.expoId in :expoIds and r.deletedAt is null and r.startsAt > :now")
+    List<Long> findExpoIdsWithOpenRounds(@Param("expoIds") Collection<Long> expoIds, @Param("now") Instant now);
+
+
+    // 위와 같은 조건에 fee > 0 만 더한다. 한 회차라도 걸리면 그 박람회는 유료다.
+    @Query("select distinct r.expoId from Round r "
+            + "where r.expoId in :expoIds and r.deletedAt is null and r.startsAt > :now and r.fee > 0")
+    List<Long> findExpoIdsWithPaidOpenRounds(@Param("expoIds") Collection<Long> expoIds, @Param("now") Instant now);
+
 
     // 박람회 공개 조건(#24). 삭제된 회차만 있는 박람회가 공개되면 안 된다.
     boolean existsByExpoIdAndDeletedAtIsNull(Long expoId);

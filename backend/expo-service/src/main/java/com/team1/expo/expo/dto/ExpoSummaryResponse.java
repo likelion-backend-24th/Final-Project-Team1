@@ -15,9 +15,11 @@ public record ExpoSummaryResponse(
         String region,
         String category,
         String thumbnailUrl,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Boolean paid
 ) {
-    public static ExpoSummaryResponse from(Expo expo) {
+    /** 회차를 조회하지 못했거나 예약 가능한 회차가 없으면 paid=null - 프론트가 배지를 숨긴다. */
+    public static ExpoSummaryResponse from(Expo expo, Boolean paid) {
         return new ExpoSummaryResponse(
                 expo.getId(),
                 expo.getChannelId(),
@@ -26,7 +28,8 @@ public record ExpoSummaryResponse(
                 expo.getRegion(),
                 expo.getCategory(),
                 expo.getThumbnailUrl(),
-                expo.getCreatedAt()
+                expo.getCreatedAt(),
+                paid
         );
     }
 }
