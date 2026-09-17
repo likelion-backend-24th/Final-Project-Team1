@@ -26,6 +26,11 @@ public class UserActivity {
 
     protected UserActivity() {}
 
+    public Long getUserId() { return userId; }
+    public Long getExpoId() { return expoId; }
+    public EventType getEventType() { return eventType; }
+    public LocalDateTime getOccurredAt() { return occurredAt; }
+
     public static UserActivity of(Long userId, Long expoId, EventType eventType, LocalDateTime now) {
         UserActivity a = new UserActivity();
         a.userId = userId;
