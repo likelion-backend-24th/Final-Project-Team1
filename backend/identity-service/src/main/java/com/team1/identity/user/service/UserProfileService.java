@@ -5,6 +5,7 @@ import com.team1.identity.common.exception.ErrorCode;
 import com.team1.identity.common.security.CurrentUser;
 import com.team1.identity.user.dto.ChangeNameRequest;
 import com.team1.identity.user.dto.ChangePasswordRequest;
+import com.team1.identity.user.dto.ChangeProfileImageRequest;
 import com.team1.identity.user.dto.MyProfileResponse;
 import com.team1.identity.user.entity.User;
 import com.team1.identity.user.repository.UserRepository;
@@ -46,6 +47,13 @@ public class UserProfileService {
     }
 
     @Transactional
+    public MyProfileResponse changeProfileImage(ChangeProfileImageRequest request) {
+        User user = findCurrentUser();
+        user.changeProfileImage(request.imageUrl());
+        return toResponse(user);
+    }
+
+    @Transactional
     public void changePassword(ChangePasswordRequest request) {
         User user = findCurrentUser();
 
@@ -63,6 +71,7 @@ public class UserProfileService {
     }
 
     private MyProfileResponse toResponse(User user) {
-        return new MyProfileResponse(user.getId(), user.getEmail(), user.getName(), user.primaryRole().name());
+        return new MyProfileResponse(
+                user.getId(), user.getEmail(), user.getName(), user.primaryRole().name(), user.getProfileImageUrl());
     }
 }

@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { userApi } from '../api/user'
 import { organizerRequestApi, type OrganizerApplicationResponse } from '../api/organizerRequest'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import { usePageTitle } from '../hooks/usePageTitle'
+import Avatar from '../components/Avatar'
+import { uploadImage, UploadError } from '../lib/cloudinary'
 
 export default function MyPage() {
   usePageTitle('마이페이지')
@@ -30,12 +32,76 @@ export default function MyPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <ProfileImageCard />
             <ProfileCard />
             <ChangeNameCard onChanged={name => login({ ...user, name })} />
             <ChangePasswordCard />
             {isRole('USER') && <OrganizerRequestCard />}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function ProfileImageCard() {
+  const { user, login } = useAuth()
+  const toast = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+
+  useEffect(() => {
+    if (!user) return
+    userApi.getMe()
+      .then(res => login({ ...user, name: res.data.name, profileImageUrl: res.data.profileImageUrl }))
+      .catch(() => {})
+  }, [])
+
+  if (!user) return null
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const imageUrl = await uploadImage(file)
+      const res = await userApi.changeProfileImage(imageUrl)
+      login({ ...user!, profileImageUrl: res.data.profileImageUrl })
+      toast('프로필 사진이 변경되었습니다 ✓', 'success')
+    } catch (err) {
+      toast(err instanceof UploadError ? err.message : '이미지 변경에 실패했습니다', 'error')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="card" style={{ padding: 32, display: 'flex', alignItems: 'center', gap: 20 }}>
+      <Avatar userId={user.id} name={user.name} imageUrl={user.profileImageUrl} size={72} />
+      <div>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+          프로필 사진
+        </h2>
+        <p style={{ fontSize: 12.5, color: 'var(--sub)', marginBottom: 12 }}>
+          JPG · PNG · WEBP · GIF, 10MB 이하
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {uploading ? '업로드 중...' : '사진 변경'}
+        </button>
       </div>
     </div>
   )
