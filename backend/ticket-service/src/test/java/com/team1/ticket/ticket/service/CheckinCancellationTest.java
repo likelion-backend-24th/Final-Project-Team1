@@ -2,6 +2,7 @@ package com.team1.ticket.ticket.service;
 
 import com.team1.ticket.client.ExpoClient;
 import com.team1.ticket.client.ExpoSummary;
+import com.team1.ticket.client.RecommendationClient;
 import com.team1.ticket.client.RoundClient;
 import com.team1.ticket.common.ApiException;
 import com.team1.ticket.common.ErrorCode;
@@ -57,7 +58,8 @@ class CheckinCancellationTest {
         roundClient = mock(RoundClient.class);   // null -> 시간창은 fail-open
         checkinLogWriter = mock(CheckinLogWriter.class);
         service = new TicketCheckinService(tickets, expoClient, roundClient,
-                checkinLogWriter, Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofHours(1));
+                checkinLogWriter, mock(RecommendationClient.class),
+                Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofHours(1));
 
         ticket = Ticket.issue(123L, "R-4K7Q-W2M8", EXPO_ID, 45L, 77L, 2, "tok-1", NOW.minusSeconds(3600));
         when(tickets.findById(anyLong())).thenReturn(Optional.of(ticket));

@@ -2,6 +2,7 @@ package com.team1.ticket.ticket.service;
 
 import com.team1.ticket.client.ExpoClient;
 import com.team1.ticket.client.ExpoSummary;
+import com.team1.ticket.client.RecommendationClient;
 import com.team1.ticket.client.RoundClient;
 import com.team1.ticket.client.RoundInfo;
 import com.team1.ticket.common.ApiException;
@@ -41,17 +42,20 @@ public class TicketCheckinService {
     private final ExpoClient expoClient;
     private final RoundClient roundClient;
     private final CheckinLogWriter checkinLogWriter;
+    private final RecommendationClient recommendationClient;
     private final Clock clock;
     private final Duration opensBefore;
 
     public TicketCheckinService(TicketRepository ticketRepository, ExpoClient expoClient,
                                 RoundClient roundClient, CheckinLogWriter checkinLogWriter,
+                                RecommendationClient recommendationClient,
                                 Clock clock,
                                 @Value("${checkin.opens-before}") Duration opensBefore) {
         this.ticketRepository = ticketRepository;
         this.expoClient = expoClient;
         this.roundClient = roundClient;
         this.checkinLogWriter = checkinLogWriter;
+        this.recommendationClient = recommendationClient;
         this.clock = clock;
         this.opensBefore = opensBefore;
     }
@@ -74,6 +78,7 @@ public class TicketCheckinService {
         requireWithinCheckinWindow(ticket, now);
         ticket.checkIn(now);
         recordQuietly(ticket.getId(), CheckinAction.CHECK_IN, organizer.userId(), method, now);
+        recommendationClient.sendCheckinEvent(ticket.getUserId(), ticket.getExpoId());
         return CheckinResult.from(ticket);
     }
 
