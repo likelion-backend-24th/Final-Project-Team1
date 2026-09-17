@@ -30,3 +30,12 @@ internal:
 
 jwt:
   secret: ${JWT_SECRET:dev-only-not-a-real-secret-0123456789abcdef}
+
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  base-url: https://generativelanguage.googleapis.com
+
+expo-service:
+  base-url: ${EXPO_SERVICE_URL:http://localhost:8082}
+  connect-timeout: 2s
+  read-timeout: 5s

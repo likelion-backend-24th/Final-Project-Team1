@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { requestPayment } from '@portone/browser-sdk/v2'
+import { requestNotificationRefresh } from '../api/notification'
 import { reservationApi } from '../api/reservation'
 import { useToast } from './Toast'
 import type { Reservation, Round } from '../types'
@@ -150,6 +151,7 @@ export default function ReservationModal({ round, onClose, onSuccess, onReleased
       setResult(finalReservation)
       setStep('done')
       onSuccess(finalReservation)
+      if (confirmed.status === 'CONFIRMED') requestNotificationRefresh()
     } catch (e) {
       setStep('form')
 
@@ -187,6 +189,7 @@ export default function ReservationModal({ round, onClose, onSuccess, onReleased
         setResult(created)
         setStep('done')
         onSuccess(created)
+        requestNotificationRefresh()
         return
       }
 

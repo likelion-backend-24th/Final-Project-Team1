@@ -29,21 +29,23 @@ public abstract class ApiTestSupport {
             "48cb046985eb576b3360e3049e5fdb9b8849bac7b8aa9cefdfa8ec9ece8dd7cd";
 
     static {
+        USER_JWT = userJwt(1L);
+
+        ORGANIZER_JWT = jwt(2L, "ORGANIZER");
+    }
+
+    /** 테스트끼리 DB 를 공유하므로, 데이터를 쌓는 테스트는 고유한 회원 ID 를 쓴다. */
+    protected static String userJwt(long userId) {
+        return jwt(userId, "USER");
+    }
+
+    private static String jwt(long userId, String role) {
         // JwtValidator.java와 동일하게 secret.getBytes()로 키 생성
         SecretKey key = Keys.hmacShaKeyFor(TEST_JWT_SECRET.getBytes());
-        Date farFuture = new Date(9_999_999_999_000L);
-
-        USER_JWT = Jwts.builder()
-                .subject("1")
-                .claim("role", "USER")
-                .expiration(farFuture)
-                .signWith(key)
-                .compact();
-
-        ORGANIZER_JWT = Jwts.builder()
-                .subject("2")
-                .claim("role", "ORGANIZER")
-                .expiration(farFuture)
+        return Jwts.builder()
+                .subject(String.valueOf(userId))
+                .claim("role", role)
+                .expiration(new Date(9_999_999_999_000L))
                 .signWith(key)
                 .compact();
     }

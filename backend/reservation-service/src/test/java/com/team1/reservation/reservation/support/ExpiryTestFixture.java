@@ -57,7 +57,8 @@ public abstract class ExpiryTestFixture {
         Clock clock = Clock.fixed(now, ZoneOffset.UTC);
         TicketIssueNotifier notifier = TicketDispatchStub.notifier(ticketClient, clock);
         ReservationPaymentService transition =
-                new ReservationPaymentService(reservations, rounds, paymentService, notifier, clock);
+                new ReservationPaymentService(reservations, rounds, paymentService, notifier,
+                        mock(com.team1.reservation.client.RecommendationEventNotifier.class), clock);
         ReservationExpiryWriter writer = new ReservationExpiryWriter(reservations, rounds, transition);
 
         service = new ReservationExpiryService(reservations, payments, paymentService, writer,

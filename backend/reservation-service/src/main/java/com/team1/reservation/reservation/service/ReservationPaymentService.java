@@ -2,6 +2,7 @@ package com.team1.reservation.reservation.service;
 
 import com.team1.payment.PaymentApprovalResult;
 import com.team1.payment.PaymentService;
+import com.team1.reservation.client.RecommendationEventNotifier;
 import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.common.TraceId;
@@ -31,17 +32,20 @@ public class ReservationPaymentService {
     private final RoundRepository rounds;
     private final PaymentService paymentService;
     private final TicketIssueNotifier ticketIssueNotifier;
+    private final RecommendationEventNotifier recommendationEventNotifier;
     private final Clock clock;
 
     public ReservationPaymentService(ReservationRepository reservations,
                                      RoundRepository rounds,
                                      PaymentService paymentService,
                                      TicketIssueNotifier ticketIssueNotifier,
+                                     RecommendationEventNotifier recommendationEventNotifier,
                                      Clock clock) {
         this.reservations = reservations;
         this.rounds = rounds;
         this.paymentService = paymentService;
         this.ticketIssueNotifier = ticketIssueNotifier;
+        this.recommendationEventNotifier = recommendationEventNotifier;
         this.clock = clock;
     }
 
@@ -88,6 +92,8 @@ public class ReservationPaymentService {
                 reservation.confirm(clock.instant());
                 // 실제 전이가 일어난 경로에서만 통지한다. 멱등 재호출은 위에서 이미 빠져나갔다.
                 ticketIssueNotifier.notifyIssued(reservation);
+                recommendationEventNotifier.reservationConfirmed(reservation.getUserId(), reservation.getExpoId(),
+                        reservation.getId(), reservation.getReservationNo());
                 yield reservation;
             }
 

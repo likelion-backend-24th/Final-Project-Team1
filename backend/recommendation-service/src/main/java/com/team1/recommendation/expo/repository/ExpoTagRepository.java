@@ -11,6 +11,10 @@ public interface ExpoTagRepository extends JpaRepository<ExpoTag, Long> {
 
     List<ExpoTag> findByExpoId(Long expoId);
 
+    List<ExpoTag> findByExpoIdIn(List<Long> expoIds);
+
+    void deleteByExpoId(Long expoId);
+
     @Query("""
             SELECT DISTINCT t.expoId FROM ExpoTag t
             WHERE t.tagValue IN :tags AND t.expoId <> :expoId

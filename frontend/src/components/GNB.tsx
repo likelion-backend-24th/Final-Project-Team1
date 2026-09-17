@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import NotificationBell from './NotificationBell'
 import { useToast } from './Toast'
 import Avatar from './Avatar'
 
@@ -66,38 +67,41 @@ export default function GNB() {
 
       <div className="gnb-auth">
         {user ? (
-          <div className="gnb-user-menu" ref={menuRef}>
-            <button
-              type="button"
-              className="gnb-user-trigger"
-              onClick={() => setMenuOpen(o => !o)}
-              aria-haspopup="true"
-              aria-expanded={menuOpen}
-            >
-              <Avatar userId={user.id} name={user.name} imageUrl={user.profileImageUrl} size={34} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span className="gnb-name">{user.name}</span>
-                <span className="gnb-role-badge" style={roleBadgeStyle(user.role)}>{roleLabel(user.role)}</span>
-              </div>
-              <span className={`gnb-caret ${menuOpen ? 'open' : ''}`}>▾</span>
-            </button>
+          <>
+            <NotificationBell />
+            <div className="gnb-user-menu" ref={menuRef}>
+              <button
+                type="button"
+                className="gnb-user-trigger"
+                onClick={() => setMenuOpen(o => !o)}
+                aria-haspopup="true"
+                aria-expanded={menuOpen}
+              >
+                <Avatar userId={user.id} name={user.name} imageUrl={user.profileImageUrl} size={34} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="gnb-name">{user.name}</span>
+                  <span className="gnb-role-badge" style={roleBadgeStyle(user.role)}>{roleLabel(user.role)}</span>
+                </div>
+                <span className={`gnb-caret ${menuOpen ? 'open' : ''}`}>▾</span>
+              </button>
 
-            {menuOpen && (
-              <div className="gnb-dropdown" role="menu">
-                <Link
-                  to="/my/profile"
-                  className={`gnb-dropdown-item ${isActive('/my/profile')}`}
-                  role="menuitem"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  마이페이지
-                </Link>
-                <button type="button" className="gnb-dropdown-item danger" role="menuitem" onClick={handleLogout}>
-                  로그아웃
-                </button>
-              </div>
-            )}
-          </div>
+              {menuOpen && (
+                <div className="gnb-dropdown" role="menu">
+                  <Link
+                    to="/my/profile"
+                    className={`gnb-dropdown-item ${isActive('/my/profile')}`}
+                    role="menuitem"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    마이페이지
+                  </Link>
+                  <button type="button" className="gnb-dropdown-item danger" role="menuitem" onClick={handleLogout}>
+                    로그아웃
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
         ) : (
           <>
             <Link to="/auth" className="btn btn-ghost btn-sm">로그인</Link>
