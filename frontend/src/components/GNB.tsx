@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import NotificationBell from './NotificationBell'
 import { useToast } from './Toast'
 
 export default function GNB() {
@@ -50,6 +51,7 @@ export default function GNB() {
             <Link to="/my/profile" className={`btn btn-secondary btn-sm ${isActive('/my/profile')}`}>마이페이지</Link>
             <div className="gnb-divider" />
             <button className="btn btn-danger btn-sm" onClick={handleLogout}>로그아웃</button>
+            <NotificationBell />
           </div>
         ) : (
           <>
