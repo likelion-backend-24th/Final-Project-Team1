@@ -1,5 +1,6 @@
 package com.team1.expo.expo.service;
 
+import com.team1.expo.client.RecommendationNotifier;
 import com.team1.expo.client.RoundClient;
 import com.team1.expo.common.exception.BusinessException;
 import com.team1.expo.common.exception.ErrorCode;
@@ -19,6 +20,7 @@ public class ExpoPublicationService {
     private final ExpoRepository expoRepository;
     private final ChannelRepository channelRepository;
     private final RoundClient roundClient;
+    private final RecommendationNotifier recommendationNotifier;
 
     /**
      * 회차가 없어진 박람회의 자동 비공개(S9-3, 계약 2-3). 예약-Service 가 내부 호출로 트리거한다.
@@ -67,6 +69,7 @@ public class ExpoPublicationService {
                     throw new BusinessException(ErrorCode.INVALID_REQUEST);
                 }
                 expo.publish();
+                recommendationNotifier.notifyExpoPublished(expo.getId(), expo.getTitle(), expo.getDescription());
                 return ExpoPublicationResponse.from(expo);
             }
             default -> throw new BusinessException(ErrorCode.INVALID_STATE_TRANSITION);
