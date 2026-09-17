@@ -8,6 +8,7 @@ import com.team1.reservation.client.TicketClient;
 import com.team1.reservation.reservation.entity.Reservation;
 import com.team1.reservation.reservation.repository.ReservationRepository;
 import com.team1.reservation.reservation.service.ReservationExpiryService;
+import com.team1.reservation.reservation.service.RecommendationEventNotifier;
 import com.team1.reservation.reservation.service.ReservationExpiryWriter;
 import com.team1.reservation.reservation.service.ReservationPaymentService;
 import com.team1.reservation.reservation.service.TicketIssueNotifier;
@@ -57,7 +58,8 @@ public abstract class ExpiryTestFixture {
         Clock clock = Clock.fixed(now, ZoneOffset.UTC);
         TicketIssueNotifier notifier = TicketDispatchStub.notifier(ticketClient, clock);
         ReservationPaymentService transition =
-                new ReservationPaymentService(reservations, rounds, paymentService, notifier, clock);
+                new ReservationPaymentService(reservations, rounds, paymentService, notifier,
+                        mock(RecommendationEventNotifier.class), clock);
         ReservationExpiryWriter writer = new ReservationExpiryWriter(reservations, rounds, transition);
 
         service = new ReservationExpiryService(reservations, payments, paymentService, writer,

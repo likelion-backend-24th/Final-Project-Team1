@@ -43,6 +43,7 @@ public class ReservationService {
     private final ExpoClient expoClient;
     private final PaymentService paymentService;
     private final TicketIssueNotifier ticketIssueNotifier;
+    private final RecommendationEventNotifier recommendationNotifier;
     private final ReservationNoGenerator reservationNos;
     private final Clock clock;
 
@@ -51,6 +52,7 @@ public class ReservationService {
                               ExpoClient expoClient,
                               PaymentService paymentService,
                               TicketIssueNotifier ticketIssueNotifier,
+                              RecommendationEventNotifier recommendationNotifier,
                               ReservationNoGenerator reservationNos,
                               Clock clock) {
         this.reservations = reservations;
@@ -58,6 +60,7 @@ public class ReservationService {
         this.expoClient = expoClient;
         this.paymentService = paymentService;
         this.ticketIssueNotifier = ticketIssueNotifier;
+        this.recommendationNotifier = recommendationNotifier;
         this.reservationNos = reservationNos;
         this.clock = clock;
     }
@@ -121,6 +124,7 @@ public class ReservationService {
             saved.confirm(now);
             // 무료도 확정은 확정이다. 결제 경로만 통지하면 무료 예약은 티켓이 영영 안 나온다.
             ticketIssueNotifier.notifyIssued(saved);
+            recommendationNotifier.reservationConfirmed(saved);
             return new ReservationCreation(saved, null);
         }
 

@@ -4,6 +4,7 @@ import com.team1.payment.PaymentService;
 import com.team1.reservation.client.TicketClient;
 import com.team1.reservation.reservation.entity.Reservation;
 import com.team1.reservation.reservation.repository.ReservationRepository;
+import com.team1.reservation.reservation.service.RecommendationEventNotifier;
 import com.team1.reservation.reservation.service.ReservationPaymentService;
 import com.team1.reservation.reservation.service.TicketIssueNotifier;
 import com.team1.reservation.round.repository.RoundRepository;
@@ -37,6 +38,7 @@ public abstract class PaymentTestFixture {
     protected RoundRepository rounds;
     protected PaymentService paymentService;
     protected TicketClient ticketClient;
+    protected RecommendationEventNotifier recommendationNotifier;
     protected ReservationPaymentService service;
 
     protected void initMocks() {
@@ -44,10 +46,11 @@ public abstract class PaymentTestFixture {
         rounds = mock(RoundRepository.class);
         paymentService = mock(PaymentService.class);
         ticketClient = mock(TicketClient.class);
+        recommendationNotifier = mock(RecommendationEventNotifier.class);
         // Transaction 이 없으므로 AfterCommitExecutor 는 통지를 그 자리에서 실행한다.
         TicketIssueNotifier notifier = TicketDispatchStub.notifier(ticketClient, Clock.fixed(NOW, ZoneOffset.UTC));
         service = new ReservationPaymentService(reservations, rounds, paymentService, notifier,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                recommendationNotifier, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     protected Reservation pending() {

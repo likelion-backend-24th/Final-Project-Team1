@@ -31,17 +31,20 @@ public class ReservationPaymentService {
     private final RoundRepository rounds;
     private final PaymentService paymentService;
     private final TicketIssueNotifier ticketIssueNotifier;
+    private final RecommendationEventNotifier recommendationNotifier;
     private final Clock clock;
 
     public ReservationPaymentService(ReservationRepository reservations,
                                      RoundRepository rounds,
                                      PaymentService paymentService,
                                      TicketIssueNotifier ticketIssueNotifier,
+                                     RecommendationEventNotifier recommendationNotifier,
                                      Clock clock) {
         this.reservations = reservations;
         this.rounds = rounds;
         this.paymentService = paymentService;
         this.ticketIssueNotifier = ticketIssueNotifier;
+        this.recommendationNotifier = recommendationNotifier;
         this.clock = clock;
     }
 
@@ -88,6 +91,7 @@ public class ReservationPaymentService {
                 reservation.confirm(clock.instant());
                 // 실제 전이가 일어난 경로에서만 통지한다. 멱등 재호출은 위에서 이미 빠져나갔다.
                 ticketIssueNotifier.notifyIssued(reservation);
+                recommendationNotifier.reservationConfirmed(reservation);
                 yield reservation;
             }
 

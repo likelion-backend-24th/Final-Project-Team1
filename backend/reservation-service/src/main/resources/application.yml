@@ -82,6 +82,12 @@ ticket-service:
   connect-timeout: 2s
   read-timeout: 3s
 
+# 예약 확정 이벤트(#184). fail-open 이라 꺼져 있어도 예약은 된다.
+recommendation-service:
+  base-url: ${RECOMMENDATION_SERVICE_URL:http://localhost:8085}
+  connect-timeout: 2s
+  read-timeout: 3s
+
 internal:
   token: ${INTERNAL_TOKEN:local-dev-internal-token}
 
