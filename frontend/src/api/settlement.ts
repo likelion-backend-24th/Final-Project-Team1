@@ -12,6 +12,10 @@ export interface AdminSettlementResponse {
   netRevenue: number
   platformFee: number
   feeRate: number
+  reservationRevenue: number
+  reservationRefund: number
+  promotionRevenue: number
+  promotionRefund: number
 }
 
 export const settlementApi = {

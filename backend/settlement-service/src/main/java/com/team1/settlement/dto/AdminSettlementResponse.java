@@ -7,7 +7,11 @@ public record AdminSettlementResponse(
         long totalRefund,
         long netRevenue,
         long platformFee,
-        double feeRate
+        double feeRate,
+        long reservationRevenue,
+        long reservationRefund,
+        long promotionRevenue,
+        long promotionRefund
 ) {
 
 }

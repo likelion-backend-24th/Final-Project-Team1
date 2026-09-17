@@ -173,6 +173,23 @@ function SettlementDashboard() {
             <SettlementStat kind="net" label="순매출" value={data.netRevenue} />
             <SettlementStat kind="fee" label={`수수료 수익 (${Math.round(data.feeRate * 100)}%)`} value={data.platformFee} />
           </div>
+
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginTop: 24, marginBottom: 10 }}>
+            매출 구성
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
+            <div style={{ padding: 16, background: 'var(--teal-l)', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, color: 'var(--teal)', fontWeight: 600, marginBottom: 4 }}>박람회 예약 매출</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--teal)' }}>{data.reservationRevenue.toLocaleString()}원</div>
+              <div style={{ fontSize: 11, color: 'var(--sub)', marginTop: 2 }}>환불 {data.reservationRefund.toLocaleString()}원</div>
+            </div>
+            <div style={{ padding: 16, background: '#F3EEFC', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, color: '#7C3AED', fontWeight: 600, marginBottom: 4 }}>VIP 배너 매출</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#7C3AED' }}>{data.promotionRevenue.toLocaleString()}원</div>
+              <div style={{ fontSize: 11, color: 'var(--sub)', marginTop: 2 }}>환불 {data.promotionRefund.toLocaleString()}원</div>
+            </div>
+          </div>
+
           <SettlementBarChart data={data} />
         </>
       )}

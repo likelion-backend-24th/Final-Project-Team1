@@ -43,12 +43,18 @@ class AdminSettlementControllerTest {
     void superAdminCanViewSettlement() throws Exception {
         AuthContext.set(new AuthenticatedUser(1L, "SUPER_ADMIN"));
         when(settlementService.getSettlement(2026, 9)).thenReturn(
-                new AdminSettlementResponse(2026, 9, 4500000, 150000, 4350000, 435000, 0.10));
+                new AdminSettlementResponse(
+                        2026, 9, 4500000, 150000, 4350000, 435000, 0.10,
+                        4000000, 100000, 500000, 50000));
 
         mockMvc.perform(get("/api/v1/admin/settlement").param("year", "2026").param("month", "9"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalRevenue").value(4500000))
-                .andExpect(jsonPath("$.platformFee").value(435000));
+                .andExpect(jsonPath("$.platformFee").value(435000))
+                .andExpect(jsonPath("$.reservationRevenue").value(4000000))
+                .andExpect(jsonPath("$.reservationRefund").value(100000))
+                .andExpect(jsonPath("$.promotionRevenue").value(500000))
+                .andExpect(jsonPath("$.promotionRefund").value(50000));
     }
 
     @Test
@@ -56,7 +62,9 @@ class AdminSettlementControllerTest {
     void superAdminCanViewYearlySettlement() throws Exception {
         AuthContext.set(new AuthenticatedUser(1L, "SUPER_ADMIN"));
         when(settlementService.getSettlement(2026, null)).thenReturn(
-                new AdminSettlementResponse(2026, null, 54000000, 1800000, 52200000, 5220000, 0.10));
+                new AdminSettlementResponse(
+                        2026, null, 54000000, 1800000, 52200000, 5220000, 0.10,
+                        48000000, 1600000, 6000000, 200000));
 
         mockMvc.perform(get("/api/v1/admin/settlement").param("year", "2026"))
                 .andExpect(status().isOk())
