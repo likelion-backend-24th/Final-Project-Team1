@@ -13,6 +13,7 @@ import HostChannelPage from './pages/HostChannelPage'
 import MyReservationsPage from './pages/MyReservationsPage'
 import CheckinPage from './pages/CheckinPage'
 import MyPage from './pages/MyPage'
+import RecommendationsPage from './pages/RecommendationsPage'
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/host/expos/:expoId/rounds" element={<RoundManagePage />} />
             <Route path="/my/reservations" element={<MyReservationsPage />} />
             <Route path="/my/profile" element={<MyPage />} />
+            <Route path="/my/recommendations" element={<RecommendationsPage />} />
             <Route path="/host/checkin" element={<CheckinPage />} />
           </Routes>
         </ToastProvider>

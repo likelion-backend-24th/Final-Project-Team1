@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { expoApi } from '../api/expo'
+import { recommendationApi } from '../api/recommendation'
 import { cdnImage } from '../lib/cloudinary'
 import { useAuth } from '../context/AuthContext'
 import ReservationModal from '../components/ReservationModal'
 import { usePageTitle } from '../hooks/usePageTitle'
 import type { Expo, Reservation, Round } from '../types'
+import { expoKey } from '../types'
 
 function fmtDate(dt: string) {
   return new Date(dt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -51,6 +53,8 @@ export default function ExpoDetailPage() {
   const [reservingRound, setReservingRound] = useState<Round | null>(null)
   const [coverBroken, setCoverBroken] = useState(false)
   const [descOpen, setDescOpen] = useState(false)
+  const [tags, setTags] = useState<string[]>([])
+  const [similarExpos, setSimilarExpos] = useState<Expo[]>([])
   usePageTitle(expo?.title ?? '박람회 상세')
 
   // 회차는 별도 API 로 가져오지 않는다.
@@ -82,6 +86,17 @@ export default function ExpoDetailPage() {
 
   useEffect(() => {
     if (!expoId) return
+    const id = Number(expoId)
+    recommendationApi.getTags(id)
+      .then(res => setTags(res.data?.tags ?? []))
+      .catch(() => {})
+    recommendationApi.getSimilar(id)
+      .then(async res => {
+        const ids = (res.data?.expoIds ?? []).slice(0, 4)
+        const results = await Promise.allSettled(ids.map(eid => expoApi.getExpo(eid)))
+        setSimilarExpos(results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<{ data: Expo }>).value.data))
+      })
+      .catch(() => {})
 
     fetchExpo()
 
@@ -173,9 +188,19 @@ export default function ExpoDetailPage() {
               <span className="badge badge-blue">{expo.category}</span>
             </div>
 
-            <h1 style={{ fontSize: 30, fontWeight: 800, color: 'var(--text)', lineHeight: 1.3, marginBottom: 16 }}>
+            <h1 style={{ fontSize: 30, fontWeight: 800, color: 'var(--text)', lineHeight: 1.3, marginBottom: 12 }}>
               {expo.title}
             </h1>
+
+            {tags.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+                {tags.map(tag => (
+                  <span key={tag} className="badge badge-blue" style={{ background: 'var(--teal-l, #e0f7f5)', color: 'var(--teal)', fontWeight: 600 }}>
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, marginBottom: 28 }}>
               {expo.region && (
@@ -239,6 +264,46 @@ export default function ExpoDetailPage() {
                     style={{ display: 'block', width: '100%', height: 'auto' }}
                   />
                 ))}
+              </div>
+            )}
+            {similarExpos.length > 0 && (
+              <div style={{ marginTop: 32 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>
+                  이런 박람회도 있어요
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                  {similarExpos.map(e => {
+                    const eid = expoKey(e)
+                    const c = THUMB_COLORS[e.category] ?? ['#1A1A2E', '#374151']
+                    return (
+                      <div
+                        key={eid}
+                        className="card"
+                        style={{ padding: 0, overflow: 'hidden', cursor: 'pointer' }}
+                        onClick={() => navigate(`/expos/${eid}`)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={ev => ev.key === 'Enter' && navigate(`/expos/${eid}`)}
+                      >
+                        <div style={{
+                          height: 80,
+                          background: `linear-gradient(135deg, ${c[0]}, ${c[1]})`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {e.thumbnailUrl && (
+                            <img src={e.thumbnailUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          )}
+                        </div>
+                        <div style={{ padding: '12px 14px' }}>
+                          <span className="badge badge-blue" style={{ fontSize: 10, marginBottom: 6 }}>{e.category}</span>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                            {e.title}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
           </div>
