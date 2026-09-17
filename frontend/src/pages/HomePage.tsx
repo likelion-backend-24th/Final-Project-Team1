@@ -101,10 +101,11 @@ export default function HomePage() {
       {/* ─── Hero Carousel (VIP 슬라이드 포함) ─── */}
       <HeroCarousel promotions={promotions} onNavigate={id => navigate(`/expos/${id}`)} />
 
-      {/* ─── AI 추천 배너 (로그인 + 추천 있을 때만) ─── */}
-      {user && recommendations.length > 0 && (
+      {/* ─── AI 추천 배너: 추천 있으면 AI추천, 없으면 VIP promotions fallback ─── */}
+      {(recommendations.length > 0 || promotions.length > 0) && (
         <AiRecommendBanner
           recommendations={recommendations.slice(0, 6)}
+          promotions={promotions}
           expoMap={expoMap}
           onNavigate={id => navigate(`/expos/${id}`)}
         />
@@ -212,7 +213,10 @@ function HeroCarousel({ promotions, onNavigate }: {
         position: 'relative',
         cursor: vip ? 'pointer' : 'default',
         overflow: 'hidden',
-        minHeight: 240,
+        height: 300,
+        padding: 0,
+        display: 'flex',
+        alignItems: 'center',
       }}
       onClick={() => vip && onNavigate(vip.expoId)}
       role={vip ? 'button' : undefined}
@@ -276,7 +280,7 @@ function HeroCarousel({ promotions, onNavigate }: {
               원하는 박람회를<br />
               <em>지금 바로</em> 찾아보세요
             </h1>
-            <p>IT·식품·패션·문화까지, 다양한 분야의 박람회가 모여있습니다</p>
+            <p style={{ marginBottom: 0 }}>IT·식품·패션·문화까지, 다양한 분야의 박람회가 모여있습니다</p>
           </>
         )}
       </div>
@@ -305,34 +309,52 @@ function HeroCarousel({ promotions, onNavigate }: {
   )
 }
 
-// ─── AI 추천 배너: 추천 박람회 스와이프 ───
-function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
+// ─── AI 추천 배너: AI 추천 있으면 추천 스와이프, 없으면 VIP promotions fallback ───
+function AiRecommendBanner({ recommendations, promotions, expoMap, onNavigate }: {
   recommendations: RecommendationItem[]
+  promotions: ActivePromotion[]
   expoMap: Map<number, Expo>
   onNavigate: (id: number) => void
 }) {
+  const isAi = recommendations.length > 0
+
+  // 슬라이드 항목 통일: { id, title, thumbnailUrl?, tags }
+  const slides = isAi
+    ? recommendations.slice(0, 6).map(r => ({
+        id: r.expoId,
+        title: r.title,
+        thumbnailUrl: expoMap.get(r.expoId)?.thumbnailUrl,
+        tags: r.matchedTags,
+      }))
+    : promotions.map(p => ({
+        id: p.expoId,
+        title: p.title,
+        thumbnailUrl: p.thumbnailUrl,
+        tags: [] as string[],
+      }))
+
   const [idx, setIdx] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   function resetTimer() {
     if (timerRef.current) clearInterval(timerRef.current)
-    timerRef.current = setInterval(() => setIdx(i => (i + 1) % recommendations.length), 4000)
+    if (slides.length <= 1) return
+    timerRef.current = setInterval(() => setIdx(i => (i + 1) % slides.length), 4000)
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIdx(0)
     resetTimer()
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recommendations.length])
+  }, [slides.length, isAi])
 
-  function go(i: number) {
-    setIdx(i)
-    resetTimer()
-  }
+  function go(i: number) { setIdx(i); resetTimer() }
 
-  const rec = recommendations[idx]
-  const expo = expoMap.get(rec.expoId)
-  const colors = THUMB_COLORS[rec.expoId % THUMB_COLORS.length]
+  const slide = slides[idx]
+  if (!slide) return null
+  const colors = THUMB_COLORS[slide.id % THUMB_COLORS.length]
 
   return (
     <div className="vip-banner-wrap">
@@ -340,24 +362,19 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
         <div
           className="vip-banner"
           style={{
-            background: expo?.thumbnailUrl
-              ? 'none'
-              : `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`,
-            position: 'relative',
-            overflow: 'hidden',
-            cursor: 'pointer',
+            background: slide.thumbnailUrl ? 'none' : `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`,
+            position: 'relative', overflow: 'hidden', cursor: 'pointer',
           }}
-          onClick={() => onNavigate(rec.expoId)}
+          onClick={() => onNavigate(slide.id)}
           role="button"
           tabIndex={0}
-          onKeyDown={e => e.key === 'Enter' && onNavigate(rec.expoId)}
+          onKeyDown={e => e.key === 'Enter' && onNavigate(slide.id)}
         >
-          {expo?.thumbnailUrl && (
+          {slide.thumbnailUrl && (
             <>
               <img
-                src={cdnImage(expo.thumbnailUrl, 400)}
-                alt=""
-                aria-hidden
+                src={cdnImage(slide.thumbnailUrl, 400)}
+                alt="" aria-hidden
                 style={{
                   position: 'absolute', inset: 0, width: '100%', height: '100%',
                   objectFit: 'cover', filter: 'blur(20px)', transform: 'scale(1.1)', opacity: 0.45,
@@ -373,19 +390,20 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
           )}
 
           <div className="vip-banner-content" style={{ position: 'relative', zIndex: 1 }}>
-            <span className="badge" style={{ background: '#0EA5E9', color: '#fff', marginBottom: 10, display: 'inline-block' }}>
-              ✨ AI 추천
+            <span className="badge" style={{
+              background: isAi ? '#0EA5E9' : '#7C3AED',
+              color: '#fff', marginBottom: 10, display: 'inline-block',
+            }}>
+              {isAi ? '✨ AI 추천' : '⭐ VIP 스폰서'}
             </span>
-            <h2 className="vip-banner-title">{rec.title}</h2>
-            {rec.matchedTags.length > 0 && (
+            <h2 className="vip-banner-title">{slide.title}</h2>
+            {slide.tags.length > 0 && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                {rec.matchedTags.slice(0, 4).map(tag => (
+                {slide.tags.slice(0, 4).map(tag => (
                   <span key={tag} style={{
                     fontSize: 12, color: 'rgba(255,255,255,0.85)',
                     background: 'rgba(255,255,255,0.15)', padding: '2px 8px', borderRadius: 10,
-                  }}>
-                    #{tag}
-                  </span>
+                  }}>#{tag}</span>
                 ))}
               </div>
             )}
@@ -393,15 +411,14 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
           <span className="vip-banner-cta" style={{ position: 'relative', zIndex: 1 }}>자세히 보기 →</span>
         </div>
 
-        {/* 닷 네비게이션 */}
-        {recommendations.length > 1 && (
+        {slides.length > 1 && (
           <div className="vip-banner-dots">
-            {recommendations.map((_, i) => (
+            {slides.map((_, i) => (
               <button
                 key={i}
                 className={`vip-banner-dot${i === idx ? ' active' : ''}`}
                 onClick={() => go(i)}
-                aria-label={`추천 ${i + 1}`}
+                aria-label={`배너 ${i + 1}`}
               />
             ))}
           </div>
