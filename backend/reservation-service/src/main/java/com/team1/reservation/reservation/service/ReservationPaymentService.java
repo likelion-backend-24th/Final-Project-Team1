@@ -92,7 +92,8 @@ public class ReservationPaymentService {
                 reservation.confirm(clock.instant());
                 // 실제 전이가 일어난 경로에서만 통지한다. 멱등 재호출은 위에서 이미 빠져나갔다.
                 ticketIssueNotifier.notifyIssued(reservation);
-                recommendationEventNotifier.notifyEvent(reservation.getUserId(), reservation.getExpoId(), "RESERVATION_CONFIRMED");
+                recommendationEventNotifier.reservationConfirmed(reservation.getUserId(), reservation.getExpoId(),
+                        reservation.getId(), reservation.getReservationNo());
                 yield reservation;
             }
 

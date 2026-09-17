@@ -6,6 +6,7 @@ import com.team1.payment.PgCommunicationException;
 import com.team1.reservation.client.ExpoClient;
 import com.team1.reservation.client.ExpoSummary;
 import com.team1.reservation.client.IssueTicketCommand;
+import com.team1.reservation.client.RecommendationEventNotifier;
 import com.team1.reservation.client.TicketClient;
 import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
@@ -61,6 +62,7 @@ class CreateReservationServiceTest {
     private PaymentService paymentService;
     protected TicketClient ticketClient;
     private TicketIssueNotifier notifier;
+    private RecommendationEventNotifier recommendationNotifier;
     private ReservationService service;
 
     @BeforeEach
@@ -71,10 +73,11 @@ class CreateReservationServiceTest {
         paymentService = mock(PaymentService.class);
         ticketClient = mock(TicketClient.class);
         notifier = TicketDispatchStub.notifier(ticketClient, Clock.fixed(NOW, ZoneOffset.UTC));
+        recommendationNotifier = mock(RecommendationEventNotifier.class);
         ReservationNoGenerator generator = () -> "R-4K7Q-W2M8";
 
         service = new ReservationService(reservations, rounds, expoClient, paymentService, notifier,
-                generator, Clock.fixed(NOW, ZoneOffset.UTC));
+                recommendationNotifier, generator, Clock.fixed(NOW, ZoneOffset.UTC));
 
         givenRound(10000);
         when(expoClient.getExpo(anyLong())).thenReturn(new ExpoSummary(EXPO_ID, 99L, "PUBLISHED"));
@@ -162,6 +165,18 @@ class CreateReservationServiceTest {
         service.create(ROUND_ID, MEMBER, request(2));
 
         verifyNoInteractions(ticketClient);
+        verifyNoInteractions(recommendationNotifier);
+    }
+
+    @Test
+    @DisplayName("무료 회차는 바로 확정되므로 추천 서비스에도 알린다 (#184)")
+    void freeReservationNotifiesRecommendation() {
+        givenRound(0);
+
+        Reservation saved = service.create(ROUND_ID, MEMBER, request(1)).reservation();
+
+        verify(recommendationNotifier).reservationConfirmed(
+                saved.getUserId(), EXPO_ID, saved.getId(), "R-4K7Q-W2M8");
     }
 
     @Test
@@ -240,7 +255,8 @@ class CreateReservationServiceTest {
     @DisplayName("이미 종료된 회차는 404 - 존재 여부를 흘리지 않는다")
     void rejectsFinishedRound() {
         ReservationService late = new ReservationService(reservations, rounds, expoClient, paymentService,
-                notifier, () -> "R-4K7Q-W2M8", Clock.fixed(ENDS.plusSeconds(1), ZoneOffset.UTC));
+                notifier, recommendationNotifier, () -> "R-4K7Q-W2M8",
+                Clock.fixed(ENDS.plusSeconds(1), ZoneOffset.UTC));
 
         assertThatThrownBy(() -> late.create(ROUND_ID, MEMBER, request(1)))
                 .isInstanceOfSatisfying(ApiException.class,
