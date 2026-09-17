@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/expos")
@@ -34,5 +35,15 @@ public class SimilarExpoController {
                 .filter(v -> !"UNTAGGED".equals(v))
                 .toList();
         return ApiResponse.ok(Map.of("tags", tags));
+    }
+
+    @GetMapping("/tags/bulk")
+    public ApiResponse<Map<String, List<String>>> getBulkTags(@RequestParam List<Long> ids) {
+        Map<String, List<String>> result = expoTagRepository.findByExpoIdIn(ids).stream()
+                .filter(t -> !"UNTAGGED".equals(t.getTagValue()))
+                .collect(Collectors.groupingBy(
+                        t -> t.getExpoId().toString(),
+                        Collectors.mapping(t -> t.getTagValue(), Collectors.toList())));
+        return ApiResponse.ok(result);
     }
 }

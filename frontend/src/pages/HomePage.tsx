@@ -36,6 +36,7 @@ export default function HomePage() {
   const [sort, setSort] = useState<ExpoSort>('recommended')
   const [promotions, setPromotions] = useState<ActivePromotion[]>([])
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([])
+  const [tagMap, setTagMap] = useState<Record<string, string[]>>({})
   usePageTitle(category === '전체' ? '박람회 탐색' : `${category} 박람회`)
 
   useEffect(() => {
@@ -45,7 +46,18 @@ export default function HomePage() {
       category: category === '전체' ? undefined : category,
       sort: sort === 'recommended' ? undefined : sort,
     })
-      .then(res => { if (!cancelled) { setExpos(res.data ?? []); setError(false) } })
+      .then(res => {
+        if (cancelled) return
+        const list = res.data ?? []
+        setExpos(list)
+        setError(false)
+        const ids = list.map(e => expoKey(e)).filter(Boolean)
+        if (ids.length > 0) {
+          recommendationApi.getBulkTags(ids)
+            .then(r => { if (!cancelled) setTagMap(r.data ?? {}) })
+            .catch(() => {})
+        }
+      })
       .catch(() => { if (!cancelled) setError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
@@ -151,6 +163,7 @@ export default function HomePage() {
                   expo={expo}
                   colors={THUMB_COLORS[expoKey(expo) % THUMB_COLORS.length]}
                   isVip={vipIds.has(expoKey(expo))}
+                  tags={tagMap[String(expoKey(expo))] ?? []}
                   onClick={() => navigate(`/expos/${expoKey(expo)}`)}
                 />
               ))}
@@ -395,10 +408,11 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
   )
 }
 
-function ExpoCard({ expo, colors, isVip, onClick }: {
+function ExpoCard({ expo, colors, isVip, tags = [], onClick }: {
   expo: Expo
   colors: string[]
   isVip?: boolean
+  tags?: string[]
   onClick: () => void
 }) {
   const [broken, setBroken] = useState(false)
@@ -436,6 +450,13 @@ function ExpoCard({ expo, colors, isVip, onClick }: {
       <div className="expo-card-body">
         <p className="expo-card-cat">{expo.category}</p>
         <h3 className="expo-card-title">{expo.title}</h3>
+        {tags.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6, marginBottom: 4 }}>
+            {tags.slice(0, 3).map(tag => (
+              <span key={tag} style={{ fontSize: 11, color: 'var(--teal)', fontWeight: 600 }}>#{tag}</span>
+            ))}
+          </div>
+        )}
         <div className="expo-card-meta">
           {expo.venue && (
             <div className="expo-card-meta-row">

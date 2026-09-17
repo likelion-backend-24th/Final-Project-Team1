@@ -35,4 +35,7 @@ export const recommendationApi = {
 
   getTags: (expoId: number) =>
     api.get<ApiResponse<{ tags: string[] }>>(`/expos/${expoId}/tags`, quiet),
+
+  getBulkTags: (ids: number[]) =>
+    api.get<ApiResponse<Record<string, string[]>>>(`/expos/tags/bulk?ids=${ids.join(',')}`, quiet),
 }
