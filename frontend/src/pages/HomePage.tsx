@@ -99,7 +99,7 @@ export default function HomePage() {
   return (
     <>
       {/* ─── Hero Carousel (VIP 슬라이드 포함) ─── */}
-      <HeroCarousel promotions={promotions} onNavigate={id => navigate(`/expos/${id}`)} />
+      <HeroCarousel promotions={promotions.slice(0, 10)} onNavigate={id => navigate(`/expos/${id}`)} />
 
       {/* ─── AI 추천 배너: AI 추천 있을 때만 표시 ─── */}
       {recommendations.length > 0 && (
