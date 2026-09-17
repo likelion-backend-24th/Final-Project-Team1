@@ -56,7 +56,7 @@ jobs:
 
       - name: Build & push backend images
         run: |
-          for svc in identity-service expo-service reservation-service ticket-service settlement-service; do
+          for svc in identity-service expo-service reservation-service ticket-service settlement-service recommendation-service; do
             image="$REGISTRY/fpt1-$svc"
             docker build --build-arg SERVICE=$svc \
               -t "$image:latest" -t "$image:${{ steps.meta.outputs.sha }}" \
