@@ -9,6 +9,7 @@ import java.util.stream.IntStream;
 
 
 public record InternalRoundResponse(Long roundId,
+                                    Long expoId,
                                     int sequence,
                                     Instant startsAt,
                                     Instant endsAt,
@@ -19,6 +20,7 @@ public record InternalRoundResponse(Long roundId,
     public static InternalRoundResponse from(Round round, int sequence) {
         return new InternalRoundResponse(
                 round.getId(),
+                round.getExpoId(),
                 sequence,
                 round.getStartsAt(),
                 round.getEndsAt(),

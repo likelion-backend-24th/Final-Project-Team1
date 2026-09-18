@@ -45,6 +45,18 @@ public class InternalRoundController {
         return InternalRoundResponse.listOf(roundService.listByExpo(expoId));
     }
 
+    // 캘린더(AI 일정 추천) 자연어 검색의 날짜 필터(계약 roundsByDate). fail-closed -
+    // 날짜 조건이 있는 조회라 실패를 감추면 결과가 틀린 걸 호출부가 모른다.
+    @GetMapping("/by-date")
+    public List<InternalRoundResponse> byDate(
+            @RequestParam Instant from,
+            @RequestParam Instant to,
+            @RequestParam List<Long> expoIds,
+            @RequestParam("required = false") boolean bookableOnly
+    ){
+        return roundService.roundsByDate(expoIds,from,to,bookableOnly);
+    }
+
 
     // 목록 배지용 일괄 조회(계약 2 feeSummaries). 박람회 수만큼 호출하지 않으려고 한 번에 받는다.
     @GetMapping("/fee-summary")
