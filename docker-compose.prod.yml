@@ -107,6 +107,8 @@ services:
       RESERVATION_SERVICE_URL: http://reservation-service:8083
       # 체크인 완료 이벤트(#185)를 보낸다. fail-open 이라 없어도 체크인은 되지만 추천 기록이 빠진다.
       RECOMMENDATION_SERVICE_URL: http://recommendation-service:8085
+      # 체크인 결과 AI 요약(#259). 비어 있으면 요약 문장만 빠지고 집계 숫자는 그대로 나온다.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
 
   recommendation-service:
     <<: *backend

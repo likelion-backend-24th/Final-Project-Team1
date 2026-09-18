@@ -52,6 +52,10 @@ recommendation-service:
   connect-timeout: 2s
   read-timeout: 3s
 
+# common-ai. 키가 비어 있으면 체크인 요약 문장만 빠지고 숫자는 그대로 내려간다.
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+
 # 개발·CI 기본값. 실제 값은 JWT_SECRET 환경변수가 덮어쓴다
 jwt:
   secret: ${JWT_SECRET:dev-only-not-a-real-secret-0123456789abcdef}

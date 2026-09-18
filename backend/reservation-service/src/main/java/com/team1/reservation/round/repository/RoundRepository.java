@@ -34,6 +34,19 @@ public interface RoundRepository extends JpaRepository<Round, Long> {
     // 내 예약 화면이 회차 번호를 매기려면 그 박람회의 살아있는 회차를 전부 알아야 한다.
     List<Round> findByExpoIdInAndDeletedAtIsNull(Collection<Long> expoIds);
 
+    /**
+     * 캘린더·자연어 검색의 날짜 범위 조회(계약 2 roundsByDate). 기간 겹침으로 판정한다 -
+     * DATE(starts_at) 비교는 이틀 걸치는 회차를 놓친다. bookableOnly 는 예약 가능한(시작 전) 회차만 거른다.
+     */
+    @Query("select r from Round r where r.expoId in :expoIds and r.deletedAt is null "
+            + "and r.startsAt < :to and r.endsAt > :from "
+            + "and (:bookableOnly = false or r.startsAt > :now)")
+    List<Round> findByExpoIdInAndDateRange(@Param("expoIds") Collection<Long> expoIds,
+                                           @Param("from") Instant from,
+                                           @Param("to") Instant to,
+                                           @Param("bookableOnly") boolean bookableOnly,
+                                           @Param("now") Instant now);
+
 
     /**
      * 이 회차보다 앞선 회차 수. +1 이 곧 회차 번호다(단건 조회용).

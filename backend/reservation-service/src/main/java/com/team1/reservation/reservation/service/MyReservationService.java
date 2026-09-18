@@ -15,14 +15,13 @@ import com.team1.reservation.reservation.repository.PaymentLookupRepository;
 import com.team1.reservation.reservation.repository.ReservationRepository;
 import com.team1.reservation.round.entity.Round;
 import com.team1.reservation.round.repository.RoundRepository;
-import com.team1.reservation.round.service.RoundSequence;
+import com.team1.reservation.round.service.RoundService;
 import com.team1.security.AuthenticatedUser;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -47,12 +46,14 @@ public class MyReservationService {
     private final TicketClient ticketClient;
     private final ExpoClient expoClient;
     private final int refundMaxAttempts;
+    private final RoundService roundService;
 
     public MyReservationService(ReservationRepository reservations,
                                 RoundRepository rounds,
                                 PaymentLookupRepository payments,
                                 TicketClient ticketClient,
                                 ExpoClient expoClient,
+                                RoundService roundService,
                                 @Value("${scheduler.refund-retry.max-attempts}") int refundMaxAttempts) {
         this.reservations = reservations;
         this.rounds = rounds;
@@ -60,6 +61,7 @@ public class MyReservationService {
         this.ticketClient = ticketClient;
         this.expoClient = expoClient;
         this.refundMaxAttempts = refundMaxAttempts;
+        this.roundService = roundService;
     }
 
     @Transactional(readOnly = true)
@@ -76,7 +78,7 @@ public class MyReservationService {
         Map<Long, PaymentTransaction> paymentsByReservationId = paymentsOf(mine);
         Set<Long> expoIds = mine.stream().map(Reservation::getExpoId).collect(Collectors.toSet());
         Map<Long, String> titlesByExpoId = expoClient.titles(expoIds);
-        Map<Long, Integer> sequencesByRoundId = sequencesOf(expoIds);
+        Map<Long, Integer> sequencesByRoundId = roundService.sequencesOf(expoIds);
 
         return mine.stream()
                 .map(reservation -> MyReservationResponse.of(
@@ -86,26 +88,6 @@ public class MyReservationService {
                         sequencesByRoundId.get(reservation.getRoundId()),
                         refundStateOf(reservation, paymentsByReservationId.get(reservation.getId()))))
                 .toList();
-    }
-
-    /**
-     * 회차 번호는 그 박람회의 살아있는 회차를 전부 알아야 매길 수 있다 - 예약이 가리키는 회차만
-     * 모아서는 몇 번째인지 알 수 없다. 박람회 단위로 한 번에 당겨 번호를 붙인다.
-     *
-     * <p>삭제된 회차를 가리키는 지난 예약은 번호가 없다(null). 날짜는 그대로 보이므로 화면은 버틴다.
-     */
-    private Map<Long, Integer> sequencesOf(Set<Long> expoIds) {
-        Map<Long, Integer> sequences = new HashMap<>();
-        rounds.findByExpoIdInAndDeletedAtIsNull(expoIds).stream()
-                .collect(Collectors.groupingBy(Round::getExpoId))
-                .values()
-                .forEach(perExpo -> {
-                    List<Round> ordered = RoundSequence.ordered(perExpo);
-                    for (int i = 0; i < ordered.size(); i++) {
-                        sequences.put(ordered.get(i).getId(), i + 1);
-                    }
-                });
-        return sequences;
     }
 
     @Transactional(readOnly = true)
@@ -123,7 +105,7 @@ public class MyReservationService {
         PaymentTransaction payment = payments.findByRefIdIn(Set.of(reservationId))
                 .stream().findFirst().orElse(null);
         Long expoId = reservation.getExpoId();
-        Integer sequence = round == null || round.isDeleted() ? null : sequencesOf(Set.of(expoId)).get(round.getId());
+        Integer sequence = round == null || round.isDeleted() ? null : roundService.sequencesOf(Set.of(expoId)).get(round.getId());
 
         return MyReservationDetailResponse.of(reservation, round,
                 expoClient.titles(Set.of(expoId)).get(expoId), sequence,
