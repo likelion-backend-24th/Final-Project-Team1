@@ -146,17 +146,20 @@ public class NotificationService {
     }
 
     private int saveForExpo(ExpoSummary expo, List<String> tags, Instant now) {
-        // LLM 호출은 트랜잭션 밖 (박람회당 1회)
+        // 알림 받을 사용자 먼저 조회 — 없으면 LLM 호출 생략
+        Map<Long, List<String>> userMatchedTags = new HashMap<>();
+        for (String tag : tags) {
+            scoreRepository.findByTagValueAndScoreGreaterThan(tag, MIN_SCORE_THRESHOLD)
+                    .forEach(score -> userMatchedTags
+                            .computeIfAbsent(score.getUserId(), k -> new ArrayList<>())
+                            .add(tag));
+        }
+        if (userMatchedTags.isEmpty()) return 0;
+
+        // LLM 호출은 트랜잭션 밖, 알림 받을 사용자가 있을 때만 수행
         String llmMessage = geminiMessageService.generateNotificationMessage(expo.title(), tags);
 
         Integer count = txTemplate.execute(status -> {
-            Map<Long, List<String>> userMatchedTags = new HashMap<>();
-            for (String tag : tags) {
-                scoreRepository.findByTagValueAndScoreGreaterThan(tag, MIN_SCORE_THRESHOLD)
-                        .forEach(score -> userMatchedTags
-                                .computeIfAbsent(score.getUserId(), k -> new ArrayList<>())
-                                .add(tag));
-            }
             int n = 0;
             for (Map.Entry<Long, List<String>> entry : userMatchedTags.entrySet()) {
                 Long userId = entry.getKey();
