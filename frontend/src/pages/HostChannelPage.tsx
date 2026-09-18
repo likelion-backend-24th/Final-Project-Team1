@@ -253,7 +253,7 @@ function ExpoRow({
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+      <div className="expo-row-actions" style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
         {hasActivePromo ? (
           <button
             className="btn btn-sm btn-secondary"
