@@ -173,6 +173,8 @@ input, select, textarea { font-family: inherit; }
 .gnb-dropdown-item.active { color: var(--primary); font-weight: 700; }
 .gnb-dropdown-item.danger { color: var(--red); }
 .gnb-dropdown-item.danger:hover { background: var(--red-l); }
+.gnb-mobile-nav { display: none; }
+.gnb-dropdown-divider { display: none; border: none; border-top: 1px solid var(--border); margin: 4px 0; }
 
 /* ─── GNB search ─── */
 .gnb-search-form {
@@ -889,6 +891,8 @@ tbody tr:hover td { background: var(--gray1); }
   .expo-detail-layout { grid-template-columns: 1fr !important; }
   .expo-row-actions { flex-wrap: wrap; }
   .section-header { flex-wrap: wrap; gap: 8px; }
+  .gnb-mobile-nav { display: contents; }
+  .gnb-dropdown-divider { display: block; }
 }
 @media (max-width: 480px) {
   body { font-size: 13px; }
@@ -905,4 +909,7 @@ tbody tr:hover td { background: var(--gray1); }
   .scroll-top-btn { bottom: 16px; right: 16px; width: 40px; height: 40px; font-size: 18px; }
   .round-card { flex-wrap: wrap; }
   .nickname-form-row { flex-direction: column; align-items: stretch; }
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  .modal { border-radius: var(--r-xl) var(--r-xl) 0 0; max-height: 90vh; overflow-y: auto; max-width: 100%; padding: 24px 20px; }
+  .modal-footer { position: sticky; bottom: 0; background: var(--surface); padding-top: 12px; margin-top: 16px; }
 }
