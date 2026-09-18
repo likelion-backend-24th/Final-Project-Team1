@@ -11,6 +11,21 @@ export function checkinMethodOf(input: string): CheckinMethod {
   return RESERVATION_NO_PATTERN.test(input.trim().toUpperCase()) ? 'RESERVATION_NO' : 'QR'
 }
 
+export interface CheckinReport {
+  expoId: number
+  expoTitle: string
+  reserved: number
+  capacity: number
+  checkedIn: number
+  noShow: number
+  checkinRate: number
+  hourly: { hour: number; count: number }[]
+  byMethod: Record<string, number>
+  reverted: number
+  /** LLM 요약. 실패했거나 입장 기록이 없으면 null 이고 숫자만 보여준다. */
+  summary: string | null
+}
+
 export const ticketApi = {
   /** GET /api/v1/tickets/verify — 조회만 한다(미전이). 입력이 R-XXXX-XXXX 면 예약번호, 아니면 체크인 토큰. */
   verify: (input: string) => {
@@ -25,6 +40,10 @@ export const ticketApi = {
   checkin: (ticketId: number, method?: CheckinMethod) =>
     api.post<ApiResponse<CheckinResult>>(
       `/tickets/${ticketId}/checkin${method ? `?method=${method}` : ''}`, {}),
+
+  /** GET /api/v1/tickets/checkin-report — 주최자 전용. 체크인 결과 집계 + AI 요약. */
+  checkinReport: (expoId: number) =>
+    api.get<ApiResponse<CheckinReport>>(`/tickets/checkin-report?expoId=${expoId}`),
 
   /** POST /api/v1/tickets/{ticketId}/checkin/cancellation — 체크인 되돌리기(ISSUED 전이). */
   cancelCheckin: (ticketId: number) =>
