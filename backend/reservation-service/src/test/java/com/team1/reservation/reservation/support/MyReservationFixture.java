@@ -11,6 +11,7 @@ import com.team1.reservation.reservation.repository.ReservationRepository;
 import com.team1.reservation.reservation.service.MyReservationService;
 import com.team1.reservation.round.entity.Round;
 import com.team1.reservation.round.repository.RoundRepository;
+import com.team1.reservation.round.service.RoundService;
 import com.team1.security.AuthenticatedUser;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -44,6 +45,7 @@ public abstract class MyReservationFixture {
     protected PaymentLookupRepository payments;
     protected TicketClient ticketClient;
     protected ExpoClient expoClient;
+    protected RoundService roundService;
     protected MyReservationService service;
 
     protected void initMocks() {
@@ -52,15 +54,17 @@ public abstract class MyReservationFixture {
         payments = mock(PaymentLookupRepository.class);
         ticketClient = mock(TicketClient.class);
         expoClient = mock(ExpoClient.class);
+        roundService = mock(RoundService.class);
 
         service = new MyReservationService(reservations, rounds, payments, ticketClient,
-                expoClient, MAX_REFUND_ATTEMPTS);
+                expoClient, roundService, MAX_REFUND_ATTEMPTS);
 
         when(payments.findByRefIdIn(any())).thenReturn(List.of());
         when(rounds.findById(ROUND_ID)).thenReturn(Optional.of(round()));
         when(rounds.findAllById(any())).thenReturn(List.of(round()));
         when(rounds.findByExpoIdInAndDeletedAtIsNull(any())).thenReturn(List.of(round()));
         when(expoClient.titles(any())).thenReturn(Map.of(EXPO_ID, "테크 잡페어"));
+        when(roundService.sequencesOf(any())).thenReturn(Map.of(ROUND_ID, 1));
     }
 
     protected Round round() {
