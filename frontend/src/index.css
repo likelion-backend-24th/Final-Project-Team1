@@ -886,6 +886,9 @@ tbody tr:hover td { background: var(--gray1); }
   .host-layout { grid-template-columns: 1fr; }
   .expo-grid { grid-template-columns: 1fr 1fr; }
   .page-wrap { padding-top: 24px; }
+  .expo-detail-layout { grid-template-columns: 1fr !important; }
+  .expo-row-actions { flex-wrap: wrap; }
+  .section-header { flex-wrap: wrap; gap: 8px; }
 }
 @media (max-width: 480px) {
   body { font-size: 13px; }
@@ -900,4 +903,6 @@ tbody tr:hover td { background: var(--gray1); }
   .expo-grid { grid-template-columns: 1fr; }
   .auth-card { padding: 32px 24px; }
   .scroll-top-btn { bottom: 16px; right: 16px; width: 40px; height: 40px; font-size: 18px; }
+  .round-card { flex-wrap: wrap; }
+  .nickname-form-row { flex-direction: column; align-items: stretch; }
 }

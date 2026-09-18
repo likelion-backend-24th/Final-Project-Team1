@@ -183,7 +183,7 @@ function ChangeNameCard({ onChanged }: { onChanged: (name: string) => void }) {
       <form onSubmit={handleSubmit}>
         <div className="form-group" style={{ marginBottom: checkResult ? 4 : 0 }}>
           <label className="form-label">새 닉네임</label>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+          <div className="nickname-form-row" style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
             <input
               className="form-input"
               style={{ flex: 1 }}
