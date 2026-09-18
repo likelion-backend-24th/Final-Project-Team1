@@ -106,10 +106,7 @@ public class NotificationService {
         }
     }
 
-    private String buildMessage(String expoTitle, List<String> matchedTags) {
-        String llmMessage = geminiMessageService.generateNotificationMessage(expoTitle, matchedTags);
-        if (llmMessage != null) return llmMessage;
-        // Gemini 실패 시 템플릿 fallback
+    private String buildFallbackMessage(String expoTitle, List<String> matchedTags) {
         String tagStr = matchedTags.stream().map(t -> "#" + t).collect(Collectors.joining(" "));
         return "'" + expoTitle + "' 박람회가 열렸어요! " + tagStr + " 관심사와 딱 맞아요.";
     }
@@ -149,10 +146,13 @@ public class NotificationService {
                                 .add(tag));
             }
 
+            // LLM 호출은 박람회당 1회 — 트랜잭션 내 호출이므로 expo 수가 많으면 별도 비동기 배치로 전환 필요
+            String llmMessage = geminiMessageService.generateNotificationMessage(expo.title(), tags);
+
             userMatchedTags.forEach((userId, matchedTags) -> {
-                if (repository.existsByUserIdAndExpoId(userId, expo.expoId())) return;
+                if (repository.existsByUserIdAndDedupKey(userId, Notification.recommendationKey(expo.expoId()))) return;
                 List<String> distinctTags = matchedTags.stream().distinct().limit(3).toList();
-                String message = buildMessage(expo.title(), distinctTags);
+                String message = llmMessage != null ? llmMessage : buildFallbackMessage(expo.title(), distinctTags);
                 repository.save(Notification.recommendation(userId, expo.expoId(), message, now));
             });
         }
