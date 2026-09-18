@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -90,26 +89,6 @@ public class MyReservationService {
                         refundStateOf(reservation, paymentsByReservationId.get(reservation.getId()))))
                 .toList();
     }
-
-//    /**
-//     * 회차 번호는 그 박람회의 살아있는 회차를 전부 알아야 매길 수 있다 - 예약이 가리키는 회차만
-//     * 모아서는 몇 번째인지 알 수 없다. 박람회 단위로 한 번에 당겨 번호를 붙인다.
-//     *
-//     * <p>삭제된 회차를 가리키는 지난 예약은 번호가 없다(null). 날짜는 그대로 보이므로 화면은 버틴다.
-//     */
-//    private Map<Long, Integer> sequencesOf(Set<Long> expoIds) {
-//        Map<Long, Integer> sequences = new HashMap<>();
-//        rounds.findByExpoIdInAndDeletedAtIsNull(expoIds).stream()
-//                .collect(Collectors.groupingBy(Round::getExpoId))
-//                .values()
-//                .forEach(perExpo -> {
-//                    List<Round> ordered = RoundSequence.ordered(perExpo);
-//                    for (int i = 0; i < ordered.size(); i++) {
-//                        sequences.put(ordered.get(i).getId(), i + 1);
-//                    }
-//                });
-//        return sequences;
-//    }
 
     @Transactional(readOnly = true)
     public MyReservationDetailResponse getMine(Long reservationId, AuthenticatedUser user) {
