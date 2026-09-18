@@ -38,17 +38,20 @@ public class NotificationService {
     private final UserPreferenceScoreRepository scoreRepository;
     private final ExpoTagRepository expoTagRepository;
     private final InternalExpoClient expoClient;
+    private final GeminiMessageService geminiMessageService;
     private final Clock clock;
 
     public NotificationService(NotificationRepository repository,
                                UserPreferenceScoreRepository scoreRepository,
                                ExpoTagRepository expoTagRepository,
                                InternalExpoClient expoClient,
+                               GeminiMessageService geminiMessageService,
                                Clock clock) {
         this.repository = repository;
         this.scoreRepository = scoreRepository;
         this.expoTagRepository = expoTagRepository;
         this.expoClient = expoClient;
+        this.geminiMessageService = geminiMessageService;
         this.clock = clock;
     }
 
@@ -103,6 +106,14 @@ public class NotificationService {
         }
     }
 
+    private String buildMessage(String expoTitle, List<String> matchedTags) {
+        String llmMessage = geminiMessageService.generateNotificationMessage(expoTitle, matchedTags);
+        if (llmMessage != null) return llmMessage;
+        // Gemini 실패 시 템플릿 fallback
+        String tagStr = matchedTags.stream().map(t -> "#" + t).collect(Collectors.joining(" "));
+        return "'" + expoTitle + "' 박람회가 열렸어요! " + tagStr + " 관심사와 딱 맞아요.";
+    }
+
     private static String reservationConfirmedMessage(String reservationNo) {
         String no = (reservationNo == null || reservationNo.isBlank()) ? "" : " (예약번호 " + reservationNo + ")";
         return "예약이 확정되었어요" + no + ". 내 예약에서 QR 티켓을 확인하세요.";
@@ -140,11 +151,8 @@ public class NotificationService {
 
             userMatchedTags.forEach((userId, matchedTags) -> {
                 if (repository.existsByUserIdAndExpoId(userId, expo.expoId())) return;
-                String tagStr = matchedTags.stream()
-                        .distinct().limit(3)
-                        .map(t -> "#" + t)
-                        .collect(Collectors.joining(" "));
-                String message = "'" + expo.title() + "' 박람회가 열렸어요! " + tagStr + " 관심사와 딱 맞아요.";
+                List<String> distinctTags = matchedTags.stream().distinct().limit(3).toList();
+                String message = buildMessage(expo.title(), distinctTags);
                 repository.save(Notification.recommendation(userId, expo.expoId(), message, now));
             });
         }
