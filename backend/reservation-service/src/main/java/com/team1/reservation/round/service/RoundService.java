@@ -192,6 +192,13 @@ public class RoundService {
     @Transactional(readOnly = true)
     public List<InternalRoundResponse> roundsByDate(Collection<Long> expoIds, Instant from, Instant to,
                                                      boolean bookableOnly) {
+        if (expoIds == null || expoIds.isEmpty()) {
+            return List.of();
+        }
+        if (expoIds.size() > MAX_FEE_SUMMARY_IDS) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "too many expoIds: " + expoIds.size());
+        }
+
         List<Round> found = rounds.findByExpoIdInAndDateRange(expoIds, from, to, bookableOnly, clock.instant());
 
         Set<Long> expoIdsOf = found.stream().map(Round::getExpoId).collect(Collectors.toSet());
