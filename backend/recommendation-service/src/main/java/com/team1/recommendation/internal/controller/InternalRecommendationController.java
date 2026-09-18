@@ -31,6 +31,14 @@ public class InternalRecommendationController {
         return ApiResponse.ok(null);
     }
 
+    /** UNTAGGED 상태이거나 태그가 없는 박람회 강제 재태깅 */
+    @PostMapping("/expos/{expoId}/retag")
+    public ApiResponse<Void> retag(@PathVariable Long expoId,
+                                   @RequestBody ExpoPublishedRequest request) {
+        expoTagService.retag(expoId, request.title(), request.description());
+        return ApiResponse.ok(null);
+    }
+
     @PostMapping("/events")
     public ApiResponse<Void> behaviorEvent(@RequestBody BehaviorEventRequest request) {
         userActivityService.record(request);

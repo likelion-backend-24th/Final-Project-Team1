@@ -11,6 +11,8 @@ import org.springframework.web.client.RestClient;
 import java.net.http.HttpClient;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @AutoConfiguration
 public class GeminiConfig {
@@ -65,5 +67,17 @@ public class GeminiConfig {
     @ConditionalOnMissingBean
     public AfterCommitRunner afterCommitRunner() {
         return new AfterCommitRunner();
+    }
+
+    /** LLM 비동기 작업 전용 풀 — ForkJoinPool 오염 방지 */
+    @Bean("aiTaskExecutor")
+    @ConditionalOnMissingBean(name = "aiTaskExecutor")
+    public ExecutorService aiTaskExecutor(
+            @Value("${ai.task-executor.threads:4}") int threads) {
+        return Executors.newFixedThreadPool(threads, r -> {
+            Thread t = new Thread(r, "ai-task");
+            t.setDaemon(true);
+            return t;
+        });
     }
 }
