@@ -2,16 +2,16 @@ package com.team1.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
 
-@Configuration
+@AutoConfiguration
 public class GeminiConfig {
 
     @Bean
@@ -35,5 +35,11 @@ public class GeminiConfig {
 
         return new GeminiClient(restClient, apiKey,
                 "/v1beta/models/" + model + ":generateContent", objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AfterCommitRunner afterCommitRunner() {
+        return new AfterCommitRunner();
     }
 }
