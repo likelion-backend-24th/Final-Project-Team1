@@ -1,10 +1,12 @@
 package com.team1.expo.client;
 
 import com.team1.expo.expo.dto.ExpoFeeView;
+import com.team1.expo.expo.dto.NearestDeadlineView;
 import com.team1.expo.expo.dto.RoundView;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 /**
  * reservation-service의 회차 내부 API 호출 창구.
@@ -23,4 +25,7 @@ public interface RoundClient {
 
     /** GET /internal/v1/rounds/finished-expos?before= — 자동 마감 대상 expoId 목록. */
     List<Long> finishedExpoIds(Instant before, int limit);
+
+    /** GET /internal/v1/rounds/nearest-deadlines?expoIds= — 모집마감일순 정렬용 일괄 조회. */
+    Map<Long, Instant> nearestDeadlines(List<Long> expoIds);
 }

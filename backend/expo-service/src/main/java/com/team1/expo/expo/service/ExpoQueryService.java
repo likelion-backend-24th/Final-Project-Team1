@@ -54,12 +54,12 @@ public class ExpoQueryService {
         int pageSize = Math.min(Math.max(size, 1), MAX_SIZE);
 
         if ("deadline".equals(sort)) {
-            // ponytail: expo당 roundClient 1회 호출 — expo 수십 개 규모에서 허용, 수백 개면 배치 API 필요
-            Instant now = Instant.now();
-            List<Expo> sorted = expoQueryRepository.findAllPublished(region, category, keyword)
-                    .stream()
+            List<Expo> all = expoQueryRepository.findAllPublished(region, category, keyword);
+            List<Long> ids = all.stream().map(Expo::getId).toList();
+            Map<Long, Instant> deadlineMap = ids.isEmpty() ? Map.of() : roundClient.nearestDeadlines(ids);
+            List<Expo> sorted = all.stream()
                     .sorted(Comparator.comparing(
-                            expo -> nearestDeadline(expo.getId(), now),
+                            expo -> deadlineMap.get(expo.getId()),
                             Comparator.nullsLast(Comparator.naturalOrder())))
                     .toList();
             int from = pageIndex * pageSize;
@@ -100,18 +100,6 @@ public class ExpoQueryService {
                     .collect(Collectors.toMap(ExpoFeeView::expoId, ExpoFeeView::paid));
         } catch (BusinessException e) {
             return Map.of();
-        }
-    }
-
-    private Instant nearestDeadline(Long expoId, Instant now) {
-        try {
-            return roundClient.listByExpo(expoId).stream()
-                    .map(RoundView::endsAt)
-                    .filter(e -> e.isAfter(now))
-                    .min(Comparator.naturalOrder())
-                    .orElse(null); // 남은 회차 없으면 null → 정렬 맨 뒤
-        } catch (BusinessException e) {
-            return null; // round 조회 실패도 맨 뒤
         }
     }
 
