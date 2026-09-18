@@ -93,6 +93,22 @@ export default function GNB() {
 
               {menuOpen && (
                 <div className="gnb-dropdown" role="menu">
+                  <div className="gnb-mobile-nav">
+                    <Link to="/expos" className={`gnb-dropdown-item ${isActive('/expos')}`} role="menuitem" onClick={() => setMenuOpen(false)}>박람회 탐색</Link>
+                    {isRole('USER') && (
+                      <Link to="/my/reservations" className={`gnb-dropdown-item ${isActive('/my/reservations')}`} role="menuitem" onClick={() => setMenuOpen(false)}>내 예약</Link>
+                    )}
+                    {isRole('ORGANIZER') && (
+                      <>
+                        <Link to="/host/channel" className={`gnb-dropdown-item ${isActive('/host/channel')}`} role="menuitem" onClick={() => setMenuOpen(false)}>주최자 센터</Link>
+                        <Link to="/host/checkin" className={`gnb-dropdown-item ${isActive('/host/checkin')}`} role="menuitem" onClick={() => setMenuOpen(false)}>현장 체크인</Link>
+                      </>
+                    )}
+                    {isRole('SUPER_ADMIN') && (
+                      <Link to="/admin" className={`gnb-dropdown-item ${isActive('/admin')}`} role="menuitem" onClick={() => setMenuOpen(false)}>관리자</Link>
+                    )}
+                    <hr className="gnb-dropdown-divider" />
+                  </div>
                   <Link
                     to="/my/profile"
                     className={`gnb-dropdown-item ${isActive('/my/profile')}`}
