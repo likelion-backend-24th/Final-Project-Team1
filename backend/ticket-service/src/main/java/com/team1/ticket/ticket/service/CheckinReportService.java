@@ -144,7 +144,10 @@ public class CheckinReportService {
                 .map(h -> h.hour() + "시 " + h.count() + "명")
                 .reduce((a, b) -> a + ", " + b)
                 .orElse("기록 없음");
-        String methodText = byMethod.isEmpty() ? "기록 없음" : byMethod.toString();
+        // 프롬프트에 enum 이름을 그대로 넘기면 요약 문장에 RESERVATION_NO 가 박혀 나온다.
+        String methodText = byMethod.isEmpty() ? "기록 없음" : byMethod.entrySet().stream()
+                .map(e -> methodLabel(e.getKey()) + " " + e.getValue() + "건")
+                .collect(java.util.stream.Collectors.joining(", "));
 
         String prompt = PROMPT.formatted(title, reserved, checkedIn, checkinRate, noShow,
                 hourlyText, methodText, reverted);
@@ -155,6 +158,15 @@ public class CheckinReportService {
             return null;
         }
         return result.summary().trim();
+    }
+
+    /** 요약 문장에 쓸 이름. 화면(byMethod)은 원래 값을 그대로 받아 자체 표기를 쓴다. */
+    private static String methodLabel(String method) {
+        return switch (method) {
+            case "QR" -> "QR";
+            case "RESERVATION_NO" -> "예약번호";
+            default -> "방법 미기록";
+        };
     }
 
     /** 자기 박람회만 볼 수 있다. 소유권은 박람회-Service 만 안다. */
