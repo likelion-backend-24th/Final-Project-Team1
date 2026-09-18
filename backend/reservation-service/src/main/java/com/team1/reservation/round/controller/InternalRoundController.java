@@ -52,7 +52,7 @@ public class InternalRoundController {
             @RequestParam Instant from,
             @RequestParam Instant to,
             @RequestParam List<Long> expoIds,
-            @RequestParam("required = false") boolean bookableOnly
+            @RequestParam(defaultValue = "false") boolean bookableOnly
     ){
         return roundService.roundsByDate(expoIds,from,to,bookableOnly);
     }

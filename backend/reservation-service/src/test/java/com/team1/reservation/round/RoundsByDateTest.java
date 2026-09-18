@@ -1,6 +1,8 @@
 package com.team1.reservation.round;
 
 import com.team1.reservation.client.ExpoClient;
+import com.team1.reservation.common.ApiException;
+import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.round.dto.InternalRoundResponse;
 import com.team1.reservation.round.entity.Round;
 import com.team1.reservation.round.repository.RoundRepository;
@@ -12,13 +14,19 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -84,5 +92,28 @@ class RoundsByDateTest {
         service.roundsByDate(Set.of(1L), from, to, true);
 
         verify(rounds).findByExpoIdInAndDateRange(Set.of(1L), from, to, true, NOW);
+    }
+
+    @Test
+    @DisplayName("expoIds 가 비어 있으면 조회 없이 빈 목록을 돌려준다")
+    void returnsEmptyWithoutQueryWhenExpoIdsEmpty() {
+        List<InternalRoundResponse> result = service.roundsByDate(Collections.emptySet(),
+                Instant.parse("2026-09-19T00:00:00Z"), Instant.parse("2026-09-19T23:59:59Z"), false);
+
+        assertThat(result).isEmpty();
+        verify(rounds, never()).findByExpoIdInAndDateRange(any(), any(), any(), anyBoolean(), any());
+    }
+
+    @Test
+    @DisplayName("expoIds 가 상한(200개)을 넘으면 400 이고 조회하지 않는다")
+    void rejectsTooManyExpoIds() {
+        Set<Long> tooMany = LongStream.range(0, 201).boxed().collect(Collectors.toSet());
+
+        assertThatThrownBy(() -> service.roundsByDate(tooMany,
+                Instant.parse("2026-09-19T00:00:00Z"), Instant.parse("2026-09-19T23:59:59Z"), false))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.INVALID_REQUEST));
+
+        verify(rounds, never()).findByExpoIdInAndDateRange(any(), any(), any(), anyBoolean(), any());
     }
 }
