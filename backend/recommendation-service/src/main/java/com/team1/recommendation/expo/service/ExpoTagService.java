@@ -1,7 +1,5 @@
 package com.team1.recommendation.expo.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team1.ai.AfterCommitRunner;
 import com.team1.ai.GeminiClient;
 import com.team1.recommendation.expo.entity.ExpoTag;
@@ -21,19 +19,23 @@ public class ExpoTagService {
 
     private static final Logger log = LoggerFactory.getLogger(ExpoTagService.class);
 
+    /** 호출량 집계·로그 단위. 어느 기능이 한도를 쓰는지 여기로 구분한다. */
+    private static final String FEATURE = "expo-tagging";
+
     private final ExpoTagRepository repository;
     private final GeminiClient geminiClient;
-    private final ObjectMapper objectMapper;
     private final AfterCommitRunner afterCommitRunner;
 
     public ExpoTagService(ExpoTagRepository repository,
                           GeminiClient geminiClient,
-                          ObjectMapper objectMapper,
                           AfterCommitRunner afterCommitRunner) {
         this.repository = repository;
         this.geminiClient = geminiClient;
-        this.objectMapper = objectMapper;
         this.afterCommitRunner = afterCommitRunner;
+    }
+
+    /** LLM 응답을 받는 그릇. 파싱은 common-ai 가 한다. */
+    public record Keywords(List<String> keywords) {
     }
 
     @Transactional
@@ -61,15 +63,8 @@ public class ExpoTagService {
                     request.title() != null ? request.title() : "",
                     request.description() != null ? request.description() : "");
 
-            String text = geminiClient.generateText(prompt);
-            if (text == null) {
-                saveFallback(request.expoId());
-                return;
-            }
-
-            JsonNode parsed = objectMapper.readTree(text);
-            List<String> keywords = objectMapper.readerForListOf(String.class)
-                    .readValue(parsed.get("keywords"));
+            Keywords parsed = geminiClient.generateJson(FEATURE, prompt, Keywords.class);
+            List<String> keywords = parsed != null ? parsed.keywords() : null;
 
             if (keywords == null || keywords.isEmpty()) {
                 saveFallback(request.expoId());

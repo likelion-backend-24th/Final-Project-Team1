@@ -1,7 +1,5 @@
 package com.team1.recommendation.notification.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team1.ai.GeminiClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,12 +13,19 @@ public class GeminiMessageService {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiMessageService.class);
 
-    private final GeminiClient geminiClient;
-    private final ObjectMapper objectMapper;
+    /** 호출량 집계·로그 단위. */
+    private static final String FEATURE = "notification-message";
 
-    public GeminiMessageService(GeminiClient geminiClient, ObjectMapper objectMapper) {
+    private static final int MAX_LENGTH = 60;
+
+    private final GeminiClient geminiClient;
+
+    public GeminiMessageService(GeminiClient geminiClient) {
         this.geminiClient = geminiClient;
-        this.objectMapper = objectMapper;
+    }
+
+    /** LLM 응답을 받는 그릇. 파싱은 common-ai 가 한다. */
+    public record Message(String message) {
     }
 
     /**
@@ -38,19 +43,15 @@ public class GeminiMessageService {
 
                 응답 형식: {"message": "알림 문구"}
                 """.formatted(expoTitle, String.join(", ", matchedTags));
-        try {
-            String text = geminiClient.generateText(prompt);
-            if (text == null) return null;
 
-            JsonNode node = objectMapper.readTree(text);
-            String message = node.path("message").asText(null);
-            if (message == null || message.isBlank()) return null;
-
-            String trimmed = message.trim();
-            return trimmed.length() > 60 ? trimmed.substring(0, 60) : trimmed;
-        } catch (Exception e) {
-            log.warn("Failed to generate notification message for expo='{}': {}", expoTitle, e.getMessage());
+        Message parsed = geminiClient.generateJson(FEATURE, prompt, Message.class);
+        if (parsed == null || parsed.message() == null || parsed.message().isBlank()) {
+            log.debug("no notification message generated for expo='{}'", expoTitle);
             return null;
         }
+
+        // 조건을 어기고 길게 답하는 경우가 있다. 알림창이 깨지지 않게 여기서 자른다.
+        String trimmed = parsed.message().trim();
+        return trimmed.length() > MAX_LENGTH ? trimmed.substring(0, MAX_LENGTH) : trimmed;
     }
 }
