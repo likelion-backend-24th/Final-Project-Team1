@@ -853,14 +853,51 @@ tbody tr:hover td { background: var(--gray1); }
 }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
+/* ─── Scroll to top ─── */
+.scroll-top-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  z-index: 200;
+  transition: opacity .2s, transform .2s;
+}
+.scroll-top-btn:hover { transform: translateY(-2px); opacity: .9; }
+
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
+  .gnb-logo { margin-right: 16px; }
+  .gnb-links { display: none; }
+  .gnb-search-form { width: 160px; }
+  .gnb-inner { padding: 0 16px; }
   .hero h1 { font-size: 26px; }
   .form-row { grid-template-columns: 1fr; }
   .host-layout { grid-template-columns: 1fr; }
   .expo-grid { grid-template-columns: 1fr 1fr; }
+  .page-wrap { padding-top: 24px; }
 }
 @media (max-width: 480px) {
+  body { font-size: 13px; }
+  .gnb { height: 56px; }
+  .gnb-inner { height: 56px; padding: 0 12px; }
+  .gnb-search-form { display: none; }
+  .hero { aspect-ratio: 16 / 6; max-height: 220px; }
+  .hero h1 { font-size: 20px; }
+  .hero p { font-size: 12px; }
+  .page-wrap { padding-top: 16px; }
+  .section-title { font-size: 15px; }
   .expo-grid { grid-template-columns: 1fr; }
   .auth-card { padding: 32px 24px; }
+  .scroll-top-btn { bottom: 16px; right: 16px; width: 40px; height: 40px; font-size: 18px; }
 }

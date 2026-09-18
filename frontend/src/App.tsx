@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthProvider'
 import { ToastProvider } from './components/ToastProvider'
 import GNB from './components/GNB'
+import ScrollToTop from './components/ScrollToTop'
 import HomePage from './pages/HomePage'
 import AuthPage from './pages/AuthPage'
 import AdminPage from './pages/AdminPage'
@@ -21,6 +22,7 @@ export default function App() {
       <AuthProvider>
         <ToastProvider>
           <GNB />
+          <ScrollToTop />
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/auth" element={<AuthPage />} />
