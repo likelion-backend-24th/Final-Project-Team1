@@ -173,8 +173,9 @@ export default function ReservationModal({ round, onClose, onSuccess, onReleased
     if (!/^01[0-9][- ]?\d{3,4}[- ]?\d{4}$/.test(contactPhone.trim())) {
       return setError('휴대폰 번호 형식이 올바르지 않습니다. 예: 010-1234-5678')
     }
-    if (headcount < 1 || headcount > round.remaining) {
-      return setError(`예약 가능 인원은 1명 이상 ${round.remaining}명 이하입니다.`)
+    const maxHeadcount = Math.min(round.remaining, 7)
+    if (headcount < 1 || headcount > maxHeadcount) {
+      return setError(`예약 가능 인원은 1명 이상 ${maxHeadcount}명 이하입니다.`)
     }
 
     setSubmitting(true)
@@ -241,12 +242,12 @@ export default function ReservationModal({ round, onClose, onSuccess, onReleased
                 className="form-input"
                 type="number"
                 min={1}
-                max={round.remaining}
+                max={Math.min(round.remaining, 7)}
                 value={headcount}
                 onChange={(e) => setHeadcount(Number(e.target.value))}
                 disabled={!!pending}
               />
-              <p className="form-hint">잔여 {round.remaining}명</p>
+              <p className="form-hint">잔여 {round.remaining}명 (최대 7명)</p>
             </div>
 
             <div className="form-group">
