@@ -217,7 +217,7 @@ function ExpoRow({
 }) {
   return (
     <div
-      className="card"
+      className="card host-expo-card"
       style={{ padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 16 }}
     >
       <div
