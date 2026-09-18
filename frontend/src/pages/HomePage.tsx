@@ -236,6 +236,7 @@ function HeroCarousel({ promotions, onNavigate }: {
         cursor: vip ? 'pointer' : 'default',
         overflow: 'hidden',
         aspectRatio: '16 / 5',
+        maxHeight: 400,
         padding: 0,
         display: 'flex',
         alignItems: 'center',
@@ -311,19 +312,19 @@ function HeroCarousel({ promotions, onNavigate }: {
       <div className="container" style={{ position: 'relative', zIndex: 1, width: '100%' }}>
         {vip ? (
           <div>
-            <h2 style={{ fontSize: 26, fontWeight: 800, color: '#fff', lineHeight: 1.3, marginBottom: 8 }}>
+            <h2 style={{ fontSize: 30, fontWeight: 800, color: '#fff', lineHeight: 1.3, marginBottom: 10 }}>
               {vip.title}
             </h2>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginBottom: 16 }}>
+            <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.75)', marginBottom: 18 }}>
               {[vip.category, vip.region].filter(Boolean).join(' · ')}
             </p>
             <button
               onClick={e => { e.stopPropagation(); onNavigate(vip.expoId) }}
               style={{
-                fontSize: 12, fontWeight: 600, color: '#fff',
+                fontSize: 13, fontWeight: 600, color: '#fff',
                 background: 'transparent',
                 border: '1.5px solid rgba(255,255,255,0.6)',
-                padding: '6px 16px', borderRadius: 20, cursor: 'pointer',
+                padding: '7px 18px', borderRadius: 20, cursor: 'pointer',
               }}
             >
               자세히 보기
@@ -422,6 +423,7 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
         cursor: 'pointer',
         overflow: 'hidden',
         aspectRatio: '16 / 5',
+        maxHeight: 400,
         padding: 0,
         display: 'flex',
         alignItems: 'center',
