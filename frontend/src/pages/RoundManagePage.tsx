@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { expoApi } from '../api/expo'
 import { roundApi } from '../api/round'
+import CheckinReportCard from '../components/CheckinReportCard'
 import { useToast } from '../components/Toast'
 import { usePageTitle } from '../hooks/usePageTitle'
 import type { Expo, Round, RoundSummary } from '../types'
@@ -271,6 +272,9 @@ export default function RoundManagePage() {
                 </div>
               )}
             </div>
+
+            {/* 체크인 결과 요약(#259) — 공개된 적 있는 박람회에서만 의미가 있다 */}
+            {(isPublished || isClosed) && <CheckinReportCard expoId={Number(expoId)} />}
 
             {/* Rounds section */}
             <div className="section-header">
