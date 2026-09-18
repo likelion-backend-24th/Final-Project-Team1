@@ -22,6 +22,10 @@ export default function GNB() {
 
   const isActive = (path: string) => pathname.startsWith(path) ? 'active' : ''
 
+  function handleSearch(keyword: string) {
+    navigate(`/expos?keyword=${encodeURIComponent(keyword)}`)
+  }
+
   useEffect(() => {
     if (!menuOpen) return
 
@@ -66,6 +70,7 @@ export default function GNB() {
       </div>
 
       <div className="gnb-auth">
+        <GnbSearch onSearch={handleSearch} />
         {user ? (
           <>
             <NotificationBell />
@@ -110,6 +115,72 @@ export default function GNB() {
         )}
       </div>
     </nav>
+  )
+}
+
+function GnbSearch({ onSearch }: { onSearch: (keyword: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [value, setValue] = useState('')
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleOutside(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutside)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [open])
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!value.trim()) return
+    onSearch(value.trim())
+    setOpen(false)
+  }
+
+  return (
+    <div className="gnb-search" ref={wrapperRef}>
+      <button
+        type="button"
+        className={`notif-bell ${open ? 'open' : ''}`}
+        onClick={() => setOpen(o => !o)}
+        aria-label="박람회 검색"
+        aria-expanded={open}
+      >
+        <SearchIcon />
+      </button>
+
+      {open && (
+        <form className="gnb-search-panel" onSubmit={handleSubmit}>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="박람회 검색"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            autoFocus
+          />
+        </form>
+      )}
+    </div>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.35-4.35" />
+    </svg>
   )
 }
 

@@ -19,16 +19,20 @@ public interface ExpoQueryRepository extends Repository<Expo, Long> {
     Optional<Expo> findById(Long id);
 
     /**
-     * PUBLISHED 박람회만, 지역·카테고리는 값이 있을 때만 필터한다.
+     * PUBLISHED 박람회만, 지역·카테고리·키워드는 값이 있을 때만 필터한다.
+     * 키워드는 제목·소개문에 포함되는지로 판단한다.
      */
     @Query("""
             select e from Expo e
             where e.status = com.team1.expo.domain.expo.ExpoStatus.PUBLISHED
               and (:region is null or e.region = :region)
               and (:category is null or e.category = :category)
+              and (:keyword is null or lower(e.title) like lower(concat('%', :keyword, '%'))
+                                     or lower(e.description) like lower(concat('%', :keyword, '%')))
             """)
     Page<Expo> findPublished(@Param("region") String region,
                              @Param("category") String category,
+                             @Param("keyword") String keyword,
                              Pageable pageable);
 
     @Query("""
@@ -36,7 +40,10 @@ public interface ExpoQueryRepository extends Repository<Expo, Long> {
             where e.status = com.team1.expo.domain.expo.ExpoStatus.PUBLISHED
               and (:region is null or e.region = :region)
               and (:category is null or e.category = :category)
+              and (:keyword is null or lower(e.title) like lower(concat('%', :keyword, '%'))
+                                     or lower(e.description) like lower(concat('%', :keyword, '%')))
             """)
     List<Expo> findAllPublished(@Param("region") String region,
-                                @Param("category") String category);
+                                @Param("category") String category,
+                                @Param("keyword") String keyword);
 }

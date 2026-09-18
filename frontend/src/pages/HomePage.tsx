@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { expoApi } from '../api/expo'
 import { recommendationApi, type RecommendationItem } from '../api/recommendation'
 import { cdnImage } from '../lib/cloudinary'
@@ -34,6 +34,8 @@ export default function HomePage() {
   const [error, setError] = useState(false)
   const [category, setCategory] = useState('전체')
   const [sort, setSort] = useState<ExpoSort>('recommended')
+  const [searchParams] = useSearchParams()
+  const keyword = searchParams.get('keyword') ?? ''
   const [promotions, setPromotions] = useState<ActivePromotion[]>([])
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([])
   const [tagMap, setTagMap] = useState<Record<string, string[]>>({})
@@ -45,6 +47,7 @@ export default function HomePage() {
     setLoading(true)
     expoApi.listPublished({
       category: category === '전체' ? undefined : category,
+      keyword: keyword || undefined,
       sort: sort === 'recommended' ? undefined : sort,
     })
       .then(res => {
@@ -62,7 +65,7 @@ export default function HomePage() {
       .catch(() => { if (!cancelled) setError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [category, sort])
+  }, [category, keyword, sort])
 
   useEffect(() => {
     expoApi.getActivePromotions()
@@ -112,6 +115,13 @@ export default function HomePage() {
 
       {/* ─── Content ─── */}
       <div className="container page-wrap">
+        {keyword && (
+          <div className="search-active-bar">
+            <span>'{keyword}' 검색 결과</span>
+            <button type="button" onClick={() => navigate('/expos')}>지우기 ✕</button>
+          </div>
+        )}
+
         <div className="cat-bar">
           {CATS.map(c => (
             <button

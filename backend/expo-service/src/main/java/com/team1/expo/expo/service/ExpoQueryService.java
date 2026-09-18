@@ -46,7 +46,7 @@ public class ExpoQueryService {
      * VIP 상단 노출은 GET /api/v1/expo-promotions/active 를 프론트가 별도 호출해 조합한다.
      * deadline 정렬은 round endsAt 기준이 필요해 reservation-service 연동 시 구현 예정.
      */
-    public Page<ExpoSummaryResponse> listPublished(String region, String category, String sort, int page, int size) {
+    public Page<ExpoSummaryResponse> listPublished(String region, String category, String keyword, String sort, int page, int size) {
         if (category != null && !ALLOWED_CATEGORIES.contains(category)) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
@@ -56,7 +56,7 @@ public class ExpoQueryService {
         if ("deadline".equals(sort)) {
             // ponytail: expo당 roundClient 1회 호출 — expo 수십 개 규모에서 허용, 수백 개면 배치 API 필요
             Instant now = Instant.now();
-            List<Expo> sorted = expoQueryRepository.findAllPublished(region, category)
+            List<Expo> sorted = expoQueryRepository.findAllPublished(region, category, keyword)
                     .stream()
                     .sorted(Comparator.comparing(
                             expo -> nearestDeadline(expo.getId(), now),
@@ -74,7 +74,7 @@ public class ExpoQueryService {
         };
 
         Pageable pageable = PageRequest.of(pageIndex, pageSize, ordering);
-        Page<Expo> found = expoQueryRepository.findPublished(region, category, pageable);
+        Page<Expo> found = expoQueryRepository.findPublished(region, category, keyword, pageable);
         Map<Long, Boolean> paidByExpoId = paidFlags(found.getContent());
         return found.map(expo -> ExpoSummaryResponse.from(expo, paidByExpoId.get(expo.getId())));
     }
