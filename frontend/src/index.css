@@ -75,6 +75,12 @@ input, select, textarea { font-family: inherit; }
   top: 0;
   z-index: 100;
   height: 64px;
+}
+.gnb-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   padding: 0 clamp(20px, 4vw, 40px);
@@ -169,20 +175,48 @@ input, select, textarea { font-family: inherit; }
 .gnb-dropdown-item.danger:hover { background: var(--red-l); }
 
 /* ─── GNB search ─── */
-.gnb-search { position: relative; }
-.gnb-search-panel {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  width: 260px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  box-shadow: var(--shadow-lg);
-  padding: 10px;
-  z-index: 200;
+.gnb-search-form {
+  display: flex;
+  align-items: center;
+  background: var(--gray1);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  width: 200px;
+  transition: border-color .15s, box-shadow .15s, width .2s;
 }
-.gnb-search-panel .form-input { margin: 0; }
+.gnb-search-form:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), .10);
+  background: var(--surface);
+  width: 240px;
+}
+.gnb-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 7px 4px 7px 14px;
+  font-size: 13px;
+  color: var(--text);
+  font-family: inherit;
+}
+.gnb-search-input::placeholder { color: var(--gray5); }
+.gnb-search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  background: transparent;
+  border: none;
+  color: var(--sub);
+  cursor: pointer;
+  height: 36px;
+  flex-shrink: 0;
+  transition: color .15s;
+}
+.gnb-search-btn:hover { color: var(--primary); }
 
 /* ─── Notification bell ─── */
 .notif { position: relative; }
