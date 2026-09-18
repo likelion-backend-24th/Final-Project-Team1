@@ -916,4 +916,6 @@ tbody tr:hover td { background: var(--gray1); }
   .expo-grid { padding: 0 2px; }
   .host-expo-card { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
   .host-expo-card .expo-row-actions { flex-shrink: unset; flex-wrap: wrap; }
+  .container { padding-left: 28px; padding-right: 28px; }
+  .notif-panel { position: fixed; top: 56px; left: 12px; right: 12px; width: auto; max-width: none; }
 }
