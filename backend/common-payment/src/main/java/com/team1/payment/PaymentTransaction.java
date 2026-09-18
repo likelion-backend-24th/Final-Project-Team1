@@ -70,9 +70,17 @@ public class PaymentTransaction {
         return p;
     }
 
+    /** pg_response_code 는 VARCHAR(50) 이다. PG 가 더 긴 값을 주더라도 저장이 실패해 확정이 롤백되면 안 된다. */
+    private static final int PG_RESPONSE_CODE_MAX = 50;
+
+    private static String clip(String code) {
+        if (code == null || code.length() <= PG_RESPONSE_CODE_MAX) return code;
+        return code.substring(0, PG_RESPONSE_CODE_MAX);
+    }
+
     public void markPaid(String pgTransactionId, String pgResponseCode, Instant now) {
         this.pgTransactionId = pgTransactionId;
-        this.pgResponseCode = pgResponseCode;
+        this.pgResponseCode = clip(pgResponseCode);
         this.status = PaymentStatus.PAID;
         this.paidAt = now;
         this.updatedAt = now;
@@ -80,7 +88,7 @@ public class PaymentTransaction {
 
     public void markFailed(String pgResponseCode, String failureReason, Instant now) {
 
-        this.pgResponseCode = pgResponseCode;
+        this.pgResponseCode = clip(pgResponseCode);
         this.failureReason = failureReason;
         this.status = PaymentStatus.FAILED;
         this.updatedAt = now;

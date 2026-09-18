@@ -16,6 +16,9 @@ import java.time.Duration;
 @Profile("portone-live")
 public class PortOneClient implements PgClient {
 
+    /** 사전등록과 취소가 같은 멱등키를 쓰면 PortOne 이 뒤엣것을 중복 요청으로 흘려보낸다. */
+    private static final String CANCEL_KEY_PREFIX = "cancel-";
+
     private final RestClient restClient;
     private final String storeId;
 
@@ -62,8 +65,11 @@ public class PortOneClient implements PgClient {
         String channelKey = response.channel() !=null ? response.channel().key() : null;
 
         return switch (response.status()) {
+            // pgResponse 는 PG 원본 응답(JSON) 이라 1,000자가 넘는다. 코드 칸(VARCHAR 50)에 넣으면
+            // 저장이 터지면서 확정 트랜잭션째로 롤백된다 - 결제는 됐는데 예약은 미확정으로 남는다.
+            // 성공에는 따로 코드가 없으므로 상태값을 그대로 남긴다. 추적은 pgTxId 로 한다.
             case "PAID" -> new PgInquiryResult(
-                    PgPaymentStatus.PAID, amount, response.pgTxId(), response.pgResponse(), null, response.storeId(),channelKey);
+                    PgPaymentStatus.PAID, amount, response.pgTxId(), "PAID", null, response.storeId(), channelKey);
             case "FAILED" -> {
                 String reason = response.failure() != null ? response.failure().reason() : null;
                 String pgCode = response.failure() != null ? response.failure().pgCode() : null;
@@ -103,13 +109,21 @@ public class PortOneClient implements PgClient {
     @Override
     public PgCancelResult cancel(String paymentId, Integer amount, String reason) {
         try {
-            restClient.post()
+            // 멱등키는 작업마다 달라야 한다. 사전등록과 같은 키를 쓰면 PortOne 이 중복 요청으로 보고
+            // 사전등록 때의 응답을 그대로 돌려준다 - 취소는 일어나지 않았는데 200 이 와서
+            // "환불 완료" 로 기록되고 돈은 그대로 남는다(실결제 테스트에서 확인).
+            CancelResponse response = restClient.post()
                     .uri("/payments/{paymentId}/cancel", paymentId)
-                    .header("Idempotency-Key", paymentId)
+                    .header("Idempotency-Key", CANCEL_KEY_PREFIX + paymentId)
                     .body(new CancelRequest(storeId, amount, reason))
                     .retrieve()
-                    .toBodilessEntity();
-            return new PgCancelResult(true, "0000");
+                    .body(CancelResponse.class);
+
+            // 취소 내역이 없으면 성공이 아니다. 여기서 실패로 봐야 재시도 배치가 회수한다.
+            if (response == null || response.cancellation() == null) {
+                return new PgCancelResult(false, "NO_CANCELLATION");
+            }
+            return new PgCancelResult(true, response.cancellation().status());
         } catch (HttpClientErrorException.Conflict e) {
             // 이미 취소된 결제를 재시도한 경우(PAYMENT_ALREADY_CANCELLED, 409). PG 기준으로는
             // 이미 끝난 취소라 성공으로 본다 - 안 그러면 재시도 배치가 끝난 건을 계속 붙잡는다.
@@ -126,6 +140,12 @@ public class PortOneClient implements PgClient {
     }
 
     private record CancelRequest(String storeId, Integer amount, String reason) {
+    }
+
+    private record CancelResponse(Cancellation cancellation) {
+    }
+
+    private record Cancellation(String status) {
     }
 
     private record PaymentAmount(Long total) {
