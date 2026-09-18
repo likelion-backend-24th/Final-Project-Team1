@@ -5,6 +5,7 @@ import com.team1.recommendation.activity.repository.UserActivityRepository;
 import com.team1.recommendation.internal.dto.BehaviorEventRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,11 +22,15 @@ public class UserActivityService {
         this.repository = repository;
     }
 
-    @Transactional
     public void record(BehaviorEventRequest request) {
         log.info("behavior event received userId={} expoId={} type={}",
                 request.userId(), request.expoId(), request.eventType());
-        repository.save(UserActivity.of(
-                request.userId(), request.expoId(), request.eventType(), LocalDateTime.now()));
+        try {
+            repository.saveAndFlush(UserActivity.of(
+                    request.userId(), request.expoId(), request.eventType(), LocalDateTime.now()));
+        } catch (DataIntegrityViolationException e) {
+            log.info("duplicate activity ignored userId={} expoId={} type={}",
+                    request.userId(), request.expoId(), request.eventType());
+        }
     }
 }
