@@ -1,5 +1,6 @@
 package com.team1.reservation.round.repository;
 
+import com.team1.reservation.round.dto.NearestDeadlineView;
 import com.team1.reservation.round.entity.Round;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -70,6 +71,14 @@ public interface RoundRepository extends JpaRepository<Round, Long> {
     @Query("select r.expoId from Round r where r.deletedAt is null "
             + "group by r.expoId having max(r.endsAt) < :before order by r.expoId")
     List<Long> findExpoIdsWithAllRoundsEndedBefore(@Param("before") Instant before, Pageable pageable);
+
+    /** 박람회별 가장 가까운 모집 마감일(endsAt). now 이후 회차만 집계한다. */
+    @Query("select new com.team1.reservation.round.dto.NearestDeadlineView(r.expoId, min(r.endsAt)) "
+            + "from Round r "
+            + "where r.expoId in :expoIds and r.deletedAt is null and r.endsAt > :now "
+            + "group by r.expoId")
+    List<NearestDeadlineView> findNearestDeadlinesByExpoIds(@Param("expoIds") Collection<Long> expoIds,
+                                                            @Param("now") Instant now);
 
 
 
