@@ -912,4 +912,6 @@ tbody tr:hover td { background: var(--gray1); }
   .modal-overlay { align-items: flex-end; padding: 0; }
   .modal { border-radius: var(--r-xl) var(--r-xl) 0 0; max-height: 90vh; overflow-y: auto; max-width: 100%; padding: 24px 20px; }
   .modal-footer { position: sticky; bottom: 0; background: var(--surface); padding-top: 12px; margin-top: 16px; }
+  .sort-bar { justify-content: flex-start; }
+  .expo-grid { padding: 0 2px; }
 }
