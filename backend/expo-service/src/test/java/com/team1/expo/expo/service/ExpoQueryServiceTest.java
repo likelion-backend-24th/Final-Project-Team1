@@ -52,13 +52,24 @@ class ExpoQueryServiceTest {
     @Test
     @DisplayName("허용되지 않은 카테고리 필터 → 400")
     void list_invalidCategory() {
-        assertThatThrownBy(() -> service.listPublished(null, "없는카테고리", "recommended", 1, 20))
+        assertThatThrownBy(() -> service.listPublished(null, "없는카테고리", null, "recommended", 1, 20))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.INVALID_REQUEST);
     }
 
+    @Test
+    @DisplayName("키워드가 있으면 리포지토리에 그대로 전달한다")
+    void list_keywordPassedToRepository() {
+        when(expoQueryRepository.findPublished(isNull(), isNull(), org.mockito.ArgumentMatchers.eq("잡페어"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(expoWithStatus(ExpoStatus.PUBLISHED))));
+        when(roundClient.feeSummaries(List.of(EXPO_ID))).thenReturn(List.of());
+
+        assertThat(service.listPublished(null, null, "잡페어", "newest", 1, 20).getContent())
+                .hasSize(1);
+    }
+
     private void givenOnePublishedExpo() {
-        when(expoQueryRepository.findPublished(isNull(), isNull(), any(Pageable.class)))
+        when(expoQueryRepository.findPublished(isNull(), isNull(), isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(expoWithStatus(ExpoStatus.PUBLISHED))));
     }
 
@@ -69,7 +80,7 @@ class ExpoQueryServiceTest {
         when(roundClient.feeSummaries(List.of(EXPO_ID)))
                 .thenReturn(List.of(new ExpoFeeView(EXPO_ID, true)));
 
-        assertThat(service.listPublished(null, null, "newest", 1, 20).getContent())
+        assertThat(service.listPublished(null, null, null, "newest", 1, 20).getContent())
                 .singleElement()
                 .extracting(ExpoSummaryResponse::paid).isEqualTo(true);
     }
@@ -80,7 +91,7 @@ class ExpoQueryServiceTest {
         givenOnePublishedExpo();
         when(roundClient.feeSummaries(List.of(EXPO_ID))).thenReturn(List.of());
 
-        assertThat(service.listPublished(null, null, "newest", 1, 20).getContent())
+        assertThat(service.listPublished(null, null, null, "newest", 1, 20).getContent())
                 .singleElement()
                 .extracting(ExpoSummaryResponse::paid).isNull();
     }
@@ -92,7 +103,7 @@ class ExpoQueryServiceTest {
         when(roundClient.feeSummaries(List.of(EXPO_ID)))
                 .thenThrow(new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE));
 
-        assertThat(service.listPublished(null, null, "newest", 1, 20).getContent())
+        assertThat(service.listPublished(null, null, null, "newest", 1, 20).getContent())
                 .singleElement()
                 .extracting(ExpoSummaryResponse::paid).isNull();
     }

@@ -34,10 +34,11 @@ public class ExpoQueryController {
     public ApiResponse<List<ExpoSummaryResponse>> listExpos(
             @RequestParam(required = false) String region,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "recommended") String sort,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Page<ExpoSummaryResponse> result = expoQueryService.listPublished(region, category, sort, page, size);
+        Page<ExpoSummaryResponse> result = expoQueryService.listPublished(region, category, keyword, sort, page, size);
         return ApiResponse.ok(result.getContent(), PageMeta.of(page, result));
     }
 

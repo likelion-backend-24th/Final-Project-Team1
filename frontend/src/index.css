@@ -168,6 +168,22 @@ input, select, textarea { font-family: inherit; }
 .gnb-dropdown-item.danger { color: var(--red); }
 .gnb-dropdown-item.danger:hover { background: var(--red-l); }
 
+/* ─── GNB search ─── */
+.gnb-search { position: relative; }
+.gnb-search-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 260px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-lg);
+  padding: 10px;
+  z-index: 200;
+}
+.gnb-search-panel .form-input { margin: 0; }
+
 /* ─── Notification bell ─── */
 .notif { position: relative; }
 .notif-bell {
@@ -422,6 +438,27 @@ input, select, textarea { font-family: inherit; }
   white-space: nowrap;
 }
 .search-box button:hover { background: var(--primary-d); }
+
+.search-active-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 10px 16px;
+  background: var(--primary-l);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  color: var(--primary);
+  font-weight: 600;
+}
+.search-active-bar button {
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
 
 /* ─── Category Filter ─── */
 .cat-bar {
