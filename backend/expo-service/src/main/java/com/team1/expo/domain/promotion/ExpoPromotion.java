@@ -32,6 +32,8 @@ public class ExpoPromotion {
 
     private LocalDateTime cancelledAt;
 
+    private LocalDateTime expiredAt;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -52,5 +54,10 @@ public class ExpoPromotion {
     public void cancel(Clock clock) {
         this.status = ExpoPromotionStatus.CANCELLED;
         this.cancelledAt = LocalDateTime.now(clock);
+    }
+
+    public void expire(Clock clock) {
+        this.status = ExpoPromotionStatus.EXPIRED;
+        this.expiredAt = LocalDateTime.now(clock);
     }
 }

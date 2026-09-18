@@ -3,7 +3,9 @@ package com.team1.expo.promotion.service;
 import com.team1.expo.common.exception.BusinessException;
 import com.team1.expo.common.exception.ErrorCode;
 import com.team1.expo.domain.channel.ChannelRepository;
+import com.team1.expo.domain.expo.Expo;
 import com.team1.expo.domain.expo.ExpoRepository;
+import com.team1.expo.domain.expo.ExpoStatus;
 import com.team1.expo.domain.promotion.*;
 import com.team1.expo.promotion.dto.ActivePromotionResponse;
 import com.team1.expo.promotion.dto.ApplyPromotionRequest;
@@ -15,13 +17,17 @@ import com.team1.payment.PaymentTransaction;
 import com.team1.payment.PgCancelResult;
 import com.team1.payment.PgClient;
 import com.team1.payment.PgCommunicationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +37,7 @@ import java.util.stream.Collectors;
 @Service
 public class ExpoPromotionService {
 
+    private static final Logger log = LoggerFactory.getLogger(ExpoPromotionService.class);
     static final int BANNER_PRICE = 9_900;
 
     private final ExpoPromotionRepository promotionRepository;
@@ -43,6 +50,7 @@ public class ExpoPromotionService {
     private final int refundMaxAttempts;
     private final Duration refundBackoff;
     private final int bannerMaxSlots;
+    private final int bannerDurationDays;
 
     public ExpoPromotionService(
             ExpoPromotionRepository promotionRepository,
@@ -54,7 +62,8 @@ public class ExpoPromotionService {
             Clock clock,
             @Value("${scheduler.refund-retry.max-attempts}") int refundMaxAttempts,
             @Value("${scheduler.refund-retry.backoff}") Duration refundBackoff,
-            @Value("${banner.max-slots}") int bannerMaxSlots
+            @Value("${banner.max-slots}") int bannerMaxSlots,
+            @Value("${banner.duration-days}") int bannerDurationDays
     ){
         this.promotionRepository = promotionRepository;
         this.paymentTransactionRepository = paymentTransactionRepository;
@@ -66,6 +75,7 @@ public class ExpoPromotionService {
         this.refundMaxAttempts = refundMaxAttempts;
         this.refundBackoff = refundBackoff;
         this.bannerMaxSlots = bannerMaxSlots;
+        this.bannerDurationDays = bannerDurationDays;
     }
 
     @Transactional
@@ -166,6 +176,39 @@ public class ExpoPromotionService {
         return txs.stream()
                 .map(tx -> InternalPromotionPaymentResponse.of(tx, promotionToExpoId.get(tx.getRefId())))
                 .toList();
+    }
+
+    /** 매일 자정 — 30일 경과 또는 박람회 종료된 ACTIVE 배너를 EXPIRED로 전환 */
+    @Scheduled(cron = "0 0 0 * * *")
+    @Transactional
+    public void expirePromotions() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime cutoff = now.minusDays(bannerDurationDays);
+
+        // 조건 1: 결제일로부터 30일 초과
+        List<ExpoPromotion> byDuration = promotionRepository.findByStatusAndPaidAtBefore(
+                ExpoPromotionStatus.ACTIVE, cutoff);
+
+        // 조건 2: 박람회가 CLOSED 상태인 경우
+        Set<Long> expiredByDurationIds = byDuration.stream()
+                .map(ExpoPromotion::getId).collect(Collectors.toSet());
+
+        List<ExpoPromotion> allActive = promotionRepository.findByStatusOrderByPaidAtAsc(ExpoPromotionStatus.ACTIVE);
+        Set<Long> closedExpoIds = expoRepository
+                .findAllById(allActive.stream().map(ExpoPromotion::getExpoId).collect(Collectors.toSet()))
+                .stream()
+                .filter(e -> e.getStatus() == ExpoStatus.CLOSED)
+                .map(Expo::getId)
+                .collect(Collectors.toSet());
+
+        List<ExpoPromotion> toExpire = allActive.stream()
+                .filter(p -> expiredByDurationIds.contains(p.getId()) || closedExpoIds.contains(p.getExpoId()))
+                .toList();
+
+        toExpire.forEach(p -> p.expire(clock));
+        if (!toExpire.isEmpty()) {
+            log.info("expired {} promotions (duration or expo closed)", toExpire.size());
+        }
     }
 
     private void verifyOwnership(Long expoId, Long requesterId) {
