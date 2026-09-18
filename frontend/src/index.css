@@ -892,7 +892,7 @@ tbody tr:hover td { background: var(--gray1); }
   .gnb { height: 56px; }
   .gnb-inner { height: 56px; padding: 0 12px; }
   .gnb-search-form { display: none; }
-  .hero { aspect-ratio: 16 / 6; max-height: 220px; }
+  .hero { aspect-ratio: 4 / 3 !important; max-height: 300px !important; }
   .hero h1 { font-size: 20px; }
   .hero p { font-size: 12px; }
   .page-wrap { padding-top: 16px; }
