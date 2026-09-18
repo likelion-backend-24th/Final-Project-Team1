@@ -48,6 +48,7 @@ export default function GNB() {
 
   return (
     <nav className="gnb">
+      <div className="gnb-inner">
       <Link to="/" className="gnb-logo">
         <span style={{ color: 'var(--primary)', fontSize: 22 }}>◈</span>
         <span>Expo<span className="accent">Hub</span></span>
@@ -114,63 +115,35 @@ export default function GNB() {
           </>
         )}
       </div>
+      </div>
     </nav>
   )
 }
 
 function GnbSearch({ onSearch }: { onSearch: (keyword: string) => void }) {
-  const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
-  const wrapperRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    function handleOutside(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    function handleEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', handleOutside)
-    document.addEventListener('keydown', handleEscape)
-    return () => {
-      document.removeEventListener('mousedown', handleOutside)
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [open])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!value.trim()) return
     onSearch(value.trim())
-    setOpen(false)
+    setValue('')
   }
 
   return (
-    <div className="gnb-search" ref={wrapperRef}>
-      <button
-        type="button"
-        className={`notif-bell ${open ? 'open' : ''}`}
-        onClick={() => setOpen(o => !o)}
+    <form className="gnb-search-form" onSubmit={handleSubmit}>
+      <input
+        type="text"
+        className="gnb-search-input"
+        placeholder="박람회 검색"
+        value={value}
+        onChange={e => setValue(e.target.value)}
         aria-label="박람회 검색"
-        aria-expanded={open}
-      >
+      />
+      <button type="submit" className="gnb-search-btn" aria-label="검색">
         <SearchIcon />
       </button>
-
-      {open && (
-        <form className="gnb-search-panel" onSubmit={handleSubmit}>
-          <input
-            type="text"
-            className="form-input"
-            placeholder="박람회 검색"
-            value={value}
-            onChange={e => setValue(e.target.value)}
-            autoFocus
-          />
-        </form>
-      )}
-    </div>
+    </form>
   )
 }
 
