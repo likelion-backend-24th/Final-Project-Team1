@@ -1,6 +1,7 @@
 package com.team1.expo.expo.search;
 
 import com.team1.ai.GeminiClient;
+import com.team1.expo.domain.expo.ExpoCategories;
 import com.team1.expo.expo.repository.ExpoQueryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +14,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 
 /**
  * 검색 문장을 검색 필터로 옮긴다. <b>LLM 이 하는 일은 여기까지다</b> - 박람회 목록은 뒤에서 DB 가 낸다.
@@ -33,11 +33,6 @@ public class SearchQueryParser {
 
     /** 사용자는 KST 로 "19일" 이라고 말한다. 서버 시계가 어디에 있든 이 기준으로 읽어야 한다. */
     static final ZoneId KST = ZoneId.of("Asia/Seoul");
-
-    // ponytail: 같은 목록이 ExpoQueryService·CreateExpoRequest·UpdateExpoRequest 에도 있다.
-    // 카테고리가 바뀌면 네 곳을 같이 고쳐야 하므로 공용 상수로 모으는 편이 낫다.
-    static final Set<String> ALLOWED_CATEGORIES =
-            Set.of("IT·전자", "식품·음료", "패션·뷰티", "교육·취업", "문화·예술", "기타");
 
     /** 너무 먼 미래를 물으면 회차 조회 범위가 과해진다. 종범님 by-date 와 맞춘 값이다. */
     private static final int MAX_RANGE_DAYS = 92;
@@ -97,7 +92,7 @@ public class SearchQueryParser {
                 응답 형식:
                 {"region":null,"category":null,"paid":null,"dateFrom":null,"dateTo":null,"keyword":null}
                 """.formatted(today(), String.join(", ", regions),
-                String.join(", ", ALLOWED_CATEGORIES), query);
+                String.join(", ", ExpoCategories.ALLOWED), query);
     }
 
     /**
@@ -108,7 +103,7 @@ public class SearchQueryParser {
      */
     private SearchFilter validate(Parsed parsed, List<String> regions, String original) {
         String region = pick(parsed.region(), regions);
-        String category = pick(parsed.category(), ALLOWED_CATEGORIES);
+        String category = pick(parsed.category(), ExpoCategories.ALLOWED);
 
         LocalDate from = toDate(parsed.dateFrom());
         LocalDate to = toDate(parsed.dateTo());

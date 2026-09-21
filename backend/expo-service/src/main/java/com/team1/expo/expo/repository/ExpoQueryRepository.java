@@ -27,8 +27,8 @@ public interface ExpoQueryRepository extends Repository<Expo, Long> {
             where e.status = com.team1.expo.domain.expo.ExpoStatus.PUBLISHED
               and (:region is null or e.region = :region)
               and (:category is null or e.category = :category)
-              and (:keyword is null or lower(e.title) like lower(concat('%', :keyword, '%'))
-                                     or lower(e.description) like lower(concat('%', :keyword, '%')))
+              and (:keyword is null or lower(e.title) like lower(concat('%', :keyword, '%')) escape '!'
+                                     or lower(e.description) like lower(concat('%', :keyword, '%')) escape '!')
             """)
     Page<Expo> findPublished(@Param("region") String region,
                              @Param("category") String category,
@@ -40,8 +40,8 @@ public interface ExpoQueryRepository extends Repository<Expo, Long> {
             where e.status = com.team1.expo.domain.expo.ExpoStatus.PUBLISHED
               and (:region is null or e.region = :region)
               and (:category is null or e.category = :category)
-              and (:keyword is null or lower(e.title) like lower(concat('%', :keyword, '%'))
-                                     or lower(e.description) like lower(concat('%', :keyword, '%')))
+              and (:keyword is null or lower(e.title) like lower(concat('%', :keyword, '%')) escape '!'
+                                     or lower(e.description) like lower(concat('%', :keyword, '%')) escape '!')
             """)
     List<Expo> findAllPublished(@Param("region") String region,
                                 @Param("category") String category,
