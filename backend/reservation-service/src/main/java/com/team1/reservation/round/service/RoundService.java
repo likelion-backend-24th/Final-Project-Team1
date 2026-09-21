@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.team1.reservation.round.dto.NearestDeadlineView;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.*;
@@ -192,6 +193,13 @@ public class RoundService {
     @Transactional(readOnly = true)
     public List<InternalRoundResponse> roundsByDate(Collection<Long> expoIds, Instant from, Instant to,
                                                      boolean bookableOnly) {
+        if (expoIds == null || expoIds.isEmpty()) {
+            return List.of();
+        }
+        if (expoIds.size() > MAX_FEE_SUMMARY_IDS) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "too many expoIds: " + expoIds.size());
+        }
+
         List<Round> found = rounds.findByExpoIdInAndDateRange(expoIds, from, to, bookableOnly, clock.instant());
 
         Set<Long> expoIdsOf = found.stream().map(Round::getExpoId).collect(Collectors.toSet());
@@ -220,6 +228,21 @@ public class RoundService {
         return rounds.findExpoIdsWithOpenRounds(expoIds, now).stream()
                 .map(expoId -> new ExpoFeeSummaryResponse(expoId, paid.contains(expoId)))
                 .toList();
+    }
+
+    /** 박람회별 가장 가까운 모집 마감일을 한 번에 조회한다. expoId에 해당하는 값이 없으면 결과에서 빠진다. */
+    @Transactional(readOnly = true)
+    public Map<Long, Instant> nearestDeadlines(Collection<Long> expoIds) {
+        if (expoIds == null || expoIds.isEmpty()) {
+            return Map.of();
+        }
+        if (expoIds.size() > MAX_FEE_SUMMARY_IDS) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "too many expoIds: " + expoIds.size());
+        }
+        Map<Long, Instant> result = new HashMap<>();
+        rounds.findNearestDeadlinesByExpoIds(expoIds, clock.instant())
+                .forEach(v -> result.put(v.expoId(), v.nearestEndsAt()));
+        return result;
     }
 
     @Transactional(readOnly = true)

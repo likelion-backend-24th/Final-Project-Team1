@@ -178,7 +178,7 @@ export default function ExpoDetailPage() {
           ← 목록으로
         </button>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 32, alignItems: 'start' }}>
+        <div className="expo-detail-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 32, alignItems: 'start' }}>
           {/* ─── Left: Info ─── */}
           <div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>

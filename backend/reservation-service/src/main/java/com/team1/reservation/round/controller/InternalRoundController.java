@@ -4,6 +4,7 @@ import com.team1.reservation.round.service.RoundService;
 import com.team1.reservation.round.dto.ExistsResponse;
 import com.team1.reservation.round.dto.ExpoFeeSummaryResponse;
 import com.team1.reservation.round.dto.InternalRoundResponse;
+import com.team1.reservation.round.dto.NearestDeadlineView;
 import com.team1.reservation.round.entity.Round;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -52,7 +53,7 @@ public class InternalRoundController {
             @RequestParam Instant from,
             @RequestParam Instant to,
             @RequestParam List<Long> expoIds,
-            @RequestParam("required = false") boolean bookableOnly
+            @RequestParam(defaultValue = "false") boolean bookableOnly
     ){
         return roundService.roundsByDate(expoIds,from,to,bookableOnly);
     }
@@ -69,5 +70,13 @@ public class InternalRoundController {
     public List<Long> finishedExpos(@RequestParam Instant before,
                                     @RequestParam(defaultValue = "500") int limit) {
         return roundService.finishedExpoIds(before, limit);
+    }
+
+    /** 박람회별 가장 가까운 모집 마감일 일괄 조회. 모집마감일순 정렬 전용. */
+    @GetMapping("/nearest-deadlines")
+    public List<NearestDeadlineView> nearestDeadlines(@RequestParam List<Long> expoIds) {
+        return roundService.nearestDeadlines(expoIds).entrySet().stream()
+                .map(e -> new NearestDeadlineView(e.getKey(), e.getValue()))
+                .toList();
     }
 }

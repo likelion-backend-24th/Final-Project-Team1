@@ -4,6 +4,7 @@ import com.team1.expo.common.TraceId;
 import com.team1.expo.common.exception.BusinessException;
 import com.team1.expo.common.exception.ErrorCode;
 import com.team1.expo.expo.dto.ExpoFeeView;
+import com.team1.expo.expo.dto.NearestDeadlineView;
 import com.team1.expo.expo.dto.RoundView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
@@ -103,6 +105,30 @@ public class RestClientRoundClient implements RoundClient {
             return ids == null ? List.of() : List.of(ids);
         } catch (Exception e) {
             log.warn("finishedExpoIds 호출 실패 traceId={}", TraceId.get(), e);
+            throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        }
+    }
+
+    @Override
+    public Map<Long, Instant> nearestDeadlines(List<Long> expoIds) {
+        if (expoIds.isEmpty()) {
+            return Map.of();
+        }
+        String query = expoIds.stream().map(id -> "expoIds=" + id).collect(Collectors.joining("&"));
+        try {
+            NearestDeadlineView[] views = restClient.get()
+                    .uri("/internal/v1/rounds/nearest-deadlines?" + query)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + internalToken)
+                    .header(TraceId.HEADER, TraceId.get())
+                    .retrieve()
+                    .body(NearestDeadlineView[].class);
+            if (views == null) {
+                return Map.of();
+            }
+            return java.util.Arrays.stream(views)
+                    .collect(Collectors.toMap(NearestDeadlineView::expoId, NearestDeadlineView::nearestEndsAt));
+        } catch (Exception e) {
+            log.warn("nearestDeadlines 호출 실패 count={} traceId={}", expoIds.size(), TraceId.get(), e);
             throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
         }
     }

@@ -26,6 +26,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.mockito.ArgumentCaptor;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -140,6 +142,20 @@ class CheckinReportIntegrationTest extends IntegrationTestSupport {
 
         assertThat(report.reverted()).isEqualTo(1);
         assertThat(report.hourly()).containsExactly(new CheckinReportResponse.HourlyCheckin(14, 1));
+    }
+
+    @Test
+    @DisplayName("프롬프트에는 처리 방법을 한글로 넘긴다 - 요약 문장에 enum 이름이 새지 않게")
+    void passesKoreanMethodLabelToPrompt() {
+        checkedIn(1L, 1, "t1", AT_14, CheckinMethod.RESERVATION_NO);
+        ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
+
+        reportService.getReport(EXPO_ID, OWNER);
+
+        org.mockito.Mockito.verify(geminiClient).generateJson(anyString(), prompt.capture(), any());
+        assertThat(prompt.getValue())
+                .contains("예약번호 1건")
+                .doesNotContain("RESERVATION_NO");
     }
 
     @Test
