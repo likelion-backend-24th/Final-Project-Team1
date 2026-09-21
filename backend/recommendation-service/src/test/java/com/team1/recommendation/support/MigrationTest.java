@@ -6,6 +6,6 @@ class MigrationTest extends ApiTestSupport {
 
     @Test
     void contextLoads() {
-        // Flyway V1~V5 적용 + ddl-auto:validate 통과하면 컨텍스트가 뜬다
+        // Flyway 전체 마이그레이션 적용 + ddl-auto:validate 통과하면 컨텍스트가 뜬다
     }
 }
