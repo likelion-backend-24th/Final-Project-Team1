@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext'
 import { usePageTitle } from '../hooks/usePageTitle'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
+const DAY_PAGE_SIZE = 3
 
 const THUMB_COLORS: [string, string][] = [
   ['#1A1A2E', '#374151'],
@@ -56,6 +57,7 @@ export default function CalendarPage() {
   const [month, setMonth] = useState(now.getMonth())
   const [constraintInput, setConstraintInput] = useState('')
   const [selectedKey, setSelectedKey] = useState(() => defaultDayKey(year, month, now))
+  const [dayPage, setDayPage] = useState(0)
 
   // 기본 화면 - 그 달의 전체 공개 일정. 로그인 없이도 보인다.
   const [events, setEvents] = useState<CalendarRoundView[]>([])
@@ -71,13 +73,18 @@ export default function CalendarPage() {
   // 선택한 날짜의 행사를 전체 박람회 카드와 같은 모양으로 보여주기 위한 상세 캐시
   const [expoDetails, setExpoDetails] = useState<Record<number, Expo>>({})
 
+  function selectDay(key: string) {
+    setSelectedKey(key)
+    setDayPage(0)
+  }
+
   function loadEvents() {
     setLoading(true)
     setError('')
     setRecommended(new Set())
     setMeta(null)
     setSuggestError('')
-    setSelectedKey(defaultDayKey(year, month, now))
+    selectDay(defaultDayKey(year, month, now))
     const { from, to } = monthRange(year, month)
     calendarApi.listEvents(from, to)
       .then(res => setEvents(res.data ?? []))
@@ -183,8 +190,11 @@ export default function CalendarPage() {
     })
   }, [selectedEvents, recommended])
 
+  const dayTotalPages = Math.max(1, Math.ceil(selectedExpos.length / DAY_PAGE_SIZE))
+  const pagedExpos = selectedExpos.slice(dayPage * DAY_PAGE_SIZE, dayPage * DAY_PAGE_SIZE + DAY_PAGE_SIZE)
+
   useEffect(() => {
-    const missing = selectedExpos.map(e => e.expoId).filter(id => !expoDetails[id])
+    const missing = pagedExpos.map(e => e.expoId).filter(id => !expoDetails[id])
     if (missing.length === 0) return
     missing.forEach(id => {
       expoApi.getExpo(id)
@@ -194,7 +204,7 @@ export default function CalendarPage() {
         })
         .catch(() => {})
     })
-  }, [selectedExpos, expoDetails])
+  }, [pagedExpos, expoDetails])
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: 'calc(100vh - 64px)' }}>
@@ -247,7 +257,7 @@ export default function CalendarPage() {
                   <div
                     key={cell.key}
                     className={`calendar-cell${cell.inMonth ? '' : ' out'}${isToday(cell) ? ' today' : ''}${selectedKey === cell.key ? ' selected' : ''}`}
-                    onClick={() => cell.inMonth && setSelectedKey(cell.key)}
+                    onClick={() => cell.inMonth && selectDay(cell.key)}
                   >
                     <span className="calendar-date">{cell.date}</span>
                     {dayEvents.length > 0 && (
@@ -269,7 +279,7 @@ export default function CalendarPage() {
                   <p className="calendar-day-empty">이 날에는 등록된 행사가 없습니다.</p>
                 ) : (
                   <div className="expo-grid">
-                    {selectedExpos.map(({ expoId, rounds, ended, recommendedHere }) => {
+                    {pagedExpos.map(({ expoId, rounds, ended, recommendedHere }) => {
                       const expo = expoDetails[expoId]
                       const colors = THUMB_COLORS[expoId % THUMB_COLORS.length]
                       const timeLabel = rounds.map(r => `${formatTime(r.startsAt)}~${formatTime(r.endsAt)}`).join(', ')
@@ -314,6 +324,27 @@ export default function CalendarPage() {
                         </div>
                       )
                     })}
+                  </div>
+                )}
+                {dayTotalPages > 1 && (
+                  <div className="calendar-day-pager">
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      disabled={dayPage === 0}
+                      onClick={() => setDayPage(p => p - 1)}
+                    >
+                      이전
+                    </button>
+                    <span className="calendar-day-pager-label">{dayPage + 1} / {dayTotalPages}</span>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      disabled={dayPage >= dayTotalPages - 1}
+                      onClick={() => setDayPage(p => p + 1)}
+                    >
+                      다음
+                    </button>
                   </div>
                 )}
               </div>

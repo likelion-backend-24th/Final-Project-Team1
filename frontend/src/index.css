@@ -674,6 +674,14 @@ input, select, textarea { font-family: inherit; }
 }
 .calendar-day-panel-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
 .calendar-day-empty { font-size: 13px; color: var(--sub); }
+.calendar-day-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.calendar-day-pager-label { font-size: 13px; font-weight: 600; color: var(--text2); min-width: 40px; text-align: center; }
 .expo-card.recommended { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-l); }
 .expo-card.ended { opacity: .6; }
 
