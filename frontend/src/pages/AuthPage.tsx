@@ -1,15 +1,23 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi, decodeJwt } from '../api/auth'
+import { recommendationApi } from '../api/recommendation'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import { usePageTitle } from '../hooks/usePageTitle'
+
+const CATS = ['IT·전자', '식품·음료', '패션·뷰티', '교육·취업', '문화·예술', '기타']
 
 export default function AuthPage() {
   const [params] = useSearchParams()
   const [tab, setTab] = useState<'login' | 'signup'>(
     params.get('tab') === 'signup' ? 'signup' : 'login'
   )
+  // 회원가입 완료 후 관심사 선택 단계
+  const [signupStep, setSignupStep] = useState<'form' | 'interests'>('form')
+  const [pendingCredentials, setPendingCredentials] = useState<{ email: string; password: string } | null>(null)
+  const [selectedCats, setSelectedCats] = useState<string[]>([])
+
   usePageTitle(tab === 'signup' ? '회원가입' : '로그인')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -17,10 +25,12 @@ export default function AuthPage() {
   const navigate = useNavigate()
   const toast = useToast()
 
-  // 탭을 바꿀 때 이전 오류 메시지를 지운다
   function changeTab(next: 'login' | 'signup') {
     setTab(next)
     setError('')
+    setSignupStep('form')
+    setPendingCredentials(null)
+    setSelectedCats([])
   }
 
   const [loginForm, setLoginForm] = useState({ email: '', password: '' })
@@ -32,8 +42,6 @@ export default function AuthPage() {
     setLoading(true)
     try {
       const res = await authApi.login(loginForm)
-      // 백엔드 LoginResponse 는 accessToken·tokenType·expiresAt 만 준다.
-      // userId 와 role 은 Token 의 sub·role 클레임에서 꺼낸다.
       const token = res.data.accessToken
       const claims = decodeJwt(token)
       login({
@@ -62,9 +70,9 @@ export default function AuthPage() {
     setLoading(true)
     try {
       await authApi.signup({ name: signupForm.name, email: signupForm.email, password: signupForm.password })
-      toast('가입 완료! 로그인해주세요', 'success')
-      changeTab('login')
-      setLoginForm({ email: signupForm.email, password: '' })
+      // 관심사 선택 단계로 전환
+      setPendingCredentials({ email: signupForm.email, password: signupForm.password })
+      setSignupStep('interests')
     } catch (err: unknown) {
       const e = err as { status?: number }
       if (e.status === 409) setError('이미 사용 중인 이메일 주소입니다.')
@@ -75,7 +83,101 @@ export default function AuthPage() {
     }
   }
 
+  async function handleInterestsDone() {
+    if (!pendingCredentials) return
+    setLoading(true)
+    try {
+      // 자동 로그인
+      const res = await authApi.login(pendingCredentials)
+      const token = res.data.accessToken
+      const claims = decodeJwt(token)
+
+      // login()은 setState라 localStorage 업데이트가 다음 렌더에 일어남
+      // saveInterests가 토큰을 읽을 수 있도록 먼저 직접 세팅
+      localStorage.setItem('token', token)
+
+      // 관심사 저장 (선택했을 경우)
+      if (selectedCats.length > 0) {
+        await recommendationApi.saveInterests({ categories: selectedCats, keywords: [] })
+      }
+
+      login({
+        id: Number(claims.sub),
+        name: pendingCredentials.email.split('@')[0],
+        role: claims.role,
+        token,
+      })
+      toast('환영합니다! ExpoHub를 시작해보세요 🎉', 'success')
+      navigate('/')
+    } catch {
+      toast('가입은 완료됐습니다. 직접 로그인해주세요.', 'success')
+      changeTab('login')
+      setLoginForm({ email: pendingCredentials.email, password: '' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function toggleCat(cat: string) {
+    setSelectedCats(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    )
+  }
+
   const pwMismatch = signupForm.confirm.length > 0 && signupForm.password !== signupForm.confirm
+
+  // 회원가입 완료 후 관심사 선택 화면
+  if (tab === 'signup' && signupStep === 'interests') {
+    return (
+      <div className="auth-wrap">
+        <div className="auth-card">
+          <div className="auth-logo">
+            <div className="logo-icon">◈</div>
+            <h2>관심사 설정</h2>
+            <p>어떤 분야의 박람회를 좋아하시나요?</p>
+          </div>
+
+          <div style={{ marginBottom: 8 }}>
+            <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 16 }}>
+              선택한 관심사를 기반으로 AI가 박람회를 추천해드립니다.<br />나중에 마이페이지에서 변경할 수 있습니다.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {CATS.map(cat => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => toggleCat(cat)}
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: 20,
+                    border: selectedCats.includes(cat) ? '2px solid var(--primary)' : '1.5px solid var(--border)',
+                    background: selectedCats.includes(cat) ? 'var(--primary)' : 'transparent',
+                    color: selectedCats.includes(cat) ? '#fff' : 'var(--text)',
+                    fontWeight: 600,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-primary btn-block btn-lg"
+            style={{ marginTop: 24 }}
+            onClick={handleInterestsDone}
+            disabled={loading}
+          >
+            {loading ? '처리 중...' : selectedCats.length > 0 ? '시작하기' : '나중에 설정할게요'}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="auth-wrap">
