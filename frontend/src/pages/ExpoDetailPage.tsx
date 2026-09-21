@@ -44,7 +44,7 @@ const THUMB_COLORS: Record<string, [string, string]> = {
 export default function ExpoDetailPage() {
   const { expoId } = useParams<{ expoId: string }>()
   const navigate = useNavigate()
-  const { isRole } = useAuth()
+  const { isRole, user } = useAuth()
 
   const [expo, setExpo] = useState<Expo | null>(null)
   const [rounds, setRounds] = useState<Round[]>([])
@@ -87,6 +87,7 @@ export default function ExpoDetailPage() {
   useEffect(() => {
     if (!expoId) return
     const id = Number(expoId)
+    if (user) recommendationApi.recordView(id).catch(() => {})
     recommendationApi.getTags(id)
       .then(res => setTags(res.data?.tags ?? []))
       .catch(() => {})
