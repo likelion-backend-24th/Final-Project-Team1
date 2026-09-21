@@ -63,7 +63,6 @@ public class RecommendationService {
 
         List<ExpoSummary> expos = expoClient.listPublished();
 
-        final Map<String, Double> scores = userScores;
         List<RecommendationItem> items = expos.stream()
                 .filter(expo -> !reservedExpoIds.contains(expo.expoId()))
                 .map(expo -> {
@@ -71,10 +70,10 @@ public class RecommendationService {
                     if (tags == null || tags.isEmpty()) return null;
 
                     List<String> matched = tags.stream()
-                            .filter(t -> scores.containsKey(t) || scores.containsKey(t.toLowerCase()))
+                            .filter(t -> userScores.containsKey(t) || userScores.containsKey(t.toLowerCase()))
                             .toList();
                     double score = matched.stream()
-                            .mapToDouble(t -> scores.getOrDefault(t, scores.getOrDefault(t.toLowerCase(), 0.0)))
+                            .mapToDouble(t -> userScores.getOrDefault(t, userScores.getOrDefault(t.toLowerCase(), 0.0)))
                             .sum();
                     if (score <= 0) return null;
 
