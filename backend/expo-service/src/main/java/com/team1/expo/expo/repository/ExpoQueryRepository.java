@@ -46,4 +46,16 @@ public interface ExpoQueryRepository extends Repository<Expo, Long> {
     List<Expo> findAllPublished(@Param("region") String region,
                                 @Param("category") String category,
                                 @Param("keyword") String keyword);
+
+    /**
+     * 공개 박람회에 실제로 쓰인 지역 값. 자연어 검색이 이 목록에서만 고르게 해 DB 값과 일치시킨다.
+     * region 은 주최자가 자유 입력한 문자열이고 조회는 정확 일치라, 표기가 조금만 달라도 0건이 된다.
+     */
+    @Query("""
+            select distinct e.region from Expo e
+            where e.status = com.team1.expo.domain.expo.ExpoStatus.PUBLISHED
+              and e.region is not null and e.region <> ''
+            order by e.region
+            """)
+    List<String> findPublishedRegions();
 }
