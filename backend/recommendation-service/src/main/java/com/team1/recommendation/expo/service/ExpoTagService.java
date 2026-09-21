@@ -67,7 +67,7 @@ public class ExpoTagService {
     @Transactional
     public void retag(Long expoId, String title, String description) {
         repository.deleteByExpoId(expoId);
-        executor.submit(() -> tagAsync(new ExpoPublishedRequest(expoId, title, description)));
+        executor.submit(() -> tagAsync(new ExpoPublishedRequest(expoId, title, description, null)));
     }
 
     private void tagAsync(ExpoPublishedRequest request) {
