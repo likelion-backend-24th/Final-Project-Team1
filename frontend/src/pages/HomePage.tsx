@@ -412,10 +412,10 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
               </div>
             </div>
             {slides.length > 1 && (
-              <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 4, zIndex: 2 }}>
-                <button onClick={e => { e.stopPropagation(); go((idx - 1 + slides.length) % slides.length) }} aria-label="이전" style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 22, height: 22, color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
-                <button onClick={e => { e.stopPropagation(); go((idx + 1) % slides.length) }} aria-label="다음" style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 22, height: 22, color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
-              </div>
+              <button onClick={e => { e.stopPropagation(); go((idx - 1 + slides.length) % slides.length) }} aria-label="이전" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: '#fff', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>‹</button>
+            )}
+            {slides.length > 1 && (
+              <button onClick={e => { e.stopPropagation(); go((idx + 1) % slides.length) }} aria-label="다음" style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: '#fff', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>›</button>
             )}
           </div>
         )
