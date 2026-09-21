@@ -70,6 +70,16 @@ banner:
 # 키가 비어 있으면 LLM 호출을 건너뛰고 기능이 폴백으로 돈다. 로컬·CI 는 키 없이 뜬다.
 gemini:
   api-key: ${GEMINI_API_KEY:}
+  # 방문자가 화면 앞에서 기다리는 호출이라 가장 가벼운 등급을 쓴다.
+  # gemini-3.5-flash 는 추론 때문에 read-timeout(10s)을 넘겼고, 2.5 계열은 신규 사용자에게
+  # 더 이상 열리지 않는다(404). 모델명은 자주 바뀌니 GEMINI_MODEL 로 덮을 수 있게 둔다.
+  model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
+  # Gemini 3 계열은 추론을 완전히 끄지 못한다. low 가 최저다 -
+  # 문장에서 조건을 뽑는 데 추론은 필요 없으므로 최저로 내린다.
+  thinking-level: low
+  # 타임아웃을 재시도하면 같은 답을 받으려고 대기가 두 배가 된다. 검색은 폴백이 즉시 있으니
+  # 한 번만 시도하고 키워드 검색으로 내려간다.
+  max-attempts: 1
 
 # 개발·CI 기본값. 실제 값은 JWT_SECRET 환경변수가 덮어쓴다
 jwt:

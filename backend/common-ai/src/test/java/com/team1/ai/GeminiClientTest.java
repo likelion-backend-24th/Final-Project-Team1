@@ -64,7 +64,7 @@ class GeminiClientTest {
     private GeminiClient client(String apiKey, int maxAttempts) {
         // 테스트에서는 대기 없이 재시도한다. 여기서 기다려 봐야 느려지기만 한다.
         return new GeminiClient(restClient, apiKey, MODEL_PATH, MAPPER, budget, cache,
-                maxAttempts, Duration.ZERO);
+                maxAttempts, Duration.ZERO, "", -1);
     }
 
     private GeminiClient client() {

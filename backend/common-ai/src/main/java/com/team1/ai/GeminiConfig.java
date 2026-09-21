@@ -48,6 +48,12 @@ public class GeminiConfig {
             @Value("${gemini.max-attempts:2}") int maxAttempts,
             // 재시도 전 대기. 503 을 받고 바로 다시 보내면 429 를 우리가 만든다.
             @Value("${gemini.retry-delay:1s}") Duration retryDelay,
+            // Gemini 3 계열용. low·medium·high. 비워 두면 보내지 않는다 - 모델 기본값을 따르고,
+            // 이 키를 모르는 모델에 400 을 맞지도 않는다. 사람이 기다리는 기능은 low 로 낮춘다.
+            @Value("${gemini.thinking-level:}") String thinkingLevel,
+            // Gemini 2.5 계열용. 0 이면 추론을 끈다. 음수면 보내지 않는다.
+            // 세대마다 키가 달라 둘 다 받는다 - 모델에 맞는 쪽 하나만 설정한다.
+            @Value("${gemini.thinking-budget:-1}") int thinkingBudget,
             ObjectMapper objectMapper,
             AiCallBudget budget,
             AiResponseCache cache) {
@@ -69,7 +75,7 @@ public class GeminiConfig {
         String modelName = model == null || model.isBlank() ? DEFAULT_MODEL : model.trim();
         return new GeminiClient(restClient, apiKey,
                 "/v1beta/models/" + modelName + ":generateContent", objectMapper,
-                budget, cache, maxAttempts, retryDelay);
+                budget, cache, maxAttempts, retryDelay, thinkingLevel, thinkingBudget);
     }
 
     @Bean
