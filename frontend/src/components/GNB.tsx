@@ -49,89 +49,91 @@ export default function GNB() {
   return (
     <nav className="gnb">
       <div className="gnb-inner">
-      <Link to="/" className="gnb-logo">
-        <span style={{ color: 'var(--primary)', fontSize: 22 }}>◈</span>
-        <span>Expo<span className="accent">Hub</span></span>
-      </Link>
+        <div className="gnb-top">
+          <Link to="/" className="gnb-logo">
+            <span style={{ color: 'var(--primary)', fontSize: 22 }}>◈</span>
+            <span>Expo<span className="accent">Hub</span></span>
+          </Link>
 
-      <div className="gnb-links">
-        <Link to="/expos" className={isActive('/expos')}>박람회 탐색</Link>
-        <Link to="/calendar" className={isActive('/calendar')}>행사 캘린더</Link>
-        {isRole('USER') && (
-          <Link to="/my/reservations" className={isActive('/my/reservations')}>내 예약</Link>
-        )}
-        {isRole('ORGANIZER') && (
-          <>
-            <Link to="/host/channel" className={isActive('/host/channel')}>주최자 센터</Link>
-            <Link to="/host/checkin" className={isActive('/host/checkin')}>현장 체크인</Link>
-          </>
-        )}
-        {isRole('SUPER_ADMIN') && (
-          <Link to="/admin" className={isActive('/admin')}>관리자</Link>
-        )}
-      </div>
-
-      <div className="gnb-auth">
-        <GnbSearch onSearch={handleSearch} />
-        {user ? (
-          <>
-            <NotificationBell />
-            <div className="gnb-user-menu" ref={menuRef}>
-              <button
-                type="button"
-                className="gnb-user-trigger"
-                onClick={() => setMenuOpen(o => !o)}
-                aria-haspopup="true"
-                aria-expanded={menuOpen}
-              >
-                <Avatar userId={user.id} name={user.name} imageUrl={user.profileImageUrl} size={34} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span className="gnb-name">{user.name}</span>
-                  <span className="gnb-role-badge" style={roleBadgeStyle(user.role)}>{roleLabel(user.role)}</span>
-                </div>
-                <span className={`gnb-caret ${menuOpen ? 'open' : ''}`}>▾</span>
-              </button>
-
-              {menuOpen && (
-                <div className="gnb-dropdown" role="menu">
-                  <div className="gnb-mobile-nav">
-                    <Link to="/expos" className={`gnb-dropdown-item ${isActive('/expos')}`} role="menuitem" onClick={() => setMenuOpen(false)}>박람회 탐색</Link>
-                    {isRole('USER') && (
-                      <Link to="/my/reservations" className={`gnb-dropdown-item ${isActive('/my/reservations')}`} role="menuitem" onClick={() => setMenuOpen(false)}>내 예약</Link>
-                    )}
-                    {isRole('ORGANIZER') && (
-                      <>
-                        <Link to="/host/channel" className={`gnb-dropdown-item ${isActive('/host/channel')}`} role="menuitem" onClick={() => setMenuOpen(false)}>주최자 센터</Link>
-                        <Link to="/host/checkin" className={`gnb-dropdown-item ${isActive('/host/checkin')}`} role="menuitem" onClick={() => setMenuOpen(false)}>현장 체크인</Link>
-                      </>
-                    )}
-                    {isRole('SUPER_ADMIN') && (
-                      <Link to="/admin" className={`gnb-dropdown-item ${isActive('/admin')}`} role="menuitem" onClick={() => setMenuOpen(false)}>관리자</Link>
-                    )}
-                    <hr className="gnb-dropdown-divider" />
-                  </div>
-                  <Link
-                    to="/my/profile"
-                    className={`gnb-dropdown-item ${isActive('/my/profile')}`}
-                    role="menuitem"
-                    onClick={() => setMenuOpen(false)}
+          <div className="gnb-auth">
+            <GnbSearch onSearch={handleSearch} />
+            {user ? (
+              <>
+                <NotificationBell />
+                <div className="gnb-user-menu" ref={menuRef}>
+                  <button
+                    type="button"
+                    className="gnb-user-trigger"
+                    onClick={() => setMenuOpen(o => !o)}
+                    aria-haspopup="true"
+                    aria-expanded={menuOpen}
                   >
-                    마이페이지
-                  </Link>
-                  <button type="button" className="gnb-dropdown-item danger" role="menuitem" onClick={handleLogout}>
-                    로그아웃
+                    <Avatar userId={user.id} name={user.name} imageUrl={user.profileImageUrl} size={34} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span className="gnb-name">{user.name}</span>
+                      <span className="gnb-role-badge" style={roleBadgeStyle(user.role)}>{roleLabel(user.role)}</span>
+                    </div>
+                    <span className={`gnb-caret ${menuOpen ? 'open' : ''}`}>▾</span>
                   </button>
+
+                  {menuOpen && (
+                    <div className="gnb-dropdown" role="menu">
+                      <div className="gnb-mobile-nav">
+                        <Link to="/expos" className={`gnb-dropdown-item ${isActive('/expos')}`} role="menuitem" onClick={() => setMenuOpen(false)}>박람회 탐색</Link>
+                        {isRole('USER') && (
+                          <Link to="/my/reservations" className={`gnb-dropdown-item ${isActive('/my/reservations')}`} role="menuitem" onClick={() => setMenuOpen(false)}>내 예약</Link>
+                        )}
+                        {isRole('ORGANIZER') && (
+                          <>
+                            <Link to="/host/channel" className={`gnb-dropdown-item ${isActive('/host/channel')}`} role="menuitem" onClick={() => setMenuOpen(false)}>주최자 센터</Link>
+                            <Link to="/host/checkin" className={`gnb-dropdown-item ${isActive('/host/checkin')}`} role="menuitem" onClick={() => setMenuOpen(false)}>현장 체크인</Link>
+                          </>
+                        )}
+                        {isRole('SUPER_ADMIN') && (
+                          <Link to="/admin" className={`gnb-dropdown-item ${isActive('/admin')}`} role="menuitem" onClick={() => setMenuOpen(false)}>관리자</Link>
+                        )}
+                        <hr className="gnb-dropdown-divider" />
+                      </div>
+                      <Link
+                        to="/my/profile"
+                        className={`gnb-dropdown-item ${isActive('/my/profile')}`}
+                        role="menuitem"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        마이페이지
+                      </Link>
+                      <button type="button" className="gnb-dropdown-item danger" role="menuitem" onClick={handleLogout}>
+                        로그아웃
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <Link to="/auth" className="btn btn-ghost btn-sm">로그인</Link>
-            <Link to="/auth?tab=signup" className="btn btn-primary btn-sm">회원가입</Link>
-          </>
-        )}
-      </div>
+              </>
+            ) : (
+              <>
+                <Link to="/auth" className="btn btn-ghost btn-sm">로그인</Link>
+                <Link to="/auth?tab=signup" className="btn btn-primary btn-sm">회원가입</Link>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="gnb-links">
+          <Link to="/expos" className={isActive('/expos')}>박람회 탐색</Link>
+          <Link to="/calendar" className={isActive('/calendar')}>행사 캘린더</Link>
+          {isRole('USER') && (
+            <Link to="/my/reservations" className={isActive('/my/reservations')}>내 예약</Link>
+          )}
+          {isRole('ORGANIZER') && (
+            <>
+              <Link to="/host/channel" className={isActive('/host/channel')}>주최자 센터</Link>
+              <Link to="/host/checkin" className={isActive('/host/checkin')}>현장 체크인</Link>
+            </>
+          )}
+          {isRole('SUPER_ADMIN') && (
+            <Link to="/admin" className={isActive('/admin')}>관리자</Link>
+          )}
+        </div>
       </div>
     </nav>
   )

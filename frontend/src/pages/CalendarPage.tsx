@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { calendarApi, type CalendarRoundView, type CalendarSuggestMeta, type ConstraintSource } from '../api/calendar'
+import { expoApi } from '../api/expo'
+import type { Expo } from '../types'
+import { cdnImage } from '../lib/cloudinary'
 import { useAuth } from '../context/AuthContext'
 import { usePageTitle } from '../hooks/usePageTitle'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
+
+const THUMB_COLORS: [string, string][] = [
+  ['#1A1A2E', '#374151'],
+  ['#0F3460', '#16213E'],
+  ['#7C3AED', '#4C1D95'],
+  ['#065F46', '#064E3B'],
+]
 
 function monthRange(year: number, month: number) {
   const from = new Date(year, month, 1, 0, 0, 0)
@@ -24,6 +34,18 @@ function constraintSourceLabel(source: ConstraintSource) {
   return '조건 없이 전체 후보 중에서 골랐습니다.'
 }
 
+function defaultDayKey(year: number, month: number, now: Date) {
+  if (year === now.getFullYear() && month === now.getMonth()) {
+    return `${year}-${month}-${now.getDate()}`
+  }
+  return `${year}-${month}-1`
+}
+
+function formatTime(iso: string) {
+  const d = new Date(iso)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 export default function CalendarPage() {
   usePageTitle('행사 캘린더')
   const { user } = useAuth()
@@ -33,6 +55,7 @@ export default function CalendarPage() {
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
   const [constraintInput, setConstraintInput] = useState('')
+  const [selectedKey, setSelectedKey] = useState(() => defaultDayKey(year, month, now))
 
   // 기본 화면 - 그 달의 전체 공개 일정. 로그인 없이도 보인다.
   const [events, setEvents] = useState<CalendarRoundView[]>([])
@@ -45,12 +68,16 @@ export default function CalendarPage() {
   const [suggesting, setSuggesting] = useState(false)
   const [suggestError, setSuggestError] = useState('')
 
+  // 선택한 날짜의 행사를 전체 박람회 카드와 같은 모양으로 보여주기 위한 상세 캐시
+  const [expoDetails, setExpoDetails] = useState<Record<number, Expo>>({})
+
   function loadEvents() {
     setLoading(true)
     setError('')
     setRecommended(new Set())
     setMeta(null)
     setSuggestError('')
+    setSelectedKey(defaultDayKey(year, month, now))
     const { from, to } = monthRange(year, month)
     calendarApi.listEvents(from, to)
       .then(res => setEvents(res.data ?? []))
@@ -62,8 +89,9 @@ export default function CalendarPage() {
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadEvents()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, month])
 
   function handleSuggest(e: React.FormEvent) {
@@ -135,6 +163,39 @@ export default function CalendarPage() {
   const isToday = (cell: { date: number; year: number; month: number }) =>
     now.getFullYear() === cell.year && now.getMonth() === cell.month && now.getDate() === cell.date
 
+  const selectedEvents = eventsByDay.get(selectedKey) ?? []
+  const [selYear, selMonth, selDate] = selectedKey.split('-').map(Number)
+  const selectedLabel = `${selMonth + 1}월 ${selDate}일 (${WEEKDAYS[new Date(selYear, selMonth, selDate).getDay()]})`
+
+  // 같은 날 여러 회차가 있어도 박람회 기준으로 한 장씩만 카드로 보여준다.
+  const selectedExpos = useMemo(() => {
+    const order: number[] = []
+    const byExpo = new Map<number, CalendarRoundView[]>()
+    for (const ev of selectedEvents) {
+      if (!byExpo.has(ev.expoId)) order.push(ev.expoId)
+      byExpo.set(ev.expoId, [...(byExpo.get(ev.expoId) ?? []), ev])
+    }
+    return order.map(expoId => {
+      const rounds = byExpo.get(expoId)!
+      const ended = rounds.every(r => new Date(r.endsAt) < now)
+      const recommendedHere = rounds.some(r => recommended.has(r.roundId))
+      return { expoId, rounds, ended, recommendedHere }
+    })
+  }, [selectedEvents, recommended])
+
+  useEffect(() => {
+    const missing = selectedExpos.map(e => e.expoId).filter(id => !expoDetails[id])
+    if (missing.length === 0) return
+    missing.forEach(id => {
+      expoApi.getExpo(id)
+        .then(res => {
+          if (!res.data) return
+          setExpoDetails(prev => ({ ...prev, [id]: res.data }))
+        })
+        .catch(() => {})
+    })
+  }, [selectedExpos, expoDetails])
+
   return (
     <div style={{ background: 'var(--bg)', minHeight: 'calc(100vh - 64px)' }}>
       <div className="container page-wrap">
@@ -179,28 +240,83 @@ export default function CalendarPage() {
               {WEEKDAYS.map(w => (
                 <div key={w} className="calendar-weekday">{w}</div>
               ))}
-              {cells.map(cell => (
-                <div
-                  key={cell.key}
-                  className={`calendar-cell${cell.inMonth ? '' : ' out'}${isToday(cell) ? ' today' : ''}`}
-                >
-                  <span className="calendar-date">{cell.date}</span>
-                  {(eventsByDay.get(cell.key) ?? []).map(ev => (
-                    <div
-                      key={ev.roundId}
-                      className={`calendar-event${recommended.has(ev.roundId) ? ' recommended' : ''}`}
-                      title={`${ev.expoTitle} · ${ev.sequence}회차`}
-                      onClick={() => navigate(`/expos/${ev.expoId}`)}
-                    >
-                      {ev.expoTitle}
-                    </div>
-                  ))}
-                </div>
-              ))}
+              {cells.map(cell => {
+                const dayEvents = eventsByDay.get(cell.key) ?? []
+                const hasRecommended = dayEvents.some(ev => recommended.has(ev.roundId))
+                return (
+                  <div
+                    key={cell.key}
+                    className={`calendar-cell${cell.inMonth ? '' : ' out'}${isToday(cell) ? ' today' : ''}${selectedKey === cell.key ? ' selected' : ''}`}
+                    onClick={() => cell.inMonth && setSelectedKey(cell.key)}
+                  >
+                    <span className="calendar-date">{cell.date}</span>
+                    {dayEvents.length > 0 && (
+                      <span className={`calendar-count${hasRecommended ? ' recommended' : ''}`}>{dayEvents.length}건</span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
             {loading && (
               <p style={{ textAlign: 'center', padding: '24px 0', color: 'var(--sub)' }}>불러오는 중...</p>
+            )}
+
+            {!loading && (
+              <div className="calendar-day-panel">
+                <h3 className="calendar-day-panel-title">{selectedLabel} · {selectedExpos.length}개 행사</h3>
+                {selectedExpos.length === 0 ? (
+                  <p className="calendar-day-empty">이 날에는 등록된 행사가 없습니다.</p>
+                ) : (
+                  <div className="expo-grid">
+                    {selectedExpos.map(({ expoId, rounds, ended, recommendedHere }) => {
+                      const expo = expoDetails[expoId]
+                      const colors = THUMB_COLORS[expoId % THUMB_COLORS.length]
+                      const timeLabel = rounds.map(r => `${formatTime(r.startsAt)}~${formatTime(r.endsAt)}`).join(', ')
+                      return (
+                        <div
+                          key={expoId}
+                          className={`expo-card${recommendedHere ? ' recommended' : ''}${ended ? ' ended' : ''}`}
+                          onClick={() => navigate(`/expos/${expoId}`)}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <div className="expo-card-thumb">
+                            <div
+                              className="expo-card-thumb-inner"
+                              style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})` }}
+                            >
+                              {expo?.thumbnailUrl && (
+                                <img
+                                  src={cdnImage(expo.thumbnailUrl, 600)}
+                                  alt=""
+                                  loading="lazy"
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              )}
+                            </div>
+                            {ended && (
+                              <div className="expo-card-thumb-badge">
+                                <span className="badge badge-closed">종료</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="expo-card-body">
+                            <p className="expo-card-cat">{expo?.category ?? ' '}</p>
+                            <h3 className="expo-card-title">{expo?.title ?? rounds[0].expoTitle}</h3>
+                            <div className="expo-card-meta">
+                              {expo?.venue && (
+                                <div className="expo-card-meta-row"><span>{expo.venue}</span></div>
+                              )}
+                              <div className="expo-card-meta-row"><span>{timeLabel}</span></div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
