@@ -349,6 +349,7 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIdx(0)
     resetTimer()
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
