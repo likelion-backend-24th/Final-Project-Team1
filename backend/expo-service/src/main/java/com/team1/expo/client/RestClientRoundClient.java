@@ -14,14 +14,19 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
 public class RestClientRoundClient implements RoundClient {
 
     private static final Logger log = LoggerFactory.getLogger(RestClientRoundClient.class);
+
+    /** 한 번에 보낼 expoId 개수. 예약-Service 가 정한 상한이다. */
+    private static final int BATCH_SIZE = 200;
 
     private final RestClient restClient;
     private final String internalToken;
@@ -133,6 +138,45 @@ public class RestClientRoundClient implements RoundClient {
         }
     }
 
+    @Override
+    public Set<Long> expoIdsWithRoundsBetween(List<Long> expoIds, Instant from, Instant to, boolean bookableOnly) {
+        if (expoIds.isEmpty()) {
+            return Set.of();
+        }
+        Set<Long> found = new HashSet<>();
+        for (int start = 0; start < expoIds.size(); start += BATCH_SIZE) {
+            int end = Math.min(start + BATCH_SIZE, expoIds.size());
+            found.addAll(fetchExpoIdsByDate(expoIds.subList(start, end), from, to, bookableOnly));
+        }
+        return found;
+    }
+
+    private List<Long> fetchExpoIdsByDate(List<Long> expoIds, Instant from, Instant to, boolean bookableOnly) {
+        String query = expoIds.stream().map(id -> "expoIds=" + id).collect(Collectors.joining("&"));
+        try {
+            RoundExpoIdView[] rounds = restClient.get()
+                    .uri("/internal/v1/rounds/by-date?from={from}&to={to}&bookableOnly={bookableOnly}&" + query,
+                            from, to, bookableOnly)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + internalToken)
+                    .header(TraceId.HEADER, TraceId.get())
+                    .retrieve()
+                    .body(RoundExpoIdView[].class);
+            if (rounds == null) {
+                throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+            }
+            return java.util.Arrays.stream(rounds).map(RoundExpoIdView::expoId).toList();
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("roundsByDate 호출 실패 count={} traceId={}", expoIds.size(), TraceId.get(), e);
+            throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        }
+    }
+
     private record ExistsResponse(boolean exists) {
+    }
+
+    /** by-date 응답에서 쓰는 값은 expoId 하나뿐이다. 나머지 필드는 Jackson 이 버린다. */
+    private record RoundExpoIdView(Long expoId) {
     }
 }

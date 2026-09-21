@@ -7,6 +7,7 @@ import com.team1.expo.expo.dto.RoundView;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * reservation-service의 회차 내부 API 호출 창구.
@@ -28,4 +29,12 @@ public interface RoundClient {
 
     /** GET /internal/v1/rounds/nearest-deadlines?expoIds= — 모집마감일순 정렬용 일괄 조회. */
     Map<Long, Instant> nearestDeadlines(List<Long> expoIds);
+
+    /**
+     * GET /internal/v1/rounds/by-date — 기간에 걸치는 회차를 가진 박람회 id.
+     *
+     * <p>자연어 검색의 날짜 조건 전용이다. 다른 조회와 달리 <b>실패를 감추면 안 된다</b> -
+     * 날짜를 말한 검색에서 이 조회가 빠지면 조건과 다른 목록이 맞는 것처럼 나간다.
+     */
+    Set<Long> expoIdsWithRoundsBetween(List<Long> expoIds, Instant from, Instant to, boolean bookableOnly);
 }

@@ -40,7 +40,7 @@ public class ExpoQueryService {
      * 공개(PUBLISHED) 박람회 목록.
      * sort: recommended(기본·추천순), newest(새행사순), deadline(모집마감일순)
      * VIP 상단 노출은 GET /api/v1/expo-promotions/active 를 프론트가 별도 호출해 조합한다.
-     * deadline 정렬은 round endsAt 기준이 필요해 reservation-service 연동 시 구현 예정.
+     * deadline 정렬은 회차의 가장 가까운 마감일을 reservation-service 에서 일괄로 받아 매긴다.
      */
     public Page<ExpoSummaryResponse> listPublished(String region, String category, String keyword, String sort, int page, int size) {
         if (category != null && !ExpoCategories.contains(category)) {

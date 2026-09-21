@@ -3,17 +3,28 @@ package com.team1.expo.expo.search;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.team1.ai.GeminiClient;
 import com.team1.expo.client.RoundClient;
+import com.team1.expo.common.exception.BusinessException;
+import com.team1.expo.common.exception.ErrorCode;
 import com.team1.expo.support.ApiTestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import java.time.Instant;
+import java.util.Set;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -31,6 +42,7 @@ class ExpoSearchApiTest extends ApiTestSupport {
     private long channelId;
     private String region;
     private String foodToken;
+    private long itExpoId;
 
     @MockitoBean
     private GeminiClient gemini;
@@ -52,11 +64,11 @@ class ExpoSearchApiTest extends ApiTestSupport {
         channelId = channel.getBody().path("data").path("id").asLong();
         assertThat(channelId).as("채널 생성 실패: %s", channel.getBody()).isPositive();
 
-        createAndPublish("IT 박람회", "IT·전자");
+        itExpoId = createAndPublish("IT 박람회", "IT·전자");
         createAndPublish(foodToken + " 페어", "식품·음료");
     }
 
-    private void createAndPublish(String title, String category) {
+    private long createAndPublish(String title, String category) {
         ResponseEntity<JsonNode> created = post("/api/v1/channels/" + channelId + "/expos",
                 """
                 {"title":"%s","category":"%s","region":"%s","venue":"장소","description":"설명"}
@@ -69,6 +81,12 @@ class ExpoSearchApiTest extends ApiTestSupport {
                 post("/api/v1/expos/" + expoId + "/publication", "{}", ownerToken);
         assertThat(published.getStatusCode()).as("공개 실패: %s", published.getBody())
                 .isEqualTo(HttpStatus.OK);
+        return expoId;
+    }
+
+    private void givenRoundsOn(Long... expoIds) {
+        when(roundClient.expoIdsWithRoundsBetween(anyList(), any(), any(), anyBoolean()))
+                .thenReturn(Set.of(expoIds));
     }
 
     /** 경로를 그대로 넘긴다. 공백 같은 문자는 RestTemplate 이 인코딩한다 - 미리 인코딩하면 이중이 된다. */
@@ -124,6 +142,54 @@ class ExpoSearchApiTest extends ApiTestSupport {
     @DisplayName("검색어가 비면 400")
     void rejectsBlankQuery() {
         assertThat(search("   ").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("날짜를 말하면 그 기간에 회차가 있는 박람회만 남는다")
+    void filtersByDateRange() {
+        givenInterpreted(new SearchQueryParser.Parsed(region, null, null, "2026-09-19", "2026-09-19", null));
+        givenRoundsOn(itExpoId);
+
+        JsonNode expos = search("19일 박람회").getBody().path("data").path("expos");
+
+        assertThat(expos).hasSize(1);
+        assertThat(expos.get(0).path("title").asText()).isEqualTo("IT 박람회");
+    }
+
+    @Test
+    @DisplayName("KST 하루가 UTC 경계로 바뀌어 넘어가고, 예약 가능한 회차만 본다")
+    void convertsKstDayToUtcBoundary() {
+        givenInterpreted(new SearchQueryParser.Parsed(region, null, null, "2026-09-19", "2026-09-19", null));
+        givenRoundsOn();
+
+        search("19일 박람회");
+
+        ArgumentCaptor<Instant> from = ArgumentCaptor.forClass(Instant.class);
+        ArgumentCaptor<Instant> to = ArgumentCaptor.forClass(Instant.class);
+        verify(roundClient).expoIdsWithRoundsBetween(anyList(), from.capture(), to.capture(), eq(true));
+
+        assertThat(from.getValue()).isEqualTo(Instant.parse("2026-09-18T15:00:00Z"));
+        assertThat(to.getValue()).isEqualTo(Instant.parse("2026-09-19T15:00:00Z"));
+    }
+
+    @Test
+    @DisplayName("회차 조회가 실패하면 503 - 날짜 조건을 조용히 빼지 않는다")
+    void failsClosedWhenRoundLookupFails() {
+        givenInterpreted(new SearchQueryParser.Parsed(region, null, null, "2026-09-19", "2026-09-19", null));
+        when(roundClient.expoIdsWithRoundsBetween(anyList(), any(), any(), anyBoolean()))
+                .thenThrow(new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE));
+
+        assertThat(search("19일 박람회").getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    @Test
+    @DisplayName("날짜를 말하지 않으면 회차를 조회하지 않는다")
+    void skipsRoundLookupWithoutDate() {
+        givenInterpreted(new SearchQueryParser.Parsed(region, "IT·전자", null, null, null, null));
+
+        search("IT 박람회");
+
+        verify(roundClient, never()).expoIdsWithRoundsBetween(anyList(), any(), any(), anyBoolean());
     }
 
     @Test
