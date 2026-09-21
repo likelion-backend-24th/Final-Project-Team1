@@ -74,7 +74,7 @@ input, select, textarea { font-family: inherit; }
   position: sticky;
   top: 0;
   z-index: 100;
-  height: 64px;
+  height: 92px;
 }
 .gnb-inner {
   max-width: 1280px;
@@ -82,9 +82,15 @@ input, select, textarea { font-family: inherit; }
   width: 100%;
   height: 100%;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
   padding: 0 clamp(20px, 4vw, 40px);
-  gap: 0;
+  gap: 4px;
+}
+.gnb-top {
+  display: flex;
+  align-items: center;
+  height: 56px;
 }
 .gnb-logo {
   font-size: 20px;
@@ -101,7 +107,9 @@ input, select, textarea { font-family: inherit; }
 .gnb-links {
   display: flex;
   gap: 2px;
-  flex: 1;
+  height: 36px;
+  align-items: center;
+  border-top: 1px solid var(--border);
 }
 .gnb-links a {
   color: var(--sub);
@@ -184,14 +192,14 @@ input, select, textarea { font-family: inherit; }
   border: 1.5px solid var(--border);
   border-radius: 20px;
   overflow: hidden;
-  width: 200px;
+  width: 280px;
   transition: border-color .15s, box-shadow .15s, width .2s;
 }
 .gnb-search-form:focus-within {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(var(--primary-rgb), .10);
   background: var(--surface);
-  width: 240px;
+  width: 320px;
 }
 .gnb-search-input {
   flex: 1;
@@ -575,36 +583,40 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   flex-direction: column;
   gap: 3px;
+  cursor: pointer;
 }
-.calendar-cell.out { background: var(--gray1); }
+.calendar-cell.out { background: var(--gray1); cursor: default; }
 .calendar-cell.out .calendar-date { color: var(--gray5); }
 .calendar-cell.today { background: var(--primary-l); }
+.calendar-cell.selected { box-shadow: inset 0 0 0 2px var(--primary); }
 .calendar-date {
   font-size: 11px;
   font-weight: 700;
   color: var(--text2);
 }
 .calendar-cell.today .calendar-date { color: var(--primary); }
-.calendar-event {
-  background: var(--surface);
-  border: 1px solid var(--border);
+.calendar-count {
+  align-self: flex-start;
+  background: var(--gray2);
   color: var(--text2);
   font-size: 10px;
-  padding: 2px 5px;
-  border-radius: var(--r-xs);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
 }
-.calendar-event:hover { border-color: var(--primary); color: var(--primary); }
-.calendar-event.recommended {
-  background: var(--primary-l);
-  border-color: var(--primary);
-  color: var(--primary-d);
-  font-weight: 600;
-}
+.calendar-count.recommended { background: var(--primary-l); color: var(--primary-d); }
 .calendar-suggest-btn { padding: 5px 10px; font-size: 11.5px; white-space: nowrap; }
+.calendar-day-panel {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px;
+  background: var(--surface);
+}
+.calendar-day-panel-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
+.calendar-day-empty { font-size: 13px; color: var(--sub); }
+.expo-card.recommended { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-l); }
+.expo-card.ended { opacity: .6; }
 
 /* ─── Category Filter ─── */
 .cat-bar {
@@ -989,6 +1001,7 @@ tbody tr:hover td { background: var(--gray1); }
 
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
+  .gnb { height: 64px; }
   .gnb-logo { margin-right: 16px; }
   .gnb-links { display: none; }
   .gnb-search-form { width: 160px; }
