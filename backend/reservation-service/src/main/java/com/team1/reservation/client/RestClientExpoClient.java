@@ -12,6 +12,7 @@ import org.springframework.web.client.RestClient;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -103,5 +104,29 @@ public class RestClientExpoClient implements ExpoClient {
             log.warn("unpublishExpoInternal failed expoId={} traceId={}", expoId, TraceId.get(), e);
             throw new ApiException(ErrorCode.DEPENDENCY_UNAVAILABLE, "expo-service unavailable");
         }
+    }
+
+    @Override
+    public List<Long> publishedExpoIds() {
+        try{
+            PublishedExpoId[] found = restClient.get()
+                    .uri("/internal/v1/expos")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + internalToken)
+                    .header(TraceId.HEADER, TraceId.get())
+                    .retrieve()
+                    .body(PublishedExpoId[].class);
+
+            if (found ==null){
+                return List.of();
+            }
+            return Arrays.stream(found)
+                    .map(PublishedExpoId::expoId)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+        }catch (Exception e){
+            log.warn("publishedExpoIds failed traceId={}", TraceId.get(), e);
+            return List.of();
+        }
+
     }
 }

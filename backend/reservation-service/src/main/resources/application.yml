@@ -37,6 +37,12 @@ recommendation-service:
   connect-timeout: 2s
   read-timeout: 3s
 
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  connect-timeout: 3s
+  read-timeout: 4s
+  max-attempts: 1
+
 reservation:
   cancellation:
     # 취소 마감. 회차 시작 기준이며 0 이면 시작 직전까지 취소할 수 있다.

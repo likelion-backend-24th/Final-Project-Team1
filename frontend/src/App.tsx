@@ -15,6 +15,7 @@ import MyReservationsPage from './pages/MyReservationsPage'
 import CheckinPage from './pages/CheckinPage'
 import MyPage from './pages/MyPage'
 import RecommendationsPage from './pages/RecommendationsPage'
+import CalendarPage from './pages/CalendarPage'
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/expos" element={<HomePage />} />
             <Route path="/expos/:expoId" element={<ExpoDetailPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/host/channel" element={<HostChannelPage />} />
             <Route path="/host/channel/new" element={<ChannelCreatePage />} />
