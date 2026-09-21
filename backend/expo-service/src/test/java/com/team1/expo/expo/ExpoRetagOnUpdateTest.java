@@ -77,7 +77,7 @@ class ExpoRetagOnUpdateTest extends ApiTestSupport {
                 """).getStatusCode()).isEqualTo(HttpStatus.OK);
 
         verify(recommendationNotifier)
-                .notifyExpoUpdated(eq(expoId), any(), eq("AI 와 스타트업을 주제로 한 박람회입니다"));
+                .notifyExpoUpdated(eq(expoId), any(), eq("AI 와 스타트업을 주제로 한 박람회입니다"), any());
     }
 
     @Test
@@ -89,7 +89,7 @@ class ExpoRetagOnUpdateTest extends ApiTestSupport {
                 {"title":"2026 테크 잡페어"}
                 """);
 
-        verify(recommendationNotifier).notifyExpoUpdated(eq(expoId), eq("2026 테크 잡페어"), any());
+        verify(recommendationNotifier).notifyExpoUpdated(eq(expoId), eq("2026 테크 잡페어"), any(), any());
     }
 
     @Test
@@ -101,7 +101,7 @@ class ExpoRetagOnUpdateTest extends ApiTestSupport {
                 {"venue":"벡스코","region":"부산"}
                 """);
 
-        verify(recommendationNotifier, never()).notifyExpoUpdated(anyLong(), any(), any());
+        verify(recommendationNotifier, never()).notifyExpoUpdated(anyLong(), any(), any(), any());
     }
 
     @Test
@@ -113,7 +113,7 @@ class ExpoRetagOnUpdateTest extends ApiTestSupport {
                 {"description":"설명"}
                 """);
 
-        verify(recommendationNotifier, never()).notifyExpoUpdated(anyLong(), any(), any());
+        verify(recommendationNotifier, never()).notifyExpoUpdated(anyLong(), any(), any(), any());
     }
 
     @Test
@@ -123,7 +123,7 @@ class ExpoRetagOnUpdateTest extends ApiTestSupport {
                 {"description":"아직 공개 전인 박람회입니다"}
                 """);
 
-        verify(recommendationNotifier, never()).notifyExpoUpdated(anyLong(), any(), any());
+        verify(recommendationNotifier, never()).notifyExpoUpdated(anyLong(), any(), any(), any());
     }
 
     private String expoUrl() {

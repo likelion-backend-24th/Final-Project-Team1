@@ -25,7 +25,13 @@ public class RestClientRoundClient implements RoundClient {
 
     private static final Logger log = LoggerFactory.getLogger(RestClientRoundClient.class);
 
-    /** 한 번에 보낼 expoId 개수. 예약-Service 가 정한 상한이다. */
+    /**
+     * 한 번에 보낼 expoId 개수. 예약-Service 가 200 을 넘으면 400 으로 거절한다.
+     *
+     * <p>목록 조회는 공개 박람회 <b>전체</b>를 넘긴다. 박람회가 200 개를 넘는 순간
+     * 배지가 사라지고(fee-summary) 모집마감일순이 503 이 되므로, 호출부가 아니라
+     * 여기서 잘라 보낸다.
+     */
     private static final int BATCH_SIZE = 200;
 
     private final RestClient restClient;
@@ -81,6 +87,15 @@ public class RestClientRoundClient implements RoundClient {
         if (expoIds.isEmpty()) {
             return List.of();
         }
+        List<ExpoFeeView> all = new java.util.ArrayList<>();
+        for (int start = 0; start < expoIds.size(); start += BATCH_SIZE) {
+            int end = Math.min(start + BATCH_SIZE, expoIds.size());
+            all.addAll(fetchFeeSummaries(expoIds.subList(start, end)));
+        }
+        return all;
+    }
+
+    private List<ExpoFeeView> fetchFeeSummaries(List<Long> expoIds) {
         // expoIds 가 Long 이라 인코딩할 문자가 없다. 반복 파라미터로 붙여 콤마 구분 모호함을 피한다.
         String query = expoIds.stream().map(id -> "expoIds=" + id).collect(Collectors.joining("&"));
         try {
@@ -119,6 +134,15 @@ public class RestClientRoundClient implements RoundClient {
         if (expoIds.isEmpty()) {
             return Map.of();
         }
+        Map<Long, Instant> all = new java.util.HashMap<>();
+        for (int start = 0; start < expoIds.size(); start += BATCH_SIZE) {
+            int end = Math.min(start + BATCH_SIZE, expoIds.size());
+            all.putAll(fetchNearestDeadlines(expoIds.subList(start, end)));
+        }
+        return all;
+    }
+
+    private Map<Long, Instant> fetchNearestDeadlines(List<Long> expoIds) {
         String query = expoIds.stream().map(id -> "expoIds=" + id).collect(Collectors.joining("&"));
         try {
             NearestDeadlineView[] views = restClient.get()

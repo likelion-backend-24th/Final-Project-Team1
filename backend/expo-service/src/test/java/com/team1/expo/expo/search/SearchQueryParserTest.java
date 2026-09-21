@@ -119,7 +119,8 @@ class SearchQueryParserTest {
 
         SearchFilter filter = parser.parse("내년까지 열리는 박람회");
 
-        assertThat(filter.dateTo()).isEqualTo(LocalDate.of(2026, 9, 19).plusDays(92));
+        // 89 = 예약-Service 의 90일 상한 - 끝 날짜를 포함하려고 붙는 하루.
+        assertThat(filter.dateTo()).isEqualTo(LocalDate.of(2026, 9, 19).plusDays(89));
     }
 
     @Test

@@ -39,8 +39,14 @@ public class SearchQueryParser {
     /** 사용자는 KST 로 "19일" 이라고 말한다. 서버 시계가 어디에 있든 이 기준으로 읽어야 한다. */
     static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
-    /** 너무 먼 미래를 물으면 회차 조회 범위가 과해진다. 종범님 by-date 와 맞춘 값이다. */
-    private static final int MAX_RANGE_DAYS = 92;
+    /**
+     * 날짜 범위 상한. 예약-Service 의 by-date 가 90일을 넘는 <b>구간</b>을 거절한다.
+     *
+     * <p>여기서 세는 건 두 날짜의 차이인데 조회 구간은 거기에 하루가 더 붙는다
+     * (끝 날짜를 포함하려고 {@code dateTo.plusDays(1)} 을 쓴다). 그래서 89 다 - 92 로 두면
+     * "다음 3개월" 같은 검색이 93일 구간이 되어 400 을 받고, 날짜는 fail-closed 라 503 이 된다.
+     */
+    private static final int MAX_RANGE_DAYS = 89;
     private static final int MAX_QUERY_LENGTH = 200;
     private static final int MAX_KEYWORD_LENGTH = 50;
 
