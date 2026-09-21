@@ -65,7 +65,7 @@ public class CalendarSuggestService {
         }
 
         CompletableFuture<List<InternalRoundResponse>> candidatesFuture =
-                CompletableFuture.supplyAsync(() -> fetchCandidates(from, to), aiTaskExecutor);
+                CompletableFuture.supplyAsync(() -> fetchCandidates(from, to, true), aiTaskExecutor);
         CompletableFuture<ResolvedConstraint> constraintFuture =
                 CompletableFuture.supplyAsync(() -> resolveConstraint(constraint), aiTaskExecutor);
 
@@ -74,22 +74,31 @@ public class CalendarSuggestService {
 
         List<InternalRoundResponse> picked = ScheduleGreedyPicker.pick(candidates, resolved.constraint());
 
-        Map<Long, String> titles = expoClient.titles(
-                picked.stream().map(InternalRoundResponse::expoId).distinct().toList());
-
-        List<CalendarRoundView> schedule = picked.stream()
-                .map(round -> CalendarRoundView.of(round, titles.getOrDefault(round.expoId(), "")))
-                .toList();
-
-        return new Result(schedule, new CalendarSuggestMeta(resolved.source(), candidates.size()));
+        return new Result(toViews(picked), new CalendarSuggestMeta(resolved.source(), candidates.size()));
     }
 
-    private List<InternalRoundResponse> fetchCandidates(Instant from, Instant to) {
+    /**
+     * 캘린더 기본 화면(계약: GET /api/v1/calendar/events). 로그인·제약·겹침 제거 없이,
+     * 그 기간에 공개된 회차를 있는 그대로 다 보여준다 - AI 추천은 이 위에 얹는 별도 동작이다.
+     */
+    public List<CalendarRoundView> listEvents(Instant from, Instant to) {
+        return toViews(fetchCandidates(from, to, false));
+    }
+
+    private List<CalendarRoundView> toViews(List<InternalRoundResponse> rounds) {
+        Map<Long, String> titles = expoClient.titles(
+                rounds.stream().map(InternalRoundResponse::expoId).distinct().toList());
+        return rounds.stream()
+                .map(round -> CalendarRoundView.of(round, titles.getOrDefault(round.expoId(), "")))
+                .toList();
+    }
+
+    private List<InternalRoundResponse> fetchCandidates(Instant from, Instant to, boolean bookableOnly) {
         List<Long> expoIds = expoClient.publishedExpoIds();
         if (expoIds.isEmpty()) {
             return List.of();
         }
-        return roundService.roundsByDate(expoIds, from, to, true);
+        return roundService.roundsByDate(expoIds, from, to, bookableOnly);
     }
 
     /** roundsByDate가 검증 실패로 던진 ApiException(기간 상한 등)은 그대로 살려서 올린다. */
