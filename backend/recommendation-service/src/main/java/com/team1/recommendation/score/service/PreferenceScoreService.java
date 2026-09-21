@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class PreferenceScoreService {
@@ -75,20 +76,23 @@ public class PreferenceScoreService {
 
         LocalDateTime now = LocalDateTime.now();
 
-        categories.forEach(cat -> {
-            List<String> tags = CategoryTagMap.TAGS.getOrDefault(cat, List.of("기타"));
-            tags.forEach(tag -> scoreRepository.save(
-                    UserPreferenceScore.of(userId, tag, INTEREST_CATEGORY_SCORE, ScoreSource.INTEREST, now)));
-        });
+        // 카테고리 → 태그 (소문자 정규화, 카테고리 점수 우선)
+        Map<String, Double> interestScores = new HashMap<>();
+        categories.forEach(cat ->
+                CategoryTagMap.TAGS.getOrDefault(cat, List.of("기타")).forEach(tag ->
+                        interestScores.put(tag.toLowerCase(), INTEREST_CATEGORY_SCORE)));
 
-        keywords.stream()
+        // 키워드 → 소문자 정규화, 이미 카테고리 태그로 들어온 경우 덮어쓰지 않음
+        Stream.ofNullable(keywords).flatMap(List::stream)
                 .filter(kw -> kw != null && !kw.isBlank())
                 .map(kw -> kw.trim().toLowerCase())
                 .distinct()
-                .forEach(kw -> scoreRepository.save(
-                        UserPreferenceScore.of(userId, kw, INTEREST_KEYWORD_SCORE, ScoreSource.INTEREST, now)));
+                .forEach(kw -> interestScores.putIfAbsent(kw, INTEREST_KEYWORD_SCORE));
 
-        log.info("interest scores applied userId={} categories={} keywords={}", userId, categories, keywords);
+        interestScores.forEach((tag, score) ->
+                scoreRepository.save(UserPreferenceScore.of(userId, tag, score, ScoreSource.INTEREST, now)));
+
+        log.info("interest scores applied userId={} count={}", userId, interestScores.size());
     }
 
     private Map<Long, List<String>> buildTagMap() {
