@@ -56,6 +56,7 @@ export default function GNB() {
 
       <div className="gnb-links">
         <Link to="/expos" className={isActive('/expos')}>박람회 탐색</Link>
+        <Link to="/calendar" className={isActive('/calendar')}>행사 캘린더</Link>
         {isRole('USER') && (
           <Link to="/my/reservations" className={isActive('/my/reservations')}>내 예약</Link>
         )}
