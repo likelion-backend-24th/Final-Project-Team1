@@ -84,7 +84,7 @@ public class ExpoService {
         }
 
         if (needsRetag(expo, beforeTitle, beforeDescription)) {
-            recommendationNotifier.notifyExpoUpdated(expo.getId(), expo.getTitle(), expo.getDescription());
+            recommendationNotifier.notifyExpoUpdated(expo.getId(), expo.getTitle(), expo.getDescription(), expo.getCategory());
         }
         return ExpoResponse.from(expo);
     }

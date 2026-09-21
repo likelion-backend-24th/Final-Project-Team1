@@ -36,20 +36,21 @@ public class RecommendationNotifier {
     }
 
     /** 공개 직후 자동 태깅 트리거. */
-    public void notifyExpoPublished(Long expoId, String title, String description) {
-        send("/internal/v1/recommendations/expo-published", expoId, title, description, "expo-published");
+    public void notifyExpoPublished(Long expoId, String title, String description, String category) {
+        send("/internal/v1/recommendations/expo-published", expoId, title, description, category, "expo-published");
     }
 
     /**
      * 제목·소개문이 바뀌면 태그를 다시 만들게 한다.
      * 태그는 소개문을 읽어 만들어지므로, 소개문만 바뀌고 태그가 그대로면 추천·검색이 옛 내용을 본다.
      */
-    public void notifyExpoUpdated(Long expoId, String title, String description) {
+    public void notifyExpoUpdated(Long expoId, String title, String description, String category) {
         send("/internal/v1/recommendations/expos/" + expoId + "/retag",
-                expoId, title, description, "retag");
+                expoId, title, description, category, "retag");
     }
 
-    private void send(String uri, Long expoId, String title, String description, String kind) {
+    /** 두 통지가 같은 본문(ExpoPublishedRequest)을 쓴다. 재태깅은 category 를 읽지 않지만 같이 보낸다. */
+    private void send(String uri, Long expoId, String title, String description, String category, String kind) {
         afterCommit.execute(() -> CompletableFuture.runAsync(() -> {
             try {
                 client.post()
@@ -58,7 +59,8 @@ public class RecommendationNotifier {
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(Map.of("expoId", expoId,
                                      "title", title != null ? title : "",
-                                     "description", description != null ? description : ""))
+                                     "description", description != null ? description : "",
+                                     "category", category != null ? category : "기타"))
                         .retrieve()
                         .toBodilessEntity();
             } catch (Exception e) {

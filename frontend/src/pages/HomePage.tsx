@@ -139,15 +139,6 @@ export default function HomePage() {
       {/* ─── Hero Carousel (VIP 슬라이드 포함) ─── */}
       <HeroCarousel promotions={promotions.slice(0, 10)} onNavigate={id => navigate(`/expos/${id}`)} />
 
-      {/* ─── AI 추천 배너: AI 추천 있을 때만 표시 ─── */}
-      {recommendations.length > 0 && (
-        <AiRecommendBanner
-          recommendations={recommendations.slice(0, 6)}
-          expoMap={expoMap}
-          onNavigate={id => navigate(`/expos/${id}`)}
-        />
-      )}
-
       {/* ─── Content ─── */}
       <div className="container page-wrap">
         {query ? (
@@ -179,18 +170,31 @@ export default function HomePage() {
               ))}
             </div>
 
-            <div className="sort-bar">
-              {SORTS.map(s => (
-                <button
-                  key={s.value}
-                  className={`sort-chip ${sort === s.value ? 'active' : ''}`}
-                  onClick={() => setSort(s.value)}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
           </>
+        )}
+
+        {/* 추천 띠는 검색 모드에서도 둔다 - 필터가 아니라 별도 추천이다. */}
+        {recommendations.length > 0 && (
+          <AiRecommendBanner
+            recommendations={recommendations.slice(0, 6)}
+            expoMap={expoMap}
+            onNavigate={id => navigate(`/expos/${id}`)}
+          />
+        )}
+
+        {/* 정렬은 검색 모드에서 숨긴다 - 조건을 서버가 이미 걸어 내려준다. */}
+        {!query && (
+          <div className="sort-bar">
+            {SORTS.map(s => (
+              <button
+                key={s.value}
+                className={`sort-chip ${sort === s.value ? 'active' : ''}`}
+                onClick={() => setSort(s.value)}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
         )}
 
         {loading ? (
@@ -464,7 +468,7 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
   function resetTimer() {
     if (timerRef.current) clearInterval(timerRef.current)
     if (slides.length <= 1) return
-    timerRef.current = setInterval(() => setIdx(i => (i + 1) % slides.length), 4000)
+    timerRef.current = setInterval(() => setIdx(i => (i + 1) % slides.length), 5000)
   }
 
   useEffect(() => {
@@ -494,99 +498,61 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
   const T = 'transform 0.45s cubic-bezier(0.25,0.46,0.45,0.94)'
 
   return (
-    <div style={{ maxWidth: 1280, margin: '8px auto 0', padding: '0 clamp(20px, 4vw, 40px)' }}>
-      <section
-        className="hero"
-        style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, aspectRatio: '16 / 5', maxHeight: 400, padding: 0 }}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-      >
-        {slides.map((slide, i) => {
-          const colors = THUMB_COLORS[slide.id % THUMB_COLORS.length]
-          return (
-            <div
-              key={slide.id}
-              role="button" tabIndex={0}
-              style={{
-                position: 'absolute', inset: 0,
-                transform: `translateX(${(i - idx) * 100}%)`, transition: T,
-                cursor: 'pointer', display: 'flex', alignItems: 'center',
-                background: slide.thumbnailUrl ? undefined : `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`,
-              }}
-              onClick={() => { if (swipeRef.current.swiped) { swipeRef.current.swiped = false; return }; onNavigate(slide.id) }}
-              onKeyDown={e => e.key === 'Enter' && onNavigate(slide.id)}
-            >
-              {slide.thumbnailUrl && (
-                <>
-                  <img src={cdnImage(slide.thumbnailUrl, 400)} alt="" aria-hidden style={{
-                    position: 'absolute', inset: 0, width: '100%', height: '100%',
-                    objectFit: 'cover', filter: 'blur(24px)', transform: 'scale(1.1)', opacity: 0.4,
-                  }} />
-                  <img src={cdnImage(slide.thumbnailUrl, 1600)} alt="" style={{
-                    position: 'absolute', inset: 0, width: '100%', height: '100%',
-                    objectFit: 'cover', opacity: 0.35,
-                  }} />
-                </>
-              )}
-              <div style={{
-                position: 'absolute', inset: 0,
-                background: 'linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.3) 100%)',
+    <div style={{ margin: '12px 0', position: 'relative', height: 160, borderRadius: 14, overflow: 'hidden' }}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+    >
+      {slides.map((slide, i) => {
+        const colors = THUMB_COLORS[slide.id % THUMB_COLORS.length]
+        return (
+          <div
+            key={slide.id}
+            role="button" tabIndex={0}
+            style={{
+              position: 'absolute', inset: 0,
+              transform: `translateX(${(i - idx) * 100}%)`, transition: T,
+              cursor: 'pointer', borderRadius: 14, overflow: 'hidden',
+              background: slide.thumbnailUrl ? undefined : `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`,
+              display: 'flex', alignItems: 'center',
+            }}
+            onClick={() => { if (swipeRef.current.swiped) { swipeRef.current.swiped = false; return }; onNavigate(slide.id) }}
+            onKeyDown={e => e.key === 'Enter' && onNavigate(slide.id)}
+          >
+            {slide.thumbnailUrl && (
+              <img src={cdnImage(slide.thumbnailUrl, 800)} alt="" aria-hidden style={{
+                position: 'absolute', inset: 0, width: '100%', height: '100%',
+                objectFit: 'cover', opacity: 0.35,
               }} />
-              <div className="container" style={{ position: 'relative', zIndex: 1, width: '100%' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#38BDF8', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>
-                  ✨ AI 추천
-                </span>
-                <h2 style={{ fontSize: 26, fontWeight: 800, color: '#fff', lineHeight: 1.3, marginBottom: 8 }}>{slide.title}</h2>
-                {slide.tags.length > 0 && (
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-                    {slide.tags.slice(0, 4).map(tag => (
-                      <span key={tag} style={{
-                        fontSize: 11, color: 'rgba(255,255,255,0.85)',
-                        background: 'rgba(255,255,255,0.15)', padding: '2px 8px', borderRadius: 10,
-                      }}>#{tag}</span>
-                    ))}
-                  </div>
-                )}
-                <button
-                  onClick={e => { e.stopPropagation(); onNavigate(slide.id) }}
-                  style={{
-                    fontSize: 12, fontWeight: 600, color: '#fff', background: 'transparent',
-                    border: '1.5px solid rgba(255,255,255,0.6)', padding: '6px 16px', borderRadius: 20, cursor: 'pointer',
-                  }}
-                >자세히 보기</button>
+            )}
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 100%)' }} />
+            <div style={{ position: 'relative', zIndex: 1, padding: '0 64px 0 28px', width: '100%' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#38BDF8', letterSpacing: '0.05em' }}>✨ AI 추천</span>
+              <h3 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: '4px 0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{slide.title}</h3>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {slide.tags.slice(0, 3).map(tag => (
+                  <span key={tag} style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.15)', padding: '2px 10px', borderRadius: 10 }}>#{tag}</span>
+                ))}
               </div>
             </div>
-          )
-        })}
-
-        {slides.length > 1 && (
-          <button onClick={e => { e.stopPropagation(); go((idx - 1 + slides.length) % slides.length) }} aria-label="이전 추천" style={{
-            position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
-            width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.18)',
-            border: '1px solid rgba(255,255,255,0.3)', color: '#fff', fontSize: 22, cursor: 'pointer', zIndex: 3,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>‹</button>
-        )}
-        {slides.length > 1 && (
-          <button onClick={e => { e.stopPropagation(); go((idx + 1) % slides.length) }} aria-label="다음 추천" style={{
-            position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)',
-            width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.18)',
-            border: '1px solid rgba(255,255,255,0.3)', color: '#fff', fontSize: 22, cursor: 'pointer', zIndex: 3,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>›</button>
-        )}
-
-        {slides.length > 1 && (
-          <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 8, zIndex: 2 }}>
-            {slides.map((_, i) => (
-              <button key={i} onClick={e => { e.stopPropagation(); go(i) }} aria-label={`추천 ${i + 1}`} style={{
-                width: i === idx ? 20 : 8, height: 8, borderRadius: 4, border: 'none', cursor: 'pointer', padding: 0,
-                background: i === idx ? '#fff' : 'rgba(255,255,255,0.45)', transition: 'all 0.3s',
-              }} />
-            ))}
+            {slides.length > 1 && (
+              <button onClick={e => { e.stopPropagation(); go((idx - 1 + slides.length) % slides.length) }} aria-label="이전" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: '#fff', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>‹</button>
+            )}
+            {slides.length > 1 && (
+              <button onClick={e => { e.stopPropagation(); go((idx + 1) % slides.length) }} aria-label="다음" style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: '#fff', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>›</button>
+            )}
           </div>
-        )}
-      </section>
+        )
+      })}
+      {slides.length > 1 && (
+        <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 5, zIndex: 2 }}>
+          {slides.map((_, i) => (
+            <button key={i} onClick={e => { e.stopPropagation(); go(i) }} aria-label={`추천 ${i + 1}`} style={{
+              width: i === idx ? 14 : 5, height: 5, borderRadius: 3, border: 'none', cursor: 'pointer', padding: 0,
+              background: i === idx ? '#fff' : 'rgba(255,255,255,0.4)', transition: 'all 0.3s',
+            }} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

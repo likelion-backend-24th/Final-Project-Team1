@@ -14,9 +14,8 @@ import com.team1.security.AuthenticatedUser;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.team1.reservation.round.dto.NearestDeadlineView;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -38,7 +37,15 @@ public class RoundService {
     /**
      * 목록 한 페이지(최대 100)를 넘는 요청은 내부 호출부의 실수로 본다.
      */
+    
     static final int MAX_FEE_SUMMARY_IDS = 200;
+
+    /**
+     * 캘린더 검색이 한번에 확인 할 수 있는 최대기간. 이보다 넓으면 후보가 과도하게 많아짐.
+     */
+    static final Duration MAX_DATE_RANGE = Duration.ofDays(90);
+    
+    
 
     private final RoundRepository rounds;
     private final ExpoClient expoClient;
@@ -198,6 +205,9 @@ public class RoundService {
         }
         if (expoIds.size() > MAX_FEE_SUMMARY_IDS) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "too many expoIds: " + expoIds.size());
+        }
+        if (Duration.between(from,to).compareTo(MAX_DATE_RANGE)>0){
+            throw new ApiException(ErrorCode.INVALID_REQUEST,"date range too wide: " + from + " ~ " + to);
         }
 
         List<Round> found = rounds.findByExpoIdInAndDateRange(expoIds, from, to, bookableOnly, clock.instant());
