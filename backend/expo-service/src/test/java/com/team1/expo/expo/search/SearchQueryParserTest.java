@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -168,6 +169,38 @@ class SearchQueryParserTest {
         givenParsed(new SearchQueryParser.Parsed(null, null, null, null, null, null));
 
         assertThat(parser.parse("음 글쎄").keyword()).isEqualTo("음 글쎄");
+    }
+
+    @Test
+    @DisplayName("모든 박람회에 해당하는 말은 키워드에서 뺀다")
+    void stripsGenericWordsFromKeyword() {
+        // 이게 남으면 조건을 더 줄수록 결과가 좁아진다 - 제목에 '박람회' 가 없는 것이 다 빠진다.
+        givenParsed(new SearchQueryParser.Parsed(null, "IT·전자", true, null, null, "벡스코 박람회"));
+
+        assertThat(parser.parse("벡스코 유료 IT 박람회").keyword()).isEqualTo("벡스코");
+    }
+
+    @Test
+    @DisplayName("일반 명사만 남으면 키워드가 없는 것과 같다")
+    void dropsKeywordMadeOnlyOfGenericWords() {
+        givenParsed(new SearchQueryParser.Parsed(null, null, false, null, null, "박람회 전시회"));
+
+        SearchFilter filter = parser.parse("무료 박람회");
+
+        assertThat(filter.keyword()).isNull();
+        assertThat(filter.paid()).isFalse();
+    }
+
+    @Test
+    @DisplayName("프롬프트에 오늘 요일을 넣는다 - 날짜만으로는 '이번 주' 를 못 잡는다")
+    void promptCarriesDayOfWeek() {
+        givenParsed(new SearchQueryParser.Parsed(null, null, null, null, null, "아무거나"));
+
+        parser.parse("이번 주 박람회");
+
+        ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
+        verify(gemini).generateJson(anyString(), prompt.capture(), any());
+        assertThat(prompt.getValue()).contains("2026-09-18 금요일");
     }
 
     @Test

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -51,22 +52,24 @@ public class ExpoSearchService {
         this.roundClient = roundClient;
     }
 
-    /** 해석 결과와 결과 페이지를 함께 돌려준다. 둘 다 있어야 화면이 조건을 보여줄 수 있다. */
-    public record Result(SearchFilter filter, Page<ExpoSummaryResponse> page) {
-
-        public boolean aiApplied() {
-            return !filter.isEmpty();
-        }
+    /**
+     * 해석 결과와 결과 페이지를 함께 돌려준다. 둘 다 있어야 화면이 조건을 보여줄 수 있다.
+     *
+     * <p>{@code filter} 는 지운 조건을 뺀 뒤의 값이고 {@code aiApplied} 는 지우기 전 기준이다.
+     * 방문자가 칩을 전부 지웠다고 해서 문장을 못 읽은 것은 아니다.
+     */
+    public record Result(SearchFilter filter, boolean aiApplied, Page<ExpoSummaryResponse> page) {
     }
 
-    public Result search(String query, int page, int size) {
+    public Result search(String query, Collection<String> ignore, int page, int size) {
         if (query == null || query.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
         int pageIndex = Math.max(page, 1) - 1;
         int pageSize = Math.min(Math.max(size, 1), MAX_SIZE);
 
-        SearchFilter filter = parser.parse(query);
+        SearchFilter parsed = parser.parse(query);
+        SearchFilter filter = parsed.without(ignore);
         List<Expo> matched = expoQueryRepository.findAllPublished(
                 filter.region(), filter.category(), ExpoQueryService.normalizeKeyword(filter.keyword()));
 
@@ -86,7 +89,7 @@ public class ExpoSearchService {
                         .map(expo -> ExpoSummaryResponse.from(expo, paidByExpoId.get(expo.getId())))
                         .toList();
 
-        return new Result(filter,
+        return new Result(filter, !parsed.isEmpty(),
                 new PageImpl<>(slice, PageRequest.of(pageIndex, pageSize), filtered.size()));
     }
 

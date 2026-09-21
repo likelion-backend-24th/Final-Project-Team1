@@ -1,6 +1,7 @@
 package com.team1.expo.expo.search;
 
 import java.time.LocalDate;
+import java.util.Collection;
 
 /**
  * 검색 문장을 옮겨 담은 필터. 값이 null 이면 그 조건을 쓰지 않는다는 뜻이다.
@@ -28,5 +29,26 @@ public record SearchFilter(String region,
 
     public boolean hasDateRange() {
         return dateFrom != null && dateTo != null;
+    }
+
+    /**
+     * 방문자가 해석 칩을 지웠을 때 그 조건만 뺀다.
+     *
+     * <p>지우기를 화면에서 처리할 수 없어 여기에 둔다 - 조건을 빼면 결과는 <b>넓어져야</b> 하는데,
+     * 이미 좁혀서 받은 목록을 화면에서 더 거르는 걸로는 넓힐 수 없다. 문장은 그대로 다시 오므로
+     * 해석 캐시에 걸려 LLM 을 다시 부르지도 않는다.
+     */
+    public SearchFilter without(Collection<String> conditions) {
+        if (conditions == null || conditions.isEmpty()) {
+            return this;
+        }
+        boolean date = conditions.contains("date");
+        return new SearchFilter(
+                conditions.contains("region") ? null : region,
+                conditions.contains("category") ? null : category,
+                conditions.contains("paid") ? null : paid,
+                date ? null : dateFrom,
+                date ? null : dateTo,
+                conditions.contains("keyword") ? null : keyword);
     }
 }

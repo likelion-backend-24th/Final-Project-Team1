@@ -42,6 +42,7 @@ class ExpoSearchApiTest extends ApiTestSupport {
     private long channelId;
     private String region;
     private String foodToken;
+    private String venueToken;
     private long itExpoId;
 
     @MockitoBean
@@ -56,6 +57,7 @@ class ExpoSearchApiTest extends ApiTestSupport {
         ownerToken = jwtFor(uniqueUserId(), "ORGANIZER");
         region = uniqueName();
         foodToken = uniqueName();
+        venueToken = uniqueName();
 
         ResponseEntity<JsonNode> channel = post("/api/v1/channels",
                 """
@@ -64,15 +66,15 @@ class ExpoSearchApiTest extends ApiTestSupport {
         channelId = channel.getBody().path("data").path("id").asLong();
         assertThat(channelId).as("채널 생성 실패: %s", channel.getBody()).isPositive();
 
-        itExpoId = createAndPublish("IT 박람회", "IT·전자");
-        createAndPublish(foodToken + " 페어", "식품·음료");
+        itExpoId = createAndPublish("IT 박람회", "IT·전자", venueToken);
+        createAndPublish(foodToken + " 페어", "식품·음료", "장소");
     }
 
-    private long createAndPublish(String title, String category) {
+    private long createAndPublish(String title, String category, String venue) {
         ResponseEntity<JsonNode> created = post("/api/v1/channels/" + channelId + "/expos",
                 """
-                {"title":"%s","category":"%s","region":"%s","venue":"장소","description":"설명"}
-                """.formatted(title, category, region), ownerToken);
+                {"title":"%s","category":"%s","region":"%s","venue":"%s","description":"설명"}
+                """.formatted(title, category, region, venue), ownerToken);
         long expoId = created.getBody().path("data").path("id").asLong();
         assertThat(expoId).as("박람회 생성 실패: %s", created.getBody()).isPositive();
 
@@ -142,6 +144,52 @@ class ExpoSearchApiTest extends ApiTestSupport {
     @DisplayName("검색어가 비면 400")
     void rejectsBlankQuery() {
         assertThat(search("   ").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("장소를 말하면 그 장소의 박람회가 잡힌다")
+    void findsByVenue() {
+        // 장소는 별도 조건이 아니라 keyword 로 흘러 부분 일치한다.
+        givenInterpreted(new SearchQueryParser.Parsed(null, null, null, null, null, venueToken));
+
+        JsonNode expos = search("벡스코 박람회").getBody().path("data").path("expos");
+
+        assertThat(expos).hasSize(1);
+        assertThat(expos.get(0).path("title").asText()).isEqualTo("IT 박람회");
+    }
+
+    @Test
+    @DisplayName("지운 칩의 조건은 빠지고 나머지로 다시 찾는다")
+    void dropsIgnoredCondition() {
+        givenInterpreted(new SearchQueryParser.Parsed(region, "IT·전자", null, null, null, null));
+
+        JsonNode data = search("IT 박람회", "&ignore=category").getBody().path("data");
+
+        // 분야를 지웠으니 같은 지역의 두 건이 모두 나온다.
+        assertThat(data.path("expos")).hasSize(2);
+        assertThat(data.path("interpreted").path("category").isNull()).isTrue();
+        assertThat(data.path("interpreted").path("region").asText()).isEqualTo(region);
+    }
+
+    @Test
+    @DisplayName("칩을 지워 조건이 남지 않아도 문장은 읽은 것이다 - aiApplied 는 그대로")
+    void keepsAiAppliedAfterDroppingEveryChip() {
+        givenInterpreted(new SearchQueryParser.Parsed(region, "IT·전자", null, null, null, null));
+
+        JsonNode data = search("IT 박람회", "&ignore=region&ignore=category").getBody().path("data");
+
+        assertThat(data.path("aiApplied").asBoolean()).isTrue();
+        assertThat(data.path("interpreted").path("region").isNull()).isTrue();
+    }
+
+    @Test
+    @DisplayName("날짜 칩을 지우면 회차를 조회하지 않는다")
+    void skipsRoundLookupWhenDateChipDropped() {
+        givenInterpreted(new SearchQueryParser.Parsed(region, null, null, "2026-09-19", "2026-09-19", null));
+
+        search("19일 박람회", "&ignore=date");
+
+        verify(roundClient, never()).expoIdsWithRoundsBetween(anyList(), any(), any(), anyBoolean());
     }
 
     @Test

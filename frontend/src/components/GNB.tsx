@@ -22,8 +22,8 @@ export default function GNB() {
 
   const isActive = (path: string) => pathname.startsWith(path) ? 'active' : ''
 
-  function handleSearch(keyword: string) {
-    navigate(`/expos?keyword=${encodeURIComponent(keyword)}`)
+  function handleSearch(query: string) {
+    navigate(`/expos?q=${encodeURIComponent(query)}`)
   }
 
   useEffect(() => {
@@ -151,7 +151,7 @@ function GnbSearch({ onSearch }: { onSearch: (keyword: string) => void }) {
       <input
         type="text"
         className="gnb-search-input"
-        placeholder="박람회 검색"
+        placeholder="예) 이번 주말 부산 무료 IT 박람회"
         value={value}
         onChange={e => setValue(e.target.value)}
         aria-label="박람회 검색"

@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /**
  * 자연어 검색 API. 인증이 필요 없고 PUBLISHED 박람회만 나온다.
  *
@@ -23,13 +25,18 @@ public class ExpoSearchController {
         this.expoSearchService = expoSearchService;
     }
 
+    /**
+     * {@code ignore} 는 방문자가 지운 해석 칩이다 - region · category · paid · date · keyword.
+     * 모르는 값은 조용히 무시한다(해석 검증과 같은 태도).
+     */
     @GetMapping("/search")
     public ApiResponse<ExpoSearchResponse> search(
             @RequestParam String q,
+            @RequestParam(required = false) List<String> ignore,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        ExpoSearchService.Result result = expoSearchService.search(q, page, size);
+        ExpoSearchService.Result result = expoSearchService.search(q, ignore, page, size);
         ExpoSearchResponse body = new ExpoSearchResponse(
                 SearchInterpretation.from(result.filter()),
                 result.aiApplied(),

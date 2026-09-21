@@ -20,7 +20,11 @@ public interface ExpoQueryRepository extends Repository<Expo, Long> {
 
     /**
      * PUBLISHED 박람회만, 지역·카테고리·키워드는 값이 있을 때만 필터한다.
-     * 키워드는 제목·소개문에 포함되는지로 판단한다.
+     * 키워드는 제목·소개문·장소에 포함되는지로 판단한다.
+     *
+     * <p>장소를 지역처럼 별도 조건으로 두지 않는 이유는 값의 성격이 다르기 때문이다 - 지역은
+     * '서울' 처럼 짧고 가짓수가 적어 정확 일치가 되지만, 장소는 '벡스코 제1전시장' 같은 자유
+     * 입력이라 사용자가 말하는 '벡스코' 와 정확히 같을 일이 드물다. 부분 일치가 맞는 필드다.
      */
     @Query("""
             select e from Expo e
@@ -28,7 +32,8 @@ public interface ExpoQueryRepository extends Repository<Expo, Long> {
               and (:region is null or e.region = :region)
               and (:category is null or e.category = :category)
               and (:keyword is null or lower(e.title) like lower(concat('%', :keyword, '%')) escape '!'
-                                     or lower(e.description) like lower(concat('%', :keyword, '%')) escape '!')
+                                     or lower(e.description) like lower(concat('%', :keyword, '%')) escape '!'
+                                     or lower(e.venue) like lower(concat('%', :keyword, '%')) escape '!')
             """)
     Page<Expo> findPublished(@Param("region") String region,
                              @Param("category") String category,
@@ -41,7 +46,8 @@ public interface ExpoQueryRepository extends Repository<Expo, Long> {
               and (:region is null or e.region = :region)
               and (:category is null or e.category = :category)
               and (:keyword is null or lower(e.title) like lower(concat('%', :keyword, '%')) escape '!'
-                                     or lower(e.description) like lower(concat('%', :keyword, '%')) escape '!')
+                                     or lower(e.description) like lower(concat('%', :keyword, '%')) escape '!'
+                                     or lower(e.venue) like lower(concat('%', :keyword, '%')) escape '!')
             """)
     List<Expo> findAllPublished(@Param("region") String region,
                                 @Param("category") String category,

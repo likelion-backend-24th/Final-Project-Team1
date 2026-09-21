@@ -12,8 +12,13 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
+import java.time.format.TextStyle;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 검색 문장을 검색 필터로 옮긴다. <b>LLM 이 하는 일은 여기까지다</b> - 박람회 목록은 뒤에서 DB 가 낸다.
@@ -38,6 +43,16 @@ public class SearchQueryParser {
     private static final int MAX_RANGE_DAYS = 92;
     private static final int MAX_QUERY_LENGTH = 200;
     private static final int MAX_KEYWORD_LENGTH = 50;
+
+    /**
+     * 모든 박람회에 해당하는 말. keyword 에서 걷어낸다.
+     *
+     * <p>이게 남아 있으면 조건을 더 줄수록 결과가 이상해진다 - "유료 IT 박람회" 에서 '박람회' 가
+     * 키워드로 남으면 제목에 그 단어가 없는 박람회가 통째로 빠진다. 프롬프트로도 막지만
+     * <b>모델 출력은 사용자 입력과 같은 등급</b>이라 서버에서 한 번 더 거른다.
+     */
+    private static final Set<String> GENERIC_WORDS =
+            Set.of("박람회", "전시회", "전시", "행사", "엑스포", "페어", "이벤트", "축제");
 
     private final GeminiClient gemini;
     private final ExpoQueryRepository expoQueryRepository;
@@ -73,23 +88,41 @@ public class SearchQueryParser {
             log.info("search query not interpreted, falling back to keyword");
             return SearchFilter.keywordOnly(trimmed);
         }
-        return validate(parsed, regions, trimmed);
+        SearchFilter filter = validate(parsed, regions, trimmed);
+        // parsed 는 모델이 준 그대로, filter 는 검증 뒤다. 둘을 같이 봐야 어디서 빠졌는지 알 수 있다 -
+        // 모델이 응답 모양을 어기면 Jackson 이 모르는 필드를 버려 parsed 가 조용히 전부 null 이 된다.
+        log.info("search interpreted: parsed={} filter={}", parsed, filter);
+        return filter;
     }
 
     private String prompt(String query, List<String> regions) {
         return """
                 검색 문장을 박람회 검색 필터로 바꿔 JSON 으로만 응답하세요 (설명 없이).
 
-                오늘은 %s (한국 시간) 입니다. "19일"·"다음 주말" 같은 표현을 이 날짜 기준 절대 날짜로 바꾸세요.
+                오늘은 %s (한국 시간) 입니다. 상대 날짜는 이 날짜를 기준으로 절대 날짜로 바꾸세요.
+                "이번 주"는 이번 주 월요일부터 일요일까지입니다. "주말"은 토요일과 일요일입니다.
+                기간이면 dateFrom 과 dateTo 를 다르게, 하루면 둘을 같게 쓰세요.
+
                 지역은 다음 목록에 있는 값만 그대로 쓰고, 없으면 null 로 두세요: %s
                 분야는 다음 중 하나만 쓰고, 없으면 null 로 두세요: %s
-                유료 여부는 "유료"면 true, "무료"면 false, 언급이 없으면 null 입니다.
-                위 항목으로 옮기지 못한 나머지 말은 keyword 에 담으세요. 없으면 null 입니다.
-                날짜가 하루면 dateFrom 과 dateTo 를 같게 쓰세요.
+                유료 여부는 "유료"·"돈 내는"이면 true, "무료"·"공짜"면 false, 언급이 없으면 null 입니다.
+                keyword 에는 위 항목으로 옮기지 못한 말만 담고, 없으면 null 입니다.
+                "박람회"·"전시회"·"행사"·"엑스포"·"페어"처럼 모든 박람회에 해당하는 말은 keyword 에 넣지 마세요.
+
+                한 단어만 들어와도 조건이면 조건으로 옮기세요.
+
+                아래는 오늘이 2026-01-05 월요일일 때의 예시입니다.
+                입력: 무료
+                출력: {"region":null,"category":null,"paid":false,"dateFrom":null,"dateTo":null,"keyword":null}
+                입력: 이번 주 박람회
+                출력: {"region":null,"category":null,"paid":null,"dateFrom":"2026-01-05","dateTo":"2026-01-11","keyword":null}
+                입력: 벡스코에서 하는 IT 전시회
+                출력: {"region":null,"category":"IT·전자","paid":null,"dateFrom":null,"dateTo":null,"keyword":"벡스코"}
 
                 [문장]%s[/문장]
 
-                응답 형식:
+                위 문장에 대한 출력만, 아래 여섯 개 키를 가진 JSON 객체 하나로 응답하세요.
+                다른 키로 감싸지 말고, 배열이나 설명을 덧붙이지 마세요.
                 {"region":null,"category":null,"paid":null,"dateFrom":null,"dateTo":null,"keyword":null}
                 """.formatted(today(), String.join(", ", regions),
                 String.join(", ", ExpoCategories.ALLOWED), query);
@@ -114,7 +147,7 @@ public class SearchQueryParser {
             to = from.plusDays(MAX_RANGE_DAYS);
         }
 
-        String keyword = trimToNull(parsed.keyword());
+        String keyword = cleanKeyword(parsed.keyword());
         SearchFilter filter = new SearchFilter(region, category, parsed.paid(), from, to, keyword);
 
         // 아무 조건도 못 뽑았으면 해석이 안 된 것과 같다. 원문을 키워드로 돌려준다.
@@ -147,6 +180,19 @@ public class SearchQueryParser {
         }
     }
 
+    /** 일반 명사를 걷어낸 나머지만 남긴다. 다 걷히면 검색어가 없는 것과 같다. */
+    private String cleanKeyword(String raw) {
+        String trimmed = trimToNull(raw);
+        if (trimmed == null) {
+            return null;
+        }
+        String stripped = Arrays.stream(trimmed.split("\\s+"))
+                .filter(word -> !GENERIC_WORDS.contains(word))
+                .collect(Collectors.joining(" "))
+                .trim();
+        return stripped.isEmpty() ? null : stripped;
+    }
+
     private String trimToNull(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
@@ -155,7 +201,9 @@ public class SearchQueryParser {
         return trimmed.length() > MAX_KEYWORD_LENGTH ? trimmed.substring(0, MAX_KEYWORD_LENGTH) : trimmed;
     }
 
-    private LocalDate today() {
-        return LocalDate.ofInstant(clock.instant(), KST);
+    /** 요일까지 준다. 날짜만으로는 "이번 주" 의 시작·끝을 모델이 계산해야 해서 자주 틀린다. */
+    private String today() {
+        LocalDate today = LocalDate.ofInstant(clock.instant(), KST);
+        return today + " " + today.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.KOREAN);
     }
 }

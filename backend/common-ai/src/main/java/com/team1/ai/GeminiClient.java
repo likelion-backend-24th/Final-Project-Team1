@@ -6,10 +6,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.lang.Nullable;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -33,9 +35,10 @@ public class GeminiClient {
     private final AiCallBudget budget;
     private final AiResponseCache cache;
     private final int maxAttempts;
+    private final Duration retryDelay;
 
     GeminiClient(RestClient restClient, String apiKey, String modelPath, ObjectMapper objectMapper,
-                 AiCallBudget budget, AiResponseCache cache, int maxAttempts) {
+                 AiCallBudget budget, AiResponseCache cache, int maxAttempts, Duration retryDelay) {
         this.restClient = restClient;
         this.apiKey = apiKey;
         this.modelPath = modelPath;
@@ -43,6 +46,7 @@ public class GeminiClient {
         this.budget = budget;
         this.cache = cache;
         this.maxAttempts = Math.max(1, maxAttempts);
+        this.retryDelay = retryDelay;
     }
 
     /** 키가 없거나 하루 상한을 넘겼으면 false. 프롬프트를 만들기 전에 물어볼 수 있다. */
@@ -108,16 +112,49 @@ public class GeminiClient {
                 return text;
 
             } catch (HttpClientErrorException e) {
-                // 4xx 는 키·모델명·요청 형식 문제다. 다시 보내도 같은 답이라 즉시 끝낸다.
-                log.warn("gemini call rejected feature={} status={}", feature, e.getStatusCode());
-                return null;
+                // 4xx 는 대개 키·모델명·요청 형식 문제라 다시 보내도 같은 답이다.
+                // 429 만 예외다 - 한도는 시간이 지나면 풀리므로 다른 5xx 와 같이 다룬다.
+                if (e.getStatusCode() != HttpStatus.TOO_MANY_REQUESTS) {
+                    log.warn("gemini call rejected feature={} status={}", feature, e.getStatusCode());
+                    return null;
+                }
+                log.warn("gemini call throttled feature={} attempt={}", feature, attempt);
+                if (!sleepBeforeRetry(attempt)) {
+                    return null;
+                }
 
             } catch (RuntimeException e) {
                 log.warn("gemini call failed feature={} attempt={} ms={} reason={}",
                         feature, attempt, System.currentTimeMillis() - startedAt, e.getMessage());
+                if (!sleepBeforeRetry(attempt)) {
+                    return null;
+                }
             }
         }
         return null;
+    }
+
+    /**
+     * 다음 시도까지 기다린다. 마지막 시도였으면 false.
+     *
+     * <p>503("잠시 뒤 다시") 을 받고 바로 다시 보내면 <b>429 를 우리가 만든다</b>. 시도마다
+     * 대기를 두 배로 늘려 같은 초에 두 번 때리지 않게 한다.
+     */
+    private boolean sleepBeforeRetry(int attempt) {
+        if (attempt >= maxAttempts) {
+            return false;
+        }
+        long millis = retryDelay.toMillis() * attempt;
+        if (millis <= 0) {
+            return true;
+        }
+        try {
+            Thread.sleep(millis);
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
     }
 
     private String call(String prompt) {
