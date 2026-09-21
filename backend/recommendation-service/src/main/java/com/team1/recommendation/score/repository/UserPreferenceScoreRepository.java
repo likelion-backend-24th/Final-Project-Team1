@@ -1,5 +1,6 @@
 package com.team1.recommendation.score.repository;
 
+import com.team1.recommendation.score.entity.ScoreSource;
 import com.team1.recommendation.score.entity.UserPreferenceScore;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -10,7 +11,9 @@ public interface UserPreferenceScoreRepository extends JpaRepository<UserPrefere
 
     List<UserPreferenceScore> findByUserId(Long userId);
 
-    Optional<UserPreferenceScore> findByUserIdAndTagValue(Long userId, String tagValue);
+    Optional<UserPreferenceScore> findByUserIdAndTagValueAndSource(Long userId, String tagValue, ScoreSource source);
+
+    void deleteByUserIdAndSource(Long userId, ScoreSource source);
 
     List<UserPreferenceScore> findByTagValueAndScoreGreaterThan(String tagValue, double minScore);
 }

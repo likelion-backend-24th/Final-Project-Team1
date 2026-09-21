@@ -3,8 +3,10 @@ package com.team1.recommendation.score.service;
 import com.team1.recommendation.activity.entity.EventType;
 import com.team1.recommendation.activity.entity.UserActivity;
 import com.team1.recommendation.activity.repository.UserActivityRepository;
+import com.team1.recommendation.common.CategoryTagMap;
 import com.team1.recommendation.expo.entity.ExpoTag;
 import com.team1.recommendation.expo.repository.ExpoTagRepository;
+import com.team1.recommendation.score.entity.ScoreSource;
 import com.team1.recommendation.score.entity.UserPreferenceScore;
 import com.team1.recommendation.score.repository.UserPreferenceScoreRepository;
 import org.slf4j.Logger;
@@ -20,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class PreferenceScoreService {
@@ -32,6 +35,10 @@ public class PreferenceScoreService {
             EventType.PAGE_VIEWED, 0.5
     );
     private static final double HALF_LIFE_DAYS = 30.0;
+
+    // 관심사 기본 점수: CATEGORY는 예약 1회(4.0)와 비슷한 수준, KEYWORD는 조금 낮게
+    private static final double INTEREST_CATEGORY_SCORE = 3.0;
+    private static final double INTEREST_KEYWORD_SCORE = 2.0;
 
     private final UserActivityRepository activityRepository;
     private final ExpoTagRepository expoTagRepository;
@@ -52,7 +59,7 @@ public class PreferenceScoreService {
         Map<Long, List<String>> tagMap = buildTagMap();
         activityRepository.findAll().stream()
                 .collect(Collectors.groupingBy(UserActivity::getUserId))
-                .forEach((userId, acts) -> saveScores(userId, computeScores(acts, tagMap)));
+                .forEach((userId, acts) -> saveBehaviorScores(userId, computeScores(acts, tagMap)));
         log.info("preference score recalculation done");
     }
 
@@ -60,7 +67,32 @@ public class PreferenceScoreService {
     @Transactional
     public void recalculateForUser(Long userId) {
         Map<Long, List<String>> tagMap = buildTagMap();
-        saveScores(userId, computeScores(activityRepository.findByUserId(userId), tagMap));
+        saveBehaviorScores(userId, computeScores(activityRepository.findByUserId(userId), tagMap));
+    }
+
+    @Transactional
+    public void applyInterests(Long userId, List<String> categories, List<String> keywords) {
+        scoreRepository.deleteByUserIdAndSource(userId, ScoreSource.INTEREST);
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // 카테고리 → 태그 (소문자 정규화, 카테고리 점수 우선)
+        Map<String, Double> interestScores = new HashMap<>();
+        categories.forEach(cat ->
+                CategoryTagMap.TAGS.getOrDefault(cat, List.of("기타")).forEach(tag ->
+                        interestScores.put(tag.toLowerCase(), INTEREST_CATEGORY_SCORE)));
+
+        // 키워드 → 소문자 정규화, 이미 카테고리 태그로 들어온 경우 덮어쓰지 않음
+        Stream.ofNullable(keywords).flatMap(List::stream)
+                .filter(kw -> kw != null && !kw.isBlank())
+                .map(kw -> kw.trim().toLowerCase())
+                .distinct()
+                .forEach(kw -> interestScores.putIfAbsent(kw, INTEREST_KEYWORD_SCORE));
+
+        interestScores.forEach((tag, score) ->
+                scoreRepository.save(UserPreferenceScore.of(userId, tag, score, ScoreSource.INTEREST, now)));
+
+        log.info("interest scores applied userId={} count={}", userId, interestScores.size());
     }
 
     private Map<Long, List<String>> buildTagMap() {
@@ -88,13 +120,14 @@ public class PreferenceScoreService {
         return tagScores;
     }
 
-    private void saveScores(Long userId, Map<String, Double> tagScores) {
+    private void saveBehaviorScores(Long userId, Map<String, Double> tagScores) {
         LocalDateTime now = LocalDateTime.now();
         tagScores.forEach((tagValue, score) ->
-                scoreRepository.findByUserIdAndTagValue(userId, tagValue).ifPresentOrElse(
-                        existing -> { existing.updateScore(score, now); scoreRepository.save(existing); },
-                        () -> scoreRepository.save(UserPreferenceScore.of(userId, tagValue, score, now))
-                )
+                scoreRepository.findByUserIdAndTagValueAndSource(userId, tagValue, ScoreSource.BEHAVIOR)
+                        .ifPresentOrElse(
+                                existing -> { existing.updateScore(score, now); scoreRepository.save(existing); },
+                                () -> scoreRepository.save(UserPreferenceScore.of(userId, tagValue, score, ScoreSource.BEHAVIOR, now))
+                        )
         );
     }
 }
