@@ -69,7 +69,7 @@ public class ExpoPublicationService {
                     throw new BusinessException(ErrorCode.INVALID_REQUEST);
                 }
                 expo.publish();
-                recommendationNotifier.notifyExpoPublished(expo.getId(), expo.getTitle(), expo.getDescription());
+                recommendationNotifier.notifyExpoPublished(expo.getId(), expo.getTitle(), expo.getDescription(), expo.getCategory());
                 return ExpoPublicationResponse.from(expo);
             }
             default -> throw new BusinessException(ErrorCode.INVALID_STATE_TRANSITION);

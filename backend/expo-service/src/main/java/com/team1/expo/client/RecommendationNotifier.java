@@ -26,7 +26,7 @@ public class RecommendationNotifier {
     }
 
     // fail-open: 추천 서비스 실패해도 게시는 이미 완료됨
-    public void notifyExpoPublished(Long expoId, String title, String description) {
+    public void notifyExpoPublished(Long expoId, String title, String description, String category) {
         CompletableFuture.runAsync(() -> {
             try {
                 client.post()
@@ -35,7 +35,8 @@ public class RecommendationNotifier {
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(Map.of("expoId", expoId,
                                      "title", title != null ? title : "",
-                                     "description", description != null ? description : ""))
+                                     "description", description != null ? description : "",
+                                     "category", category != null ? category : "기타"))
                         .retrieve()
                         .toBodilessEntity();
             } catch (Exception e) {
