@@ -121,7 +121,7 @@ public class ExpoTagService {
     private void saveCategoryFallback(Long expoId, String category) {
         List<String> tags = CATEGORY_TAGS.getOrDefault(category, List.of("기타"));
         LocalDateTime now = LocalDateTime.now();
-        tags.forEach(tag -> repository.save(ExpoTag.of(expoId, tag, null, now)));
+        tags.forEach(tag -> repository.save(ExpoTag.of(expoId, tag.toLowerCase(), null, now)));
         log.info("category fallback tagging done expoId={} category={} tags={}", expoId, category, tags);
     }
 }
