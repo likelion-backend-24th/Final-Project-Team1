@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 @Service
@@ -24,6 +25,15 @@ public class ExpoTagService {
 
     /** 호출량 집계·로그 단위. 어느 기능이 한도를 쓰는지 여기로 구분한다. */
     private static final String FEATURE = "expo-tagging";
+
+    private static final Map<String, List<String>> CATEGORY_TAGS = Map.of(
+            "IT·전자",  List.of("IT", "전자", "기술"),
+            "식품·음료", List.of("식품", "음료"),
+            "패션·뷰티", List.of("패션", "뷰티"),
+            "교육·취업", List.of("교육", "취업", "채용"),
+            "문화·예술", List.of("문화", "예술"),
+            "기타",     List.of("기타")
+    );
 
     private final ExpoTagRepository repository;
     private final GeminiClient geminiClient;
@@ -78,7 +88,7 @@ public class ExpoTagService {
             List<String> keywords = validate(parsed != null ? parsed.keywords() : null);
 
             if (keywords.isEmpty()) {
-                saveFallback(request.expoId());
+                saveCategoryFallback(request.expoId(), request.category());
                 return;
             }
 
@@ -86,8 +96,8 @@ public class ExpoTagService {
             log.info("Gemini tagging done expoId={} keywords={}", request.expoId(), keywords);
 
         } catch (Exception e) {
-            log.warn("Gemini tagging failed expoId={}, using fallback", request.expoId(), e);
-            saveFallback(request.expoId());
+            log.warn("Gemini tagging failed expoId={}, using category fallback", request.expoId(), e);
+            saveCategoryFallback(request.expoId(), request.category());
         }
     }
 
@@ -114,7 +124,10 @@ public class ExpoTagService {
                 .forEach(kw -> repository.save(ExpoTag.of(expoId, kw, null, now)));
     }
 
-    private void saveFallback(Long expoId) {
-        repository.save(ExpoTag.of(expoId, "UNTAGGED", null, LocalDateTime.now()));
+    private void saveCategoryFallback(Long expoId, String category) {
+        List<String> tags = CATEGORY_TAGS.getOrDefault(category, List.of("기타"));
+        LocalDateTime now = LocalDateTime.now();
+        tags.forEach(tag -> repository.save(ExpoTag.of(expoId, tag, null, now)));
+        log.info("category fallback tagging done expoId={} category={} tags={}", expoId, category, tags);
     }
 }
