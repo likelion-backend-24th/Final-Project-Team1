@@ -13,6 +13,25 @@ export interface PublicationResponse {
 
 export type ExpoSort = 'recommended' | 'newest' | 'deadline'
 
+/** 시스템이 문장을 어떻게 읽었는지. 값이 null 이면 그 조건을 못 뽑았다는 뜻이다. */
+export interface SearchInterpretation {
+  region: string | null
+  category: string | null
+  paid: boolean | null
+  dateFrom: string | null
+  dateTo: string | null
+  keyword: string | null
+}
+
+/** 해석 칩 하나를 가리키는 키. 방문자가 지울 수 있는 단위다. */
+export type SearchCondition = 'region' | 'category' | 'paid' | 'date' | 'keyword'
+
+export interface ExpoSearchResult {
+  interpreted: SearchInterpretation
+  aiApplied: boolean
+  expos: Expo[]
+}
+
 export interface ApplyPromotionResponse {
   promotionId: number
   expoId: number
@@ -25,7 +44,7 @@ export const expoApi = {
   /**
    * GET /api/v1/expos — PUBLISHED 만 내려온다. 인증 불필요.
    * 백엔드가 받는 파라미터는 region · category · keyword · sort · page(1부터) · size(최대 100).
-   * keyword는 제목·소개문에 포함되는지로 필터한다.
+   * keyword는 제목·소개문·장소에 포함되는지로 필터한다.
    */
   listPublished: (params?: {
     category?: string
@@ -43,6 +62,21 @@ export const expoApi = {
     q.set('page', String(params?.page ?? 1))
     q.set('size', String(params?.size ?? 100))
     return api.get<ApiResponse<Expo[]>>(`/expos?${q}`)
+  },
+
+  /**
+   * GET /api/v1/expos/search — 자연어 검색. 인증 불필요.
+   * aiApplied=false 는 문장을 해석하지 못해 입력을 통째로 키워드로 찾았다는 뜻이다(검색은 그대로 된다).
+   * ignore 는 방문자가 지운 해석 칩이다 - 조건을 빼면 결과가 넓어져야 해서 서버가 다시 찾는다.
+   * 날짜 조건이 있는데 회차 조회가 실패하면 503 이다. 날짜를 무시한 목록을 주지 않는다.
+   */
+  searchExpos: (q: string, ignore: SearchCondition[] = [], params?: { page?: number; size?: number }) => {
+    const p = new URLSearchParams()
+    p.set('q', q)
+    ignore.forEach(c => p.append('ignore', c))
+    p.set('page', String(params?.page ?? 1))
+    p.set('size', String(params?.size ?? 100))
+    return api.get<ApiResponse<ExpoSearchResult>>(`/expos/search?${p}`)
   },
 
   /**

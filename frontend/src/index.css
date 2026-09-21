@@ -496,6 +496,65 @@ input, select, textarea { font-family: inherit; }
   cursor: pointer;
 }
 
+/* ─── 자연어 검색 해석 ─── */
+.search-summary {
+  margin-top: 20px;
+  padding: 14px 16px;
+  background: var(--primary-l);
+  border-radius: var(--r-sm);
+}
+.search-summary-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ss-query {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.search-summary-head button {
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ss-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text2);
+}
+.search-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.ss-label {
+  font-size: 12px;
+  color: var(--text2);
+  margin-right: 2px;
+}
+.search-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--primary);
+  background: var(--surface);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: .15s;
+}
+.search-chip:hover { background: var(--primary); color: #fff; }
+.search-chip-x { font-size: 10px; opacity: .7; }
+
 /* ─── Calendar (행사 캘린더) ─── */
 .calendar-page-inner {
   max-width: 760px;

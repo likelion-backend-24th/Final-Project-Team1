@@ -18,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -61,7 +62,9 @@ class GeminiClientTest {
     }
 
     private GeminiClient client(String apiKey, int maxAttempts) {
-        return new GeminiClient(restClient, apiKey, MODEL_PATH, MAPPER, budget, cache, maxAttempts);
+        // 테스트에서는 대기 없이 재시도한다. 여기서 기다려 봐야 느려지기만 한다.
+        return new GeminiClient(restClient, apiKey, MODEL_PATH, MAPPER, budget, cache,
+                maxAttempts, Duration.ZERO, "", -1);
     }
 
     private GeminiClient client() {
@@ -122,6 +125,17 @@ class GeminiClientTest {
                 .andRespond(withSuccess(geminiBody("두 번째에 성공"), MediaType.APPLICATION_JSON));
 
         assertThat(client().generateText(FEATURE, "재시도")).isEqualTo("두 번째에 성공");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("429 는 재시도한다 - 한도는 시간이 지나면 풀린다")
+    void retriesOnTooManyRequests() {
+        server.expect(once(), requestTo(containsString(MODEL_PATH))).andRespond(withStatus(TOO_MANY_REQUESTS));
+        server.expect(once(), requestTo(containsString(MODEL_PATH)))
+                .andRespond(withSuccess(geminiBody("한도가 풀린 뒤 성공"), MediaType.APPLICATION_JSON));
+
+        assertThat(client().generateText(FEATURE, "한도")).isEqualTo("한도가 풀린 뒤 성공");
         server.verify();
     }
 

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { expoApi } from '../api/expo'
 import { recommendationApi, type RecommendationItem } from '../api/recommendation'
 import { cdnImage } from '../lib/cloudinary'
-import type { ExpoSort } from '../api/expo'
+import type { ExpoSort, SearchCondition, SearchInterpretation } from '../api/expo'
 import { expoKey } from '../types'
 import type { ActivePromotion, Expo } from '../types'
 import { usePageTitle } from '../hooks/usePageTitle'
@@ -34,27 +34,50 @@ export default function HomePage() {
   const [error, setError] = useState(false)
   const [category, setCategory] = useState('전체')
   const [sort, setSort] = useState<ExpoSort>('recommended')
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const keyword = searchParams.get('keyword') ?? ''
+  const query = searchParams.get('q') ?? ''
+  const ignored = searchParams.get('ignore') ?? ''
+  const [interpreted, setInterpreted] = useState<SearchInterpretation | null>(null)
+  const [aiApplied, setAiApplied] = useState(false)
+  const [errorStatus, setErrorStatus] = useState<number | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
   const [promotions, setPromotions] = useState<ActivePromotion[]>([])
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([])
   const [tagMap, setTagMap] = useState<Record<string, string[]>>({})
-  usePageTitle(category === '전체' ? '박람회 탐색' : `${category} 박람회`)
+  usePageTitle(query ? `'${query}' 검색` : category === '전체' ? '박람회 탐색' : `${category} 박람회`)
 
   useEffect(() => {
     let cancelled = false
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
-    expoApi.listPublished({
-      category: category === '전체' ? undefined : category,
-      keyword: keyword || undefined,
-      sort: sort === 'recommended' ? undefined : sort,
-    })
-      .then(res => {
+
+    // q 가 있으면 자연어 검색이다. 조건을 서버가 이미 걸어 내려주므로 카테고리·정렬은 쓰지 않는다.
+    const fetching = query
+      ? expoApi.searchExpos(query, ignored ? (ignored.split(',') as SearchCondition[]) : [])
+          .then(res => {
+            if (!cancelled) {
+              setInterpreted(res.data?.interpreted ?? null)
+              setAiApplied(res.data?.aiApplied ?? false)
+            }
+            return res.data?.expos ?? []
+          })
+      : expoApi.listPublished({
+          category: category === '전체' ? undefined : category,
+          keyword: keyword || undefined,
+          sort: sort === 'recommended' ? undefined : sort,
+        })
+          .then(res => {
+            if (!cancelled) setInterpreted(null)
+            return res.data ?? []
+          })
+
+    fetching
+      .then(list => {
         if (cancelled) return
-        const list = res.data ?? []
         setExpos(list)
         setError(false)
+        setErrorStatus(null)
         const ids = list.map(e => expoKey(e)).filter(Boolean)
         if (ids.length > 0) {
           recommendationApi.getBulkTags(ids)
@@ -62,10 +85,21 @@ export default function HomePage() {
             .catch(() => {})
         }
       })
-      .catch(() => { if (!cancelled) setError(true) })
+      .catch((e: { status?: number }) => {
+        if (cancelled) return
+        setError(true)
+        setErrorStatus(e?.status ?? null)
+      })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [category, keyword, sort])
+  }, [category, keyword, sort, query, ignored, reloadKey])
+
+  /** 칩 지우기. 문장은 그대로 두고 조건만 빼야 결과가 넓어진다 - 그래서 서버에 다시 묻는다. */
+  function dropCondition(condition: SearchCondition) {
+    const next = new Set(ignored ? ignored.split(',') : [])
+    next.add(condition)
+    setSearchParams({ q: query, ignore: [...next].join(',') })
+  }
 
   useEffect(() => {
     expoApi.getActivePromotions()
@@ -84,7 +118,8 @@ export default function HomePage() {
 
   // AI 추천순: VIP 먼저, 그 다음 AI 추천 점수순, 나머지
   const displayExpos = (() => {
-    if (sort !== 'recommended') return expos
+    // 검색 결과는 서버가 정한 순서를 지킨다. VIP·추천으로 다시 섞으면 조건과 순서가 어긋나 보인다.
+    if (query || sort !== 'recommended') return expos
     const recOrder = new Map(recommendations.map((r, i) => [r.expoId, i]))
     return [...expos].sort((a, b) => {
       const aVip = vipIds.has(expoKey(a)) ? 0 : 1
@@ -106,25 +141,39 @@ export default function HomePage() {
 
       {/* ─── Content ─── */}
       <div className="container page-wrap">
-        {keyword && (
-          <div className="search-active-bar">
-            <span>'{keyword}' 검색 결과</span>
-            <button type="button" onClick={() => navigate('/expos')}>지우기 ✕</button>
-          </div>
+        {query ? (
+          <SearchSummary
+            query={query}
+            interpreted={interpreted}
+            aiApplied={aiApplied}
+            onDrop={dropCondition}
+            onClear={() => navigate('/expos')}
+          />
+        ) : (
+          <>
+            {keyword && (
+              <div className="search-active-bar">
+                <span>'{keyword}' 검색 결과</span>
+                <button type="button" onClick={() => navigate('/expos')}>지우기 ✕</button>
+              </div>
+            )}
+
+            <div className="cat-bar">
+              {CATS.map(c => (
+                <button
+                  key={c}
+                  className={`cat-chip ${category === c ? 'active' : ''}`}
+                  onClick={() => setCategory(c)}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+
+          </>
         )}
 
-        <div className="cat-bar">
-          {CATS.map(c => (
-            <button
-              key={c}
-              className={`cat-chip ${category === c ? 'active' : ''}`}
-              onClick={() => setCategory(c)}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
+        {/* 추천 띠는 검색 모드에서도 둔다 - 필터가 아니라 별도 추천이다. */}
         {recommendations.length > 0 && (
           <AiRecommendBanner
             recommendations={recommendations.slice(0, 6)}
@@ -133,36 +182,46 @@ export default function HomePage() {
           />
         )}
 
-        <div className="sort-bar">
-          {SORTS.map(s => (
-            <button
-              key={s.value}
-              className={`sort-chip ${sort === s.value ? 'active' : ''}`}
-              onClick={() => setSort(s.value)}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
+        {/* 정렬은 검색 모드에서 숨긴다 - 조건을 서버가 이미 걸어 내려준다. */}
+        {!query && (
+          <div className="sort-bar">
+            {SORTS.map(s => (
+              <button
+                key={s.value}
+                className={`sort-chip ${sort === s.value ? 'active' : ''}`}
+                onClick={() => setSort(s.value)}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {loading ? (
           <SkeletonGrid />
         ) : error ? (
           <div className="empty-state">
-            <p className="es-title">불러올 수 없습니다</p>
+            {/* 날짜 조건이 있는 검색은 회차를 못 읽으면 503 이다. 날짜를 무시한 목록을 주지 않는다. */}
+            <p className="es-title">
+              {errorStatus === 503 ? '날짜 조건을 확인하지 못했습니다' : '불러올 수 없습니다'}
+            </p>
             <p className="es-desc">잠시 후 다시 시도해주세요.</p>
-            <button className="btn btn-outline" onClick={() => setCategory(category)}>새로고침</button>
+            <button className="btn btn-outline" onClick={() => setReloadKey(k => k + 1)}>새로고침</button>
           </div>
         ) : expos.length === 0 ? (
           <div className="empty-state">
             <p className="es-title">검색 결과가 없습니다</p>
-            <p className="es-desc">다른 키워드나 카테고리로 검색해보세요.</p>
+            <p className="es-desc">
+              {query
+                ? '조건 칩을 지우거나 다른 문장으로 검색해보세요.'
+                : '다른 키워드나 카테고리로 검색해보세요.'}
+            </p>
           </div>
         ) : (
           <>
             <div className="section-header">
               <span className="section-title">
-                {category === '전체' ? '전체 박람회' : category}
+                {query ? '검색 결과' : category === '전체' ? '전체 박람회' : category}
                 <span className="section-count">{displayExpos.length}개</span>
               </span>
             </div>
@@ -183,6 +242,70 @@ export default function HomePage() {
       </div>
     </>
   )
+}
+
+/**
+ * 시스템이 문장을 어떻게 읽었는지 드러낸다. **이 기능의 신뢰는 여기서 나온다** -
+ * '부산' 을 '부천' 으로 읽었을 때, 칩이 없으면 방문자는 결과가 이상한 이유를 알 수 없다.
+ * 틀릴 수 있다는 걸 숨기지 않고 지울 수 있게 두는 쪽이 낫다.
+ */
+function SearchSummary({ query, interpreted, aiApplied, onDrop, onClear }: {
+  query: string
+  interpreted: SearchInterpretation | null
+  aiApplied: boolean
+  onDrop: (condition: SearchCondition) => void
+  onClear: () => void
+}) {
+  const chips = aiApplied && interpreted ? buildChips(interpreted) : []
+
+  return (
+    <div className="search-summary">
+      <div className="search-summary-head">
+        <span className="ss-query">'{query}' 검색 결과</span>
+        <button type="button" onClick={onClear}>지우기 ✕</button>
+      </div>
+
+      {!aiApplied ? (
+        <p className="ss-note">문장을 해석하지 못해 '{query}' 를 그대로 찾았습니다.</p>
+      ) : chips.length === 0 ? (
+        <p className="ss-note">해석한 조건을 모두 지웠습니다.</p>
+      ) : (
+        <div className="search-chips">
+          <span className="ss-label">이렇게 읽었습니다</span>
+          {chips.map(chip => (
+            <button
+              key={chip.key}
+              type="button"
+              className="search-chip"
+              onClick={() => onDrop(chip.key)}
+              aria-label={`${chip.label} 조건 지우기`}
+            >
+              {chip.label}<span className="search-chip-x">✕</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function buildChips(i: SearchInterpretation) {
+  const chips: { key: SearchCondition; label: string }[] = []
+  if (i.region) chips.push({ key: 'region', label: i.region })
+  if (i.category) chips.push({ key: 'category', label: i.category })
+  if (i.dateFrom && i.dateTo) chips.push({ key: 'date', label: dateLabel(i.dateFrom, i.dateTo) })
+  if (i.paid != null) chips.push({ key: 'paid', label: i.paid ? '유료' : '무료' })
+  if (i.keyword) chips.push({ key: 'keyword', label: `"${i.keyword}"` })
+  return chips
+}
+
+function dateLabel(from: string, to: string) {
+  return from === to ? monthDay(from) : `${monthDay(from)} ~ ${monthDay(to)}`
+}
+
+function monthDay(iso: string) {
+  const [, m, d] = iso.split('-')
+  return `${Number(m)}/${Number(d)}`
 }
 
 // ─── Hero: 기본 hero 텍스트 + VIP 슬라이드 스와이프 캐러셀 ───
@@ -325,7 +448,7 @@ function HeroCarousel({ promotions, onNavigate }: {
   )
 }
 
-// ─── AI 추천 배너: 분류탭·정렬탭 사이 컴팩트 인라인 캐러셀 ───
+// ─── AI 추천 배너: hero와 동일한 전체 폭 + 비율 유지 캐러셀 ───
 function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
   recommendations: RecommendationItem[]
   expoMap: Map<number, Expo>

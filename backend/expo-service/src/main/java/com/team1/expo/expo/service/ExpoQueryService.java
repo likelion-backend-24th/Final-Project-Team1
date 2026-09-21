@@ -4,6 +4,7 @@ import com.team1.expo.client.RoundClient;
 import com.team1.expo.common.exception.BusinessException;
 import com.team1.expo.common.exception.ErrorCode;
 import com.team1.expo.domain.expo.Expo;
+import com.team1.expo.domain.expo.ExpoCategories;
 import com.team1.expo.domain.expo.ExpoStatus;
 import com.team1.expo.expo.dto.ExpoDetailResponse;
 import com.team1.expo.expo.dto.ExpoFeeView;
@@ -23,7 +24,6 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,10 +33,6 @@ public class ExpoQueryService {
 
     private static final int MAX_SIZE = 100;
 
-    // #21에서 확정된 카테고리 목록. createExpo(#21) 병합 시 공용 상수/Enum으로 통합 예정.
-    private static final Set<String> ALLOWED_CATEGORIES =
-            Set.of("IT·전자", "식품·음료", "패션·뷰티", "교육·취업", "문화·예술", "기타");
-
     private final ExpoQueryRepository expoQueryRepository;
     private final RoundClient roundClient;
 
@@ -44,17 +40,18 @@ public class ExpoQueryService {
      * 공개(PUBLISHED) 박람회 목록.
      * sort: recommended(기본·추천순), newest(새행사순), deadline(모집마감일순)
      * VIP 상단 노출은 GET /api/v1/expo-promotions/active 를 프론트가 별도 호출해 조합한다.
-     * deadline 정렬은 round endsAt 기준이 필요해 reservation-service 연동 시 구현 예정.
+     * deadline 정렬은 회차의 가장 가까운 마감일을 reservation-service 에서 일괄로 받아 매긴다.
      */
     public Page<ExpoSummaryResponse> listPublished(String region, String category, String keyword, String sort, int page, int size) {
-        if (category != null && !ALLOWED_CATEGORIES.contains(category)) {
+        if (category != null && !ExpoCategories.contains(category)) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
+        String q = normalizeKeyword(keyword);
         int pageIndex = Math.max(page, 1) - 1;
         int pageSize = Math.min(Math.max(size, 1), MAX_SIZE);
 
         if ("deadline".equals(sort)) {
-            List<Expo> all = expoQueryRepository.findAllPublished(region, category, keyword);
+            List<Expo> all = expoQueryRepository.findAllPublished(region, category, q);
             List<Long> ids = all.stream().map(Expo::getId).toList();
             Map<Long, Instant> deadlineMap = ids.isEmpty() ? Map.of() : roundClient.nearestDeadlines(ids);
             List<Expo> sorted = all.stream()
@@ -74,9 +71,26 @@ public class ExpoQueryService {
         };
 
         Pageable pageable = PageRequest.of(pageIndex, pageSize, ordering);
-        Page<Expo> found = expoQueryRepository.findPublished(region, category, keyword, pageable);
+        Page<Expo> found = expoQueryRepository.findPublished(region, category, q, pageable);
         Map<Long, Boolean> paidByExpoId = paidFlags(found.getContent());
         return found.map(expo -> ExpoSummaryResponse.from(expo, paidByExpoId.get(expo.getId())));
+    }
+
+    /**
+     * 검색어를 LIKE 에 넣기 전에 다듬는다.
+     *
+     * <p>공백만 있는 검색어는 조건 자체를 버린다 - 그대로 두면 {@code like '%   %'} 가 되어
+     * 아무것도 안 나온다. 그리고 {@code %}·{@code _} 를 막지 않으면 사용자가 친 "50%" 가
+     * 와일드카드로 동작한다. <b>자연어 검색이 붙으면 LLM 이 만든 문자열도 같은 LIKE 로 들어온다.</b>
+     */
+    public static String normalizeKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return keyword.trim()
+                .replace("!", "!!")
+                .replace("%", "!%")
+                .replace("_", "!_");
     }
 
     private List<ExpoSummaryResponse> withFeeBadge(List<Expo> expos) {
@@ -90,7 +104,7 @@ public class ExpoQueryService {
      * 목록 한 페이지의 유료/무료를 한 번에 받아온다. 박람회당 호출하면 페이지당 수십 번이 된다.
      * 실패하면 빈 Map - 배지만 사라지고 목록은 그대로 나간다(부분 실패 허용).
      */
-    private Map<Long, Boolean> paidFlags(List<Expo> expos) {
+    public Map<Long, Boolean> paidFlags(List<Expo> expos) {
         if (expos.isEmpty()) {
             return Map.of();
         }
