@@ -346,7 +346,7 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
   function resetTimer() {
     if (timerRef.current) clearInterval(timerRef.current)
     if (slides.length <= 1) return
-    timerRef.current = setInterval(() => setIdx(i => (i + 1) % slides.length), 4000)
+    timerRef.current = setInterval(() => setIdx(i => (i + 1) % slides.length), 5000)
   }
 
   useEffect(() => {
