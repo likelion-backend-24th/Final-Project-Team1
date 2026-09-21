@@ -2,6 +2,7 @@ package com.team1.recommendation.expo.service;
 
 import com.team1.ai.AfterCommitRunner;
 import com.team1.ai.GeminiClient;
+import com.team1.recommendation.common.CategoryTagMap;
 import com.team1.recommendation.expo.entity.ExpoTag;
 import com.team1.recommendation.expo.repository.ExpoTagRepository;
 import com.team1.recommendation.internal.dto.ExpoPublishedRequest;
@@ -26,14 +27,7 @@ public class ExpoTagService {
     /** 호출량 집계·로그 단위. 어느 기능이 한도를 쓰는지 여기로 구분한다. */
     private static final String FEATURE = "expo-tagging";
 
-    private static final Map<String, List<String>> CATEGORY_TAGS = Map.of(
-            "IT·전자",  List.of("IT", "전자", "기술"),
-            "식품·음료", List.of("식품", "음료"),
-            "패션·뷰티", List.of("패션", "뷰티"),
-            "교육·취업", List.of("교육", "취업", "채용"),
-            "문화·예술", List.of("문화", "예술"),
-            "기타",     List.of("기타")
-    );
+    private static final Map<String, List<String>> CATEGORY_TAGS = CategoryTagMap.TAGS;
 
     private final ExpoTagRepository repository;
     private final GeminiClient geminiClient;

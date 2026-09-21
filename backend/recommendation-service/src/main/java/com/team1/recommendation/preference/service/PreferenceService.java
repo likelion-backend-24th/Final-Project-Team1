@@ -5,6 +5,7 @@ import com.team1.recommendation.preference.dto.UpsertPreferencesRequest;
 import com.team1.recommendation.preference.entity.PreferenceType;
 import com.team1.recommendation.preference.entity.UserPreference;
 import com.team1.recommendation.preference.repository.UserPreferenceRepository;
+import com.team1.recommendation.score.service.PreferenceScoreService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,9 +16,12 @@ import java.util.List;
 public class PreferenceService {
 
     private final UserPreferenceRepository repository;
+    private final PreferenceScoreService preferenceScoreService;
 
-    public PreferenceService(UserPreferenceRepository repository) {
+    public PreferenceService(UserPreferenceRepository repository,
+                             PreferenceScoreService preferenceScoreService) {
         this.repository = repository;
+        this.preferenceScoreService = preferenceScoreService;
     }
 
     @Transactional(readOnly = true)
@@ -44,6 +48,8 @@ public class PreferenceService {
                 repository.save(UserPreference.of(userId, PreferenceType.CATEGORY, c, now)));
         keywords.forEach(k ->
                 repository.save(UserPreference.of(userId, PreferenceType.KEYWORD, k, now)));
+
+        preferenceScoreService.applyInterests(userId, categories, keywords);
 
         return new PreferencesResponse(categories, keywords);
     }

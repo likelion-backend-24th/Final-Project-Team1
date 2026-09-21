@@ -6,8 +6,6 @@ import com.team1.recommendation.expo.client.ExpoSummary;
 import com.team1.recommendation.expo.client.InternalExpoClient;
 import com.team1.recommendation.expo.entity.ExpoTag;
 import com.team1.recommendation.expo.repository.ExpoTagRepository;
-import com.team1.recommendation.preference.entity.UserPreference;
-import com.team1.recommendation.preference.repository.UserPreferenceRepository;
 import com.team1.recommendation.recommendation.dto.RecommendationItem;
 import com.team1.recommendation.recommendation.dto.RecommendationResponse;
 import com.team1.recommendation.score.repository.UserPreferenceScoreRepository;
@@ -28,34 +26,28 @@ public class RecommendationService {
     private final UserPreferenceScoreRepository scoreRepository;
     private final ExpoTagRepository expoTagRepository;
     private final InternalExpoClient expoClient;
-    private final UserPreferenceRepository preferenceRepository;
     private final UserActivityRepository activityRepository;
 
     public RecommendationService(UserPreferenceScoreRepository scoreRepository,
                                  ExpoTagRepository expoTagRepository,
                                  InternalExpoClient expoClient,
-                                 UserPreferenceRepository preferenceRepository,
                                  UserActivityRepository activityRepository) {
         this.scoreRepository = scoreRepository;
         this.expoTagRepository = expoTagRepository;
         this.expoClient = expoClient;
-        this.preferenceRepository = preferenceRepository;
         this.activityRepository = activityRepository;
     }
 
     @Transactional(readOnly = true)
     public RecommendationResponse recommend(Long userId, int size) {
+        // BEHAVIOR + INTEREST 점수를 태그별로 합산
         Map<String, Double> userScores = scoreRepository.findByUserId(userId).stream()
-                .collect(Collectors.toMap(s -> s.getTagValue(), s -> s.getScore()));
+                .collect(Collectors.toMap(
+                        s -> s.getTagValue(),
+                        s -> s.getScore(),
+                        Double::sum));
 
-        // cold start: 행동 이력 없으면 수동 관심사로 초기 점수 구성
-        if (userScores.isEmpty()) {
-            List<UserPreference> interests = preferenceRepository.findByUserId(userId);
-            if (interests.isEmpty()) return new RecommendationResponse(List.of(), null);
-            for (UserPreference p : interests) {
-                userScores.put(p.getValue().toLowerCase(), 1.0);
-            }
-        }
+        if (userScores.isEmpty()) return new RecommendationResponse(List.of(), null);
 
         // 이미 예약한 박람회는 제외
         Set<Long> reservedExpoIds = activityRepository.findByUserId(userId).stream()
