@@ -92,6 +92,10 @@ export default function AuthPage() {
       const token = res.data.accessToken
       const claims = decodeJwt(token)
 
+      // login()은 setState라 localStorage 업데이트가 다음 렌더에 일어남
+      // saveInterests가 토큰을 읽을 수 있도록 먼저 직접 세팅
+      localStorage.setItem('token', token)
+
       // 관심사 저장 (선택했을 경우)
       if (selectedCats.length > 0) {
         await recommendationApi.saveInterests({ categories: selectedCats, keywords: [] })
