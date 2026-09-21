@@ -375,7 +375,7 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
   const T = 'transform 0.45s cubic-bezier(0.25,0.46,0.45,0.94)'
 
   return (
-    <div style={{ margin: '12px auto', maxWidth: 680, position: 'relative', height: 90, borderRadius: 14, overflow: 'hidden' }}
+    <div style={{ margin: '12px 0', position: 'relative', height: 160, borderRadius: 14, overflow: 'hidden' }}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
     >
@@ -402,12 +402,12 @@ function AiRecommendBanner({ recommendations, expoMap, onNavigate }: {
               }} />
             )}
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 100%)' }} />
-            <div style={{ position: 'relative', zIndex: 1, padding: '0 52px 0 20px', width: '100%' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#38BDF8', letterSpacing: '0.05em' }}>✨ AI 추천</span>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: '2px 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{slide.title}</h3>
-              <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ position: 'relative', zIndex: 1, padding: '0 64px 0 28px', width: '100%' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#38BDF8', letterSpacing: '0.05em' }}>✨ AI 추천</span>
+              <h3 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: '4px 0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{slide.title}</h3>
+              <div style={{ display: 'flex', gap: 6 }}>
                 {slide.tags.slice(0, 3).map(tag => (
-                  <span key={tag} style={{ fontSize: 10, color: 'rgba(255,255,255,0.8)', background: 'rgba(255,255,255,0.12)', padding: '1px 7px', borderRadius: 8 }}>#{tag}</span>
+                  <span key={tag} style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.15)', padding: '2px 10px', borderRadius: 10 }}>#{tag}</span>
                 ))}
               </div>
             </div>
