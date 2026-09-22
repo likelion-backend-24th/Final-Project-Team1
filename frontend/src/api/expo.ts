@@ -69,7 +69,7 @@ export const expoApi = {
     if (params?.keyword) q.set('keyword', params.keyword)
     if (params?.sort) q.set('sort', params.sort)
     q.set('page', String(params?.page ?? 1))
-    q.set('size', String(params?.size ?? 100))
+    q.set('size', String(params?.size ?? 12))
     return api.get<ApiResponse<Expo[]>>(`/expos?${q}`)
   },
 

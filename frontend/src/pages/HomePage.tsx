@@ -42,10 +42,17 @@ export default function HomePage() {
   const [aiApplied, setAiApplied] = useState(false)
   const [errorStatus, setErrorStatus] = useState<number | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
   const [promotions, setPromotions] = useState<ActivePromotion[]>([])
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([])
   const [tagMap, setTagMap] = useState<Record<string, string[]>>({})
   usePageTitle(query ? `'${query}' 검색` : category === '전체' ? '박람회 탐색' : `${category} 박람회`)
+
+  useEffect(() => {
+    setPage(1)
+    setTotalPages(1)
+  }, [category, keyword, sort, query, ignored])
 
   useEffect(() => {
     let cancelled = false
@@ -66,9 +73,13 @@ export default function HomePage() {
           category: category === '전체' ? undefined : category,
           keyword: keyword || undefined,
           sort: sort === 'recommended' ? undefined : sort,
+          page,
         })
           .then(res => {
-            if (!cancelled) setInterpreted(null)
+            if (!cancelled) {
+              setInterpreted(null)
+              setTotalPages(res.meta?.totalPages ?? 1)
+            }
             return res.data ?? []
           })
 
@@ -92,7 +103,7 @@ export default function HomePage() {
       })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [category, keyword, sort, query, ignored, reloadKey])
+  }, [category, keyword, sort, query, ignored, reloadKey, page])
 
   /** 칩 지우기. 문장은 그대로 두고 조건만 빼야 결과가 넓어진다 - 그래서 서버에 다시 묻는다. */
   function dropCondition(condition: SearchCondition) {
@@ -237,6 +248,44 @@ export default function HomePage() {
                 />
               ))}
             </div>
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button
+                  className="page-btn"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  ‹
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                  .reduce<(number | '...')[]>((acc, p, i, arr) => {
+                    if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('...')
+                    acc.push(p)
+                    return acc
+                  }, [])
+                  .map((p, i) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${i}`} className="page-ellipsis">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        className={`page-btn ${page === p ? 'active' : ''}`}
+                        onClick={() => setPage(p as number)}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                <button
+                  className="page-btn"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                >
+                  ›
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
