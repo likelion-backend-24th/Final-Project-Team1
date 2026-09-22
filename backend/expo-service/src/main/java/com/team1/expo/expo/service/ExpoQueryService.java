@@ -62,7 +62,10 @@ public class ExpoQueryService {
             int from = pageIndex * pageSize;
             int to = Math.min(from + pageSize, sorted.size());
             List<Expo> slice = from >= sorted.size() ? List.of() : sorted.subList(from, to);
-            return new PageImpl<>(withFeeBadge(slice), PageRequest.of(pageIndex, pageSize), sorted.size());
+            Map<Long, Boolean> paidSlice = paidFlags(slice);
+            return new PageImpl<>(
+                    slice.stream().map(e -> ExpoSummaryResponse.from(e, paidSlice.get(e.getId()))).toList(),
+                    PageRequest.of(pageIndex, pageSize), sorted.size());
         }
 
         Sort ordering = switch (sort == null ? "recommended" : sort) {
@@ -93,12 +96,6 @@ public class ExpoQueryService {
                 .replace("_", "!_");
     }
 
-    private List<ExpoSummaryResponse> withFeeBadge(List<Expo> expos) {
-        Map<Long, Boolean> paidByExpoId = paidFlags(expos);
-        return expos.stream()
-                .map(expo -> ExpoSummaryResponse.from(expo, paidByExpoId.get(expo.getId())))
-                .toList();
-    }
 
     /**
      * 목록 한 페이지의 유료/무료를 한 번에 받아온다. 박람회당 호출하면 페이지당 수십 번이 된다.
