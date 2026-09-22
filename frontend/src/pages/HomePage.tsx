@@ -44,6 +44,7 @@ export default function HomePage() {
   const [reloadKey, setReloadKey] = useState(0)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [totalElements, setTotalElements] = useState(0)
   const [promotions, setPromotions] = useState<ActivePromotion[]>([])
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([])
   const [tagMap, setTagMap] = useState<Record<string, string[]>>({})
@@ -52,6 +53,7 @@ export default function HomePage() {
   useEffect(() => {
     setPage(1)
     setTotalPages(1)
+    setTotalElements(0)
   }, [category, keyword, sort, query, ignored])
 
   useEffect(() => {
@@ -79,6 +81,7 @@ export default function HomePage() {
             if (!cancelled) {
               setInterpreted(null)
               setTotalPages(res.meta?.totalPages ?? 1)
+              setTotalElements(res.meta?.totalElements ?? 0)
             }
             return res.data ?? []
           })
@@ -233,7 +236,7 @@ export default function HomePage() {
             <div className="section-header">
               <span className="section-title">
                 {query ? '검색 결과' : category === '전체' ? '전체 박람회' : category}
-                <span className="section-count">{displayExpos.length}개</span>
+                <span className="section-count">{(totalElements || displayExpos.length)}개</span>
               </span>
             </div>
             <div className="expo-grid">
