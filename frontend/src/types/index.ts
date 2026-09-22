@@ -186,6 +186,6 @@ export interface PageMeta {
 export interface ApiResponse<T> {
   success: boolean
   data: T
-  meta?: PageMeta
+  meta?: unknown
   message?: string
 }

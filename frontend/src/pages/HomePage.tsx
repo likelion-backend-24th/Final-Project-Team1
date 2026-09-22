@@ -5,7 +5,7 @@ import { recommendationApi, type RecommendationItem } from '../api/recommendatio
 import { cdnImage } from '../lib/cloudinary'
 import type { ExpoSort, SearchCondition, SearchInterpretation } from '../api/expo'
 import { expoKey } from '../types'
-import type { ActivePromotion, Expo } from '../types'
+import type { ActivePromotion, Expo, PageMeta } from '../types'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { useAuth } from '../context/AuthContext'
 
@@ -83,8 +83,8 @@ export default function HomePage() {
           .then(res => {
             if (!cancelled) {
               setInterpreted(null)
-              setTotalPages(res.meta?.totalPages ?? 1)
-              setTotalElements(res.meta?.totalElements ?? 0)
+              setTotalPages((res.meta as PageMeta | undefined)?.totalPages ?? 1)
+              setTotalElements((res.meta as PageMeta | undefined)?.totalElements ?? 0)
             }
             return res.data ?? []
           })
