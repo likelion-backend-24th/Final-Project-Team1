@@ -13,6 +13,15 @@ export interface PublicationResponse {
 
 export type ExpoSort = 'recommended' | 'newest' | 'deadline'
 
+/**
+ * 소개글 초안 응답. applied=false 면 초안을 만들지 못했다는 뜻이고 description 은 null 이다.
+ * 이때도 200 이라, 화면은 안내만 띄우고 입력창을 그대로 둔다.
+ */
+export interface DescriptionDraft {
+  description: string | null
+  applied: boolean
+}
+
 /** 시스템이 문장을 어떻게 읽었는지. 값이 null 이면 그 조건을 못 뽑았다는 뜻이다. */
 export interface SearchInterpretation {
   region: string | null
@@ -144,6 +153,22 @@ export const expoApi = {
       detailImageUrls?: string[]
     }
   ) => api.post<ApiResponse<Expo>>(`/channels/${channelId}/expos`, data),
+
+  /**
+   * POST /api/v1/channels/{channelId}/expos/description-draft — 주최자 본인 채널만.
+   * 키워드와 이미 입력한 값을 넘겨 소개글 초안을 받는다. 저장하지 않는다 - 응답만 돌려주고
+   * 주최자가 화면에서 고친 뒤 저장 버튼을 눌러야 DB 에 들어간다.
+   */
+  draftDescription: (
+    channelId: number,
+    data: {
+      keywords: string[]
+      title?: string
+      category?: string
+      venue?: string
+      region?: string
+    }
+  ) => api.post<ApiResponse<DescriptionDraft>>(`/channels/${channelId}/expos/description-draft`, data),
 
   /**
    * POST /api/v1/expos/{expoId}/publication — PATCH /publish 아님.

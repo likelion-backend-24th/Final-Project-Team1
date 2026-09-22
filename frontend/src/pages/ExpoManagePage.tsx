@@ -33,6 +33,10 @@ export default function ExpoManagePage() {
   const [error, setError] = useState('')
   const [loadingExpo, setLoadingExpo] = useState(isEdit)
 
+  // 소개글 초안. 키워드 입력과 생성 중 표시.
+  const [keywords, setKeywords] = useState('')
+  const [drafting, setDrafting] = useState(false)
+
   useEffect(() => {
     if (!isEdit) return
     expoApi.getMyExpoById(editingId)
@@ -52,6 +56,38 @@ export default function ExpoManagePage() {
       .catch(() => setError('박람회 정보를 불러오지 못했습니다.'))
       .finally(() => setLoadingExpo(false))
   }, [editingId])
+
+  // 키워드로 소개글 초안을 받아 입력창을 채운다. 저장은 하지 않는다 - 주최자가 읽고 고친 뒤
+  // 저장 버튼을 눌러야 들어간다. 이미 쓴 소개문이 있으면 덮어쓰기 전에 확인을 받는다.
+  async function handleDraft() {
+    const list = keywords.split(',').map(k => k.trim()).filter(Boolean)
+    if (list.length === 0) { toast('키워드를 먼저 입력해주세요.'); return }
+    if (!channelId) { setError('채널을 먼저 생성해주세요.'); return }
+    if (form.description.trim() && !confirm('이미 작성한 소개글이 있습니다. 초안으로 덮어쓸까요?')) {
+      return
+    }
+
+    setDrafting(true)
+    try {
+      const res = await expoApi.draftDescription(channelId, {
+        keywords: list,
+        title: form.title || undefined,
+        category: form.category,
+        venue: form.venue || undefined,
+        region: form.region || undefined,
+      })
+      if (res.data.applied && res.data.description) {
+        setForm(p => ({ ...p, description: res.data.description as string }))
+        toast('초안을 채웠습니다. 읽어보고 고쳐서 저장하세요.')
+      } else {
+        toast('초안을 만들지 못했습니다. 직접 작성해 주세요.')
+      }
+    } catch {
+      toast('초안을 만들지 못했습니다. 직접 작성해 주세요.')
+    } finally {
+      setDrafting(false)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -172,12 +208,37 @@ export default function ExpoManagePage() {
 
               <div className="form-group" style={{ marginBottom: 28 }}>
                 <label className="form-label">박람회 소개</label>
+
+                {/* 키워드로 초안 생성. AI 가 대신 쓰는 게 아니라 빈 입력창을 채워주는 도구다 -
+                    그래서 배지를 붙이지 않고, 채운 뒤엔 주최자가 고쳐서 자기 글로 만든다. */}
+                <div className="draft-box">
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder="키워드를 쉼표로 구분해 입력 (예: AI, 스타트업, 네트워킹)"
+                    value={keywords}
+                    onChange={e => setKeywords(e.target.value)}
+                    disabled={drafting}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleDraft() } }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={handleDraft}
+                    disabled={drafting || !channelId}
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    {drafting ? '만드는 중...' : '✨ 초안 만들기'}
+                  </button>
+                </div>
+
                 <textarea
                   className="form-input"
                   placeholder={'방문자에게 보여질 박람회 소개를 입력하세요.\n\n줄을 바꾸면 화면에도 그대로 나옵니다.'}
                   value={form.description}
                   onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                   rows={10}
+                  disabled={drafting}
                   style={{ minHeight: 220, resize: 'vertical', lineHeight: 1.7 }}
                 />
                 <p style={{ fontSize: 12, color: 'var(--sub)' }}>
