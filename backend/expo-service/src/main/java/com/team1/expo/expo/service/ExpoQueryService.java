@@ -51,7 +51,7 @@ public class ExpoQueryService {
         int pageSize = Math.min(Math.max(size, 1), MAX_SIZE);
 
         if ("deadline".equals(sort)) {
-            List<Expo> all = expoQueryRepository.findAllPublished(region, category, q);
+            List<Expo> all = expoQueryRepository.findPublished(region, category, q, Pageable.unpaged()).getContent();
             List<Long> ids = all.stream().map(Expo::getId).toList();
             Map<Long, Instant> deadlineMap = ids.isEmpty() ? Map.of() : roundClient.nearestDeadlines(ids);
             List<Expo> sorted = all.stream()

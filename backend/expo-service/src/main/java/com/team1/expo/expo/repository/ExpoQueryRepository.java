@@ -40,19 +40,6 @@ public interface ExpoQueryRepository extends Repository<Expo, Long> {
                              @Param("keyword") String keyword,
                              Pageable pageable);
 
-    @Query("""
-            select e from Expo e
-            where e.status = com.team1.expo.domain.expo.ExpoStatus.PUBLISHED
-              and (:region is null or e.region = :region)
-              and (:category is null or e.category = :category)
-              and (:keyword is null or lower(e.title) like lower(concat('%', :keyword, '%')) escape '!'
-                                     or lower(e.description) like lower(concat('%', :keyword, '%')) escape '!'
-                                     or lower(e.venue) like lower(concat('%', :keyword, '%')) escape '!')
-            """)
-    List<Expo> findAllPublished(@Param("region") String region,
-                                @Param("category") String category,
-                                @Param("keyword") String keyword);
-
     /**
      * 공개 박람회에 실제로 쓰인 지역 값. 자연어 검색이 이 목록에서만 고르게 해 DB 값과 일치시킨다.
      * region 은 주최자가 자유 입력한 문자열이고 조회는 정확 일치라, 표기가 조금만 달라도 0건이 된다.
