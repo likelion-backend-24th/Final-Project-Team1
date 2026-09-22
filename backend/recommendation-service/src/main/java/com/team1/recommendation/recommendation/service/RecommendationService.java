@@ -70,10 +70,10 @@ public class RecommendationService {
                     if (tags == null || tags.isEmpty()) return null;
 
                     List<String> matched = tags.stream()
-                            .filter(t -> userScores.containsKey(t) || userScores.containsKey(t.toLowerCase()))
+                            .filter(userScores::containsKey)
                             .toList();
                     double score = matched.stream()
-                            .mapToDouble(t -> userScores.getOrDefault(t, userScores.getOrDefault(t.toLowerCase(), 0.0)))
+                            .mapToDouble(t -> userScores.getOrDefault(t, 0.0))
                             .sum();
                     if (score <= 0) return null;
 
