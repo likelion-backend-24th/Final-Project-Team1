@@ -1,6 +1,7 @@
 package com.team1.reservation.round.controller;
 
 import com.team1.reservation.round.service.RoundService;
+import com.team1.reservation.round.dto.DeadlineSortResult;
 import com.team1.reservation.round.dto.ExistsResponse;
 import com.team1.reservation.round.dto.ExpoFeeSummaryResponse;
 import com.team1.reservation.round.dto.InternalRoundResponse;
@@ -78,5 +79,14 @@ public class InternalRoundController {
         return roundService.nearestDeadlines(expoIds).entrySet().stream()
                 .map(e -> new NearestDeadlineView(e.getKey(), e.getValue()))
                 .toList();
+    }
+
+    /** 마감일 기준 정렬 + 페이지 슬라이싱. 모집마감일순 목록 페이지네이션 전용. */
+    @GetMapping("/deadline-sort")
+    public DeadlineSortResult deadlineSort(
+            @RequestParam List<Long> expoIds,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "12") int size) {
+        return roundService.deadlineSort(expoIds, page, size);
     }
 }

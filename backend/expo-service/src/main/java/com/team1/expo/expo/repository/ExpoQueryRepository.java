@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,6 +40,25 @@ public interface ExpoQueryRepository extends Repository<Expo, Long> {
                              @Param("category") String category,
                              @Param("keyword") String keyword,
                              Pageable pageable);
+
+    /** deadline 정렬용. 전체 ID만 가져온다(엔티티 전체 로드 대비 매우 가볍다). */
+    @Query("""
+            select e.id from Expo e
+            where e.status = com.team1.expo.domain.expo.ExpoStatus.PUBLISHED
+              and (:region is null or e.region = :region)
+              and (:category is null or e.category = :category)
+              and (:keyword is null or lower(e.title) like lower(concat('%', :keyword, '%')) escape '!'
+                                     or lower(e.description) like lower(concat('%', :keyword, '%')) escape '!'
+                                     or lower(e.venue) like lower(concat('%', :keyword, '%')) escape '!')
+            """)
+    List<Long> findPublishedIds(@Param("region") String region,
+                                @Param("category") String category,
+                                @Param("keyword") String keyword);
+
+    /** ID 목록으로 엔티티 일괄 조회. deadline 정렬 페이지 슬라이스용. */
+    @Query("select e from Expo e where e.id in :ids")
+    List<Expo> findByIdIn(@Param("ids") Collection<Long> ids);
+
 
     /**
      * 공개 박람회에 실제로 쓰인 지역 값. 자연어 검색이 이 목록에서만 고르게 해 DB 값과 일치시킨다.

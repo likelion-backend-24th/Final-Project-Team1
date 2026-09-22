@@ -3,6 +3,7 @@ package com.team1.expo.client;
 import com.team1.expo.common.TraceId;
 import com.team1.expo.common.exception.BusinessException;
 import com.team1.expo.common.exception.ErrorCode;
+import com.team1.expo.expo.dto.DeadlineSortResult;
 import com.team1.expo.expo.dto.ExpoFeeView;
 import com.team1.expo.expo.dto.NearestDeadlineView;
 import com.team1.expo.expo.dto.RoundView;
@@ -158,6 +159,26 @@ public class RestClientRoundClient implements RoundClient {
                     .collect(Collectors.toMap(NearestDeadlineView::expoId, NearestDeadlineView::nearestEndsAt));
         } catch (Exception e) {
             log.warn("nearestDeadlines 호출 실패 count={} traceId={}", expoIds.size(), TraceId.get(), e);
+            throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        }
+    }
+
+    @Override
+    public DeadlineSortResult deadlineSort(List<Long> expoIds, int page, int size) {
+        if (expoIds.isEmpty()) {
+            return new DeadlineSortResult(List.of(), 0);
+        }
+        String query = expoIds.stream().map(id -> "expoIds=" + id).collect(Collectors.joining("&"));
+        try {
+            DeadlineSortResult result = restClient.get()
+                    .uri("/internal/v1/rounds/deadline-sort?page={page}&size={size}&" + query, page, size)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + internalToken)
+                    .header(TraceId.HEADER, TraceId.get())
+                    .retrieve()
+                    .body(DeadlineSortResult.class);
+            return result != null ? result : new DeadlineSortResult(List.of(), 0);
+        } catch (Exception e) {
+            log.warn("deadlineSort 호출 실패 count={} traceId={}", expoIds.size(), TraceId.get(), e);
             throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
         }
     }
