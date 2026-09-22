@@ -109,7 +109,7 @@ public class ExpoTagService {
 
     private void saveKeywords(Long expoId, List<String> keywords) {
         LocalDateTime now = LocalDateTime.now();
-        validate(keywords).forEach(kw -> repository.save(ExpoTag.of(expoId, kw, null, now)));
+        keywords.forEach(kw -> repository.save(ExpoTag.of(expoId, kw, null, now)));
     }
 
     private void saveCategoryFallback(Long expoId, String category) {

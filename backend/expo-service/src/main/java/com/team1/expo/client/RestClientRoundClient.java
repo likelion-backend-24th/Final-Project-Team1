@@ -168,12 +168,13 @@ public class RestClientRoundClient implements RoundClient {
         if (expoIds.isEmpty()) {
             return new DeadlineSortResult(List.of(), 0);
         }
-        String query = expoIds.stream().map(id -> "expoIds=" + id).collect(Collectors.joining("&"));
         try {
-            DeadlineSortResult result = restClient.get()
-                    .uri("/internal/v1/rounds/deadline-sort?page={page}&size={size}&" + query, page, size)
+            DeadlineSortResult result = restClient.post()
+                    .uri("/internal/v1/rounds/deadline-sort?page={page}&size={size}", page, size)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + internalToken)
                     .header(TraceId.HEADER, TraceId.get())
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(expoIds)
                     .retrieve()
                     .body(DeadlineSortResult.class);
             return result != null ? result : new DeadlineSortResult(List.of(), 0);
