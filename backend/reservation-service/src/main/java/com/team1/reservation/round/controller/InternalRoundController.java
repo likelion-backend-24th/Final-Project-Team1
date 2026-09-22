@@ -9,6 +9,8 @@ import com.team1.reservation.round.dto.NearestDeadlineView;
 import com.team1.reservation.round.entity.Round;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -81,10 +83,10 @@ public class InternalRoundController {
                 .toList();
     }
 
-    /** 마감일 기준 정렬 + 페이지 슬라이싱. 모집마감일순 목록 페이지네이션 전용. */
-    @GetMapping("/deadline-sort")
+    /** 마감일 기준 정렬 + 페이지 슬라이싱. 모집마감일순 목록 페이지네이션 전용. POST body로 받아 URI 길이 제한을 피한다. */
+    @PostMapping("/deadline-sort")
     public DeadlineSortResult deadlineSort(
-            @RequestParam List<Long> expoIds,
+            @RequestBody List<Long> expoIds,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "12") int size) {
         return roundService.deadlineSort(expoIds, page, size);

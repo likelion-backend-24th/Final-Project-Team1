@@ -45,24 +45,37 @@ export default function HomePage() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalElements, setTotalElements] = useState(0)
+  const prevFilters = useRef({ category, keyword, sort, query, ignored })
   const [promotions, setPromotions] = useState<ActivePromotion[]>([])
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([])
   const [tagMap, setTagMap] = useState<Record<string, string[]>>({})
   usePageTitle(query ? `'${query}' 검색` : category === '전체' ? '박람회 탐색' : `${category} 박람회`)
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPage(1)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTotalPages(1)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTotalElements(0)
-  }, [category, keyword, sort, query, ignored])
+    const prev = prevFilters.current
+    const filtersChanged =
+      prev.category !== category || prev.keyword !== keyword ||
+      prev.sort !== sort || prev.query !== query || prev.ignored !== ignored
+    prevFilters.current = { category, keyword, sort, query, ignored }
 
-  useEffect(() => {
+    // 필터 변경 시 page > 1이면 1로 리셋만 하고 fetch는 page=1로 재실행된다
+    if (filtersChanged && page !== 1) {
+      setPage(1)
+      setTotalPages(1)
+      setTotalElements(0)
+      return
+    }
+
+    const effectivePage = filtersChanged ? 1 : page
     let cancelled = false
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
+    if (filtersChanged) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTotalPages(1)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTotalElements(0)
+    }
 
     // q 가 있으면 자연어 검색이다. 조건을 서버가 이미 걸어 내려주므로 카테고리·정렬은 쓰지 않는다.
     const fetching = query
@@ -78,7 +91,7 @@ export default function HomePage() {
           category: category === '전체' ? undefined : category,
           keyword: keyword || undefined,
           sort: sort === 'recommended' ? undefined : sort,
-          page,
+          page: effectivePage,
         })
           .then(res => {
             if (!cancelled) {
