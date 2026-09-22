@@ -799,6 +799,9 @@ input, select, textarea { font-family: inherit; }
 
 /* ─── Forms ─── */
 .form-group { margin-bottom: 20px; }
+.draft-box { display: flex; gap: 8px; margin-bottom: 10px; }
+.draft-box .form-input { flex: 1; }
+@media (max-width: 480px) { .draft-box { flex-direction: column; } }
 .form-label { display: block; font-size: 13px; font-weight: 700; color: var(--text2); margin-bottom: 6px; }
 .form-label .req { color: var(--primary); margin-left: 2px; }
 .form-input {
