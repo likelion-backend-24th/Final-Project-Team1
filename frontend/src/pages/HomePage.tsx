@@ -51,8 +51,11 @@ export default function HomePage() {
   usePageTitle(query ? `'${query}' 검색` : category === '전체' ? '박람회 탐색' : `${category} 박람회`)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPage(1)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTotalPages(1)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTotalElements(0)
   }, [category, keyword, sort, query, ignored])
 
