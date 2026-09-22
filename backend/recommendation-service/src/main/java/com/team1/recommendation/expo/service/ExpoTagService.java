@@ -109,13 +109,7 @@ public class ExpoTagService {
 
     private void saveKeywords(Long expoId, List<String> keywords) {
         LocalDateTime now = LocalDateTime.now();
-        keywords.stream()
-                .filter(kw -> kw != null && !kw.isBlank())
-                .map(String::trim)
-                .map(kw -> kw.length() > MAX_TAG_LENGTH ? kw.substring(0, MAX_TAG_LENGTH) : kw)
-                .distinct()
-                .limit(MAX_TAG_COUNT)
-                .forEach(kw -> repository.save(ExpoTag.of(expoId, kw, null, now)));
+        validate(keywords).forEach(kw -> repository.save(ExpoTag.of(expoId, kw, null, now)));
     }
 
     private void saveCategoryFallback(Long expoId, String category) {
