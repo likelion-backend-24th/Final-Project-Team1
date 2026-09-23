@@ -86,6 +86,33 @@ public class RestClientExpoClient implements ExpoClient {
         }
     }
 
+    @Override
+    public Map<Long, String> categories(Collection<Long> expoIds) {
+        if (expoIds.isEmpty()) {
+            return Map.of();
+        }
+        String query = expoIds.stream().map(id -> "expoIds=" + id).collect(Collectors.joining("&"));
+        try {
+            ExpoCategory[] found = restClient.get()
+                    .uri("/internal/v1/expos/categories?" + query)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + internalToken)
+                    .header(TraceId.HEADER, TraceId.get())
+                    .retrieve()
+                    .body(ExpoCategory[].class);
+
+            if (found == null) {
+                return Map.of();
+            }
+            return Arrays.stream(found)
+                    .filter(c -> c.expoId() != null && c.category() != null)
+                    .collect(Collectors.toMap(ExpoCategory::expoId, ExpoCategory::category, (a, b) -> a));
+
+        } catch (Exception e) {
+            log.warn("expoCategories failed count={} traceId={}", expoIds.size(), TraceId.get(), e);
+            return Map.of();
+        }
+    }
+
     /**
      * 실패를 삼키지 않는다. 비공개에 실패했는데 삭제를 진행하면
      * "회차 0개인 PUBLISHED 박람회" 가 남는다 - #24 가 막으려던 바로 그 상태다.

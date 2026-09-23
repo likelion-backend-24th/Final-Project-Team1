@@ -228,7 +228,7 @@ export default function CalendarPage() {
               <form className="calendar-constraint-form" onSubmit={handleSuggest}>
                 <input
                   className="form-input"
-                  placeholder="예: 오후 2시 이후만"
+                  placeholder="예: 오후 2시 이후만, IT 박람회만"
                   value={constraintInput}
                   onChange={e => setConstraintInput(e.target.value)}
                   maxLength={200}

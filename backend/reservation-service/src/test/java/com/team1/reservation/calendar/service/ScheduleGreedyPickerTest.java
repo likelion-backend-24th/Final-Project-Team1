@@ -75,7 +75,7 @@ class ScheduleGreedyPickerTest {
         InternalRoundResponse morning = round(2L, 20L, "2026-09-19T01:00:00Z", "2026-09-19T03:00:00Z");
 
         List<InternalRoundResponse> result = ScheduleGreedyPicker.pick(
-                List.of(afternoon, morning), new ScheduleConstraint(14));
+                List.of(afternoon, morning), new ScheduleConstraint(14, null));
 
         assertThat(result).extracting(InternalRoundResponse::roundId).containsExactly(1L);
     }
