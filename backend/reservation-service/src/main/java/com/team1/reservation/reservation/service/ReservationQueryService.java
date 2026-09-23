@@ -76,11 +76,24 @@ public class ReservationQueryService {
         return found.stream().map(AttendeeResponse::from).toList();
     }
 
+    /** 정산의 박람회별 집계는 결제 트랜잭션엔 없는 expoId 가 필요해, 예약을 일괄 조회해 붙인다. */
     @Transactional(readOnly = true)
     public List<InternalReservationPaymentResponse> getPaymentsForSettlement(Instant from, Instant to) {
         Set<PaymentStatus> statuses = EnumSet.of(PaymentStatus.PAID, PaymentStatus.CANCELLED);
-        return payments.findByStatusInAndUpdatedAtBetween(statuses, from, to).stream()
-                .map(InternalReservationPaymentResponse::of)
+        List<com.team1.payment.PaymentTransaction> found =
+                payments.findByStatusInAndUpdatedAtBetween(statuses, from, to);
+
+        List<Long> reservationIds = found.stream()
+                .map(com.team1.payment.PaymentTransaction::getRefId)
+                .distinct()
+                .toList();
+        Map<Long, Long> expoIdByReservationId = reservations.findAllById(reservationIds).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        com.team1.reservation.reservation.entity.Reservation::getId,
+                        com.team1.reservation.reservation.entity.Reservation::getExpoId));
+
+        return found.stream()
+                .map(tx -> InternalReservationPaymentResponse.of(tx, expoIdByReservationId.get(tx.getRefId())))
                 .toList();
     }
 

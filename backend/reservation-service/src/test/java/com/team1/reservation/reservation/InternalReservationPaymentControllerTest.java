@@ -41,7 +41,7 @@ class InternalReservationPaymentControllerTest {
         InternalReservationPaymentResponse tx = new InternalReservationPaymentResponse(
                 "PAY-1", 30000, "PAID",
                 Instant.parse("2026-09-10T09:30:00Z"), null,
-                Instant.parse("2026-09-10T09:30:00Z"), 42L);
+                Instant.parse("2026-09-10T09:30:00Z"), 42L, 7L);
 
         when(reservationQueryService.getPaymentsForSettlement(any(), any()))
                 .thenReturn(List.of(tx));
@@ -52,6 +52,7 @@ class InternalReservationPaymentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].paymentId").value("PAY-1"))
                 .andExpect(jsonPath("$[0].status").value("PAID"))
-                .andExpect(jsonPath("$[0].reservationId").value(42));
+                .andExpect(jsonPath("$[0].reservationId").value(42))
+                .andExpect(jsonPath("$[0].expoId").value(7));
     }
 }

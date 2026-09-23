@@ -3,6 +3,7 @@ package com.team1.settlement.controller;
 import com.team1.security.AuthContext;
 import com.team1.security.AuthenticatedUser;
 import com.team1.settlement.dto.AdminSettlementResponse;
+import com.team1.settlement.dto.SettlementPeriod;
 import com.team1.settlement.service.SettlementService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,6 +14,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDate;
+import java.util.List;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -39,15 +43,19 @@ class AdminSettlementControllerTest {
     }
 
     @Test
-    @DisplayName("SUPER_ADMIN이면 정산 데이터를 조회한다")
-    void superAdminCanViewSettlement() throws Exception {
+    @DisplayName("SUPER_ADMIN이면 월간 정산 데이터를 조회한다")
+    void superAdminCanViewMonthlySettlement() throws Exception {
         AuthContext.set(new AuthenticatedUser(1L, "SUPER_ADMIN"));
-        when(settlementService.getSettlement(2026, 9)).thenReturn(
+        when(settlementService.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 15))).thenReturn(
                 new AdminSettlementResponse(
-                        2026, 9, 4500000, 150000, 4350000, 435000, 0.10,
-                        4000000, 100000, 500000, 50000));
+                        SettlementPeriod.MONTH, "2026-09-01", "2026-09-30",
+                        4500000, 150000, 4350000, 435000, 0.10,
+                        4000000, 100000, 500000, 50000,
+                        12, 1, 3, 1,
+                        List.of(), List.of(), List.of()));
 
-        mockMvc.perform(get("/api/v1/admin/settlement").param("year", "2026").param("month", "9"))
+        mockMvc.perform(get("/api/v1/admin/settlement")
+                        .param("period", "MONTH").param("date", "2026-09-15"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalRevenue").value(4500000))
                 .andExpect(jsonPath("$.platformFee").value(435000))
@@ -58,17 +66,21 @@ class AdminSettlementControllerTest {
     }
 
     @Test
-    @DisplayName("month 없이 year만 넘기면 연간 정산 데이터를 조회한다")
+    @DisplayName("period=YEAR면 연간 정산 데이터를 조회한다")
     void superAdminCanViewYearlySettlement() throws Exception {
         AuthContext.set(new AuthenticatedUser(1L, "SUPER_ADMIN"));
-        when(settlementService.getSettlement(2026, null)).thenReturn(
+        when(settlementService.getSettlement(SettlementPeriod.YEAR, LocalDate.of(2026, 1, 1))).thenReturn(
                 new AdminSettlementResponse(
-                        2026, null, 54000000, 1800000, 52200000, 5220000, 0.10,
-                        48000000, 1600000, 6000000, 200000));
+                        SettlementPeriod.YEAR, "2026-01-01", "2026-12-31",
+                        54000000, 1800000, 52200000, 5220000, 0.10,
+                        48000000, 1600000, 6000000, 200000,
+                        120, 10, 30, 5,
+                        List.of(), List.of(), List.of()));
 
-        mockMvc.perform(get("/api/v1/admin/settlement").param("year", "2026"))
+        mockMvc.perform(get("/api/v1/admin/settlement")
+                        .param("period", "YEAR").param("date", "2026-01-01"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.month").doesNotExist())
+                .andExpect(jsonPath("$.period").value("YEAR"))
                 .andExpect(jsonPath("$.totalRevenue").value(54000000))
                 .andExpect(jsonPath("$.platformFee").value(5220000));
     }
@@ -76,7 +88,8 @@ class AdminSettlementControllerTest {
     @Test
     @DisplayName("로그인 안 했으면 401")
     void unauthenticatedIsRejected() throws Exception {
-        mockMvc.perform(get("/api/v1/admin/settlement").param("year", "2026").param("month", "9"))
+        mockMvc.perform(get("/api/v1/admin/settlement")
+                        .param("period", "MONTH").param("date", "2026-09-15"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -85,7 +98,8 @@ class AdminSettlementControllerTest {
     void nonAdminIsForbidden() throws Exception {
         AuthContext.set(new AuthenticatedUser(1L, "USER"));
 
-        mockMvc.perform(get("/api/v1/admin/settlement").param("year", "2026").param("month", "9"))
+        mockMvc.perform(get("/api/v1/admin/settlement")
+                        .param("period", "MONTH").param("date", "2026-09-15"))
                 .andExpect(status().isForbidden());
     }
 }
