@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   settlementApi,
   type AdminSettlementResponse,
@@ -101,6 +102,21 @@ export default function SettlementDashboard() {
 
   const selectedBucket = selectedDay ? data?.buckets.find(b => b.label === selectedDay) ?? null : null
 
+  const statTiles = data && (
+    <>
+      <StatTile label="매출" value={data.totalRevenue} prev={prevData?.totalRevenue} bg="var(--blue-l)" fg="var(--blue)" />
+      <StatTile label="환불" value={data.totalRefund} prev={prevData?.totalRefund} bg="var(--red-l)" fg="var(--red)" />
+      <StatTile label="순매출" value={data.netRevenue} prev={prevData?.netRevenue} bg="var(--green-l)" fg="var(--green)" />
+      <StatTile
+        label={`수수료 수익 (${Math.round(data.feeRate * 100)}%)`}
+        value={data.platformFee}
+        prev={prevData?.platformFee}
+        bg="var(--yellow-l)"
+        fg="var(--yellow)"
+      />
+    </>
+  )
+
   return (
     <div className="card" style={{ padding: 32, marginBottom: 24 }}>
       <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
@@ -144,33 +160,32 @@ export default function SettlementDashboard() {
         <p style={{ fontSize: 13, color: 'var(--sub)' }}>불러오는 중...</p>
       ) : data && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, marginBottom: 6 }}>
-            <StatTile label="매출" value={data.totalRevenue} prev={prevData?.totalRevenue} bg="var(--blue-l)" fg="var(--blue)" />
-            <StatTile label="환불" value={data.totalRefund} prev={prevData?.totalRefund} bg="var(--red-l)" fg="var(--red)" />
-            <StatTile label="순매출" value={data.netRevenue} prev={prevData?.netRevenue} bg="var(--green-l)" fg="var(--green)" />
-            <StatTile
-              label={`수수료 수익 (${Math.round(data.feeRate * 100)}%)`}
-              value={data.platformFee}
-              prev={prevData?.platformFee}
-              bg="var(--yellow-l)"
-              fg="var(--yellow)"
-            />
-          </div>
-          <p style={{ fontSize: 11, color: 'var(--sub)', marginBottom: 22 }}>
-            증감률은 {PREV_PERIOD_LABEL[period]} 대비입니다.
-          </p>
+          {period === 'MONTH' ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 28, marginBottom: 28, alignItems: 'start' }}>
+              <section>
+                <h3 className="settlement-section-title">날짜별 매출 (클릭하면 그 날 집계를 봅니다)</h3>
+                <MonthHeatmap from={data.from} buckets={data.buckets} selected={selectedDay} onSelect={setSelectedDay} />
+              </section>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {statTiles}
+                <p style={{ fontSize: 11, color: 'var(--sub)' }}>증감률은 {PREV_PERIOD_LABEL[period]} 대비입니다.</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, marginBottom: 6 }}>
+                {statTiles}
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--sub)', marginBottom: 22 }}>
+                증감률은 {PREV_PERIOD_LABEL[period]} 대비입니다.
+              </p>
+            </>
+          )}
 
           {data.buckets.length > 1 && (
             <section style={{ marginBottom: 28 }}>
               <h3 className="settlement-section-title">매출 추이 (막대를 클릭하면 값을 봅니다)</h3>
               <TrendChart buckets={data.buckets} selected={selectedDay} onSelect={setSelectedDay} />
-            </section>
-          )}
-
-          {period === 'MONTH' && (
-            <section style={{ marginBottom: 28 }}>
-              <h3 className="settlement-section-title">날짜별 매출 (클릭하면 그 날 집계를 봅니다)</h3>
-              <MonthHeatmap from={data.from} buckets={data.buckets} selected={selectedDay} onSelect={setSelectedDay} />
             </section>
           )}
 
@@ -207,8 +222,9 @@ export default function SettlementDashboard() {
             <section>
               <h3 className="settlement-section-title">박람회별 매출 Top 5</h3>
               <RankingList
-                items={data.topExpos.map(e => ({ label: e.title || `#${e.expoId}`, value: e.revenue }))}
+                items={data.topExpos.map(e => ({ key: String(e.expoId), label: e.title || `#${e.expoId}`, value: e.revenue }))}
                 color="var(--teal)"
+                linkTo={key => `/expos/${key}`}
               />
             </section>
           </div>
@@ -216,7 +232,7 @@ export default function SettlementDashboard() {
           <section>
             <h3 className="settlement-section-title">카테고리별 매출</h3>
             <RankingList
-              items={data.topCategories.map(c => ({ label: c.category, value: c.revenue }))}
+              items={data.topCategories.map(c => ({ key: c.category, label: c.category, value: c.revenue }))}
               color="var(--primary)"
             />
           </section>
@@ -426,7 +442,12 @@ function LegendRow({ color, label, value, sub }: { color: string; label: string;
   )
 }
 
-function RankingList({ items, color }: { items: { label: string; value: number }[]; color: string }) {
+function RankingList({ items, color, linkTo }: {
+  items: { key: string; label: string; value: number }[]
+  color: string
+  linkTo?: (key: string) => string
+}) {
+  const navigate = useNavigate()
   if (items.length === 0) {
     return <p style={{ fontSize: 12, color: 'var(--sub)' }}>데이터가 없습니다.</p>
   }
@@ -434,10 +455,11 @@ function RankingList({ items, color }: { items: { label: string; value: number }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {items.map(item => (
-        <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
-            style={{ width: 120, fontSize: 12, color: 'var(--text2)', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-            title={item.label}
+            className={linkTo ? 'settlement-rank-label linkable' : 'settlement-rank-label'}
+            onClick={linkTo ? () => navigate(linkTo(item.key)) : undefined}
+            title={linkTo ? `${item.label} - 클릭하면 상세 페이지로 이동합니다` : item.label}
           >
             {item.label}
           </div>
