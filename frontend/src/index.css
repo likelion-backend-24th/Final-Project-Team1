@@ -604,7 +604,7 @@ input, select, textarea { font-family: inherit; }
   gap: 6px;
   flex: 1;
   min-width: 180px;
-  max-width: 260px;
+  max-width: 420px;
 }
 .calendar-constraint-form .form-input {
   margin: 0;
