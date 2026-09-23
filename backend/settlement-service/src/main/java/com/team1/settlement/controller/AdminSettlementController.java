@@ -3,6 +3,7 @@ package com.team1.settlement.controller;
 import com.team1.security.AuthContext;
 import com.team1.security.AuthenticatedUser;
 import com.team1.settlement.dto.AdminSettlementResponse;
+import com.team1.settlement.dto.SettlementPeriod;
 import com.team1.settlement.service.SettlementService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/admin")
@@ -21,13 +24,14 @@ public class AdminSettlementController {
         this.settlementService = settlementService;
     }
 
+    /** date 는 그 기간을 잡는 기준일이다 - WEEK 면 그 주, MONTH 면 그 달, YEAR 면 그 해로 넓힌다. */
     @GetMapping("/settlement")
-    public AdminSettlementResponse getSettlement(@RequestParam int year,
-                                                 @RequestParam(required = false) Integer month) {
+    public AdminSettlementResponse getSettlement(@RequestParam SettlementPeriod period,
+                                                 @RequestParam LocalDate date) {
 
         requireSuperAdmin();
 
-        return settlementService.getSettlement(year, month);
+        return settlementService.getSettlement(period, date);
     }
 
     private void requireSuperAdmin() {

@@ -9,7 +9,8 @@ public record ReservationPaymentItem(
         Instant paidAt,
         Instant cancelledAt,
         Instant updatedAt,
-        Long reservationId
+        Long reservationId,
+        Long expoId
 ) {
 
 

@@ -1,8 +1,11 @@
 package com.team1.settlement.dto;
 
+import java.util.List;
+
 public record AdminSettlementResponse(
-        int year,
-        Integer month,
+        SettlementPeriod period,
+        String from,
+        String to,
         long totalRevenue,
         long totalRefund,
         long netRevenue,
@@ -11,7 +14,13 @@ public record AdminSettlementResponse(
         long reservationRevenue,
         long reservationRefund,
         long promotionRevenue,
-        long promotionRefund
+        long promotionRefund,
+        int reservationPaidCount,
+        int reservationRefundCount,
+        int promotionPaidCount,
+        int promotionRefundCount,
+        List<SettlementBucket> buckets,
+        List<ExpoRanking> topExpos,
+        List<CategoryRanking> topCategories
 ) {
-
 }
