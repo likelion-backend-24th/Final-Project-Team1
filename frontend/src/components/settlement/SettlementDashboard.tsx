@@ -74,6 +74,14 @@ const PREV_PERIOD_LABEL: Record<SettlementPeriodType, string> = {
   YEAR: '전년',
 }
 
+/** 실제 오늘 기준 고정 범위 - anchor 가 바뀌어도 선택지 목록이 흔들리지 않게 한다. */
+function yearOptions(): number[] {
+  const center = new Date().getFullYear()
+  const years: number[] = []
+  for (let y = center - 10; y <= center + 2; y++) years.push(y)
+  return years
+}
+
 export default function SettlementDashboard() {
   const [period, setPeriod] = useState<SettlementPeriodType>('MONTH')
   const [anchor, setAnchor] = useState(todayStr())
@@ -82,8 +90,9 @@ export default function SettlementDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
-  // DAY 는 이전/다음만으로 원하는 날짜를 찾아가기 번거로워서, 달력(월간과 같은 모양)을
-  // 날짜 선택기로 빌려 쓴다. 그 달력을 채우려면 그 달 전체 buckets 가 필요해서 따로 받는다.
+  const [pickerOpen, setPickerOpen] = useState(false)
+  // DAY 는 그 날 하루 buckets 뿐이라 달력을 못 채운다 - WEEK·MONTH·YEAR와 같은 모양의
+  // "그 달 전체" 달력을 보여주려고 따로 받는다(클릭 동작은 미리보기로 동일하게 맞춘다).
   const [calendarMonth, setCalendarMonth] = useState<AdminSettlementResponse | null>(null)
 
   useEffect(() => {
@@ -105,14 +114,14 @@ export default function SettlementDashboard() {
       .finally(() => setLoading(false))
   }, [period, anchor])
 
-  const selectedBucket = selectedDay ? data?.buckets.find(b => b.label === selectedDay) ?? null : null
+  // DAY 는 data.buckets 에 그 날 하루뿐이라 달력을 못 채운다 - calendarMonth(그 달 전체)를
+  // 달력용 데이터로 쓴다. 클릭 동작은 WEEK·MONTH·YEAR와 똑같이 "미리보기"다 -
+  // 위 매출/환불/순매출/수수료 숫자는 그대로 두고 아래 집계 패널만 바뀐다.
+  const calendarBuckets = period === 'DAY' && calendarMonth ? calendarMonth.buckets : data?.buckets ?? []
+  const calendarFrom = period === 'DAY' && calendarMonth ? calendarMonth.from : data?.from ?? anchor
+  const calendarPeriod: SettlementPeriodType = period === 'DAY' ? 'MONTH' : period
 
-  // DAY 모드에서는 달력이 "그날 상세를 훑어보기"가 아니라 "이 날짜로 이동하기" 역할이라,
-  // 클릭하면 selectedDay 대신 anchor 를 직접 바꾼다(=이전/다음과 같은 효과).
-  const calendarProps = period === 'DAY' && calendarMonth
-    ? { period: 'MONTH' as const, from: calendarMonth.from, buckets: calendarMonth.buckets, selected: anchor, onSelect: setAnchor }
-    : { period, from: data?.from ?? anchor, buckets: data?.buckets ?? [], selected: selectedDay, onSelect: setSelectedDay }
-  const calendarHint = period === 'DAY' ? '클릭하면 그 날짜로 이동합니다' : '클릭하면 그 구간 집계를 봅니다'
+  const selectedBucket = selectedDay ? calendarBuckets.find(b => b.label === selectedDay) ?? null : null
 
   const statTiles = data && (
     <>
@@ -144,7 +153,7 @@ export default function SettlementDashboard() {
             key={p.value}
             type="button"
             className={`btn btn-sm ${period === p.value ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setPeriod(p.value)}
+            onClick={() => { setPeriod(p.value); setPickerOpen(false) }}
           >
             {p.label}
           </button>
@@ -165,9 +174,14 @@ export default function SettlementDashboard() {
                 <button type="button" className="btn btn-outline btn-sm" onClick={() => setAnchor(a => shiftAnchor(period, a, -1))}>
                   이전
                 </button>
-                <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: 'var(--text)', textAlign: 'center' }}>
-                  {formatPeriodLabel(data.period, data.from, data.to)}
-                </span>
+                <button
+                  type="button"
+                  className="settlement-period-label"
+                  onClick={() => setPickerOpen(o => !o)}
+                  title="눌러서 연도·월을 바로 선택합니다"
+                >
+                  {formatPeriodLabel(data.period, data.from, data.to)} <span style={{ fontSize: 11 }}>▾</span>
+                </button>
                 <button type="button" className="btn btn-outline btn-sm" onClick={() => setAnchor(a => shiftAnchor(period, a, 1))}>
                   다음
                 </button>
@@ -175,9 +189,12 @@ export default function SettlementDashboard() {
                   오늘
                 </button>
               </div>
+              {pickerOpen && (
+                <DatePicker period={period} anchor={anchor} onChange={setAnchor} onDone={() => setPickerOpen(false)} />
+              )}
               <div>
-                <h3 className="settlement-section-title">날짜별 매출 ({calendarHint})</h3>
-                <PeriodHeatmap {...calendarProps} />
+                <h3 className="settlement-section-title">날짜별 매출 (클릭하면 그 구간 집계를 봅니다)</h3>
+                <PeriodHeatmap period={calendarPeriod} from={calendarFrom} buckets={calendarBuckets} selected={selectedDay} onSelect={setSelectedDay} />
               </div>
             </div>
             <div>
@@ -244,6 +261,67 @@ export default function SettlementDashboard() {
           </section>
         </>
       )}
+    </div>
+  )
+}
+
+/**
+ * 기간 라벨을 눌렀을 때 뜨는 빠른 이동 상자. 이전/다음만으로는 몇 년 전 달로
+ * 가려면 수십 번 눌러야 해서, 연도(+월)를 바로 골라 anchor 를 옮긴다.
+ */
+function DatePicker({ period, anchor, onChange, onDone }: {
+  period: SettlementPeriodType
+  anchor: string
+  onChange: (next: string) => void
+  onDone: () => void
+}) {
+  const [y, m] = anchor.split('-').map(Number)
+  const years = yearOptions()
+
+  if (period === 'YEAR') {
+    return (
+      <div className="settlement-date-picker">
+        <select
+          className="settlement-date-picker-select"
+          value={y}
+          onChange={e => { onChange(`${e.target.value}-01-01`); onDone() }}
+        >
+          {years.map(yr => <option key={yr} value={yr}>{yr}년</option>)}
+        </select>
+      </div>
+    )
+  }
+
+  if (period === 'MONTH') {
+    return (
+      <div className="settlement-date-picker">
+        <select
+          className="settlement-date-picker-select"
+          value={y}
+          onChange={e => onChange(`${e.target.value}-${String(m).padStart(2, '0')}-01`)}
+        >
+          {years.map(yr => <option key={yr} value={yr}>{yr}년</option>)}
+        </select>
+        <select
+          className="settlement-date-picker-select"
+          value={m}
+          onChange={e => { onChange(`${y}-${String(e.target.value).padStart(2, '0')}-01`); onDone() }}
+        >
+          {Array.from({ length: 12 }, (_, i) => i + 1).map(mo => <option key={mo} value={mo}>{mo}월</option>)}
+        </select>
+      </div>
+    )
+  }
+
+  // DAY · WEEK - 특정 날짜 하나를 고르면 되니 네이티브 날짜 입력이 제일 간단하다.
+  return (
+    <div className="settlement-date-picker">
+      <input
+        type="date"
+        className="settlement-date-picker-select"
+        value={anchor}
+        onChange={e => { if (e.target.value) { onChange(e.target.value); onDone() } }}
+      />
     </div>
   )
 }

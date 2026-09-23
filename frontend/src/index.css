@@ -705,6 +705,27 @@ input, select, textarea { font-family: inherit; }
   margin-left: 4px;
 }
 .settlement-today-btn:hover { color: var(--primary); border-color: var(--primary); }
+.settlement-period-label {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  padding: 4px 6px;
+  border-radius: var(--r-sm);
+}
+.settlement-period-label:hover { background: var(--gray1); color: var(--primary); }
+.settlement-date-picker { display: flex; justify-content: center; gap: 6px; }
+.settlement-date-picker-select {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 5px 8px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+}
 .settlement-change-badge { font-size: 11px; font-weight: 700; }
 .settlement-change-badge.up { color: var(--green); }
 .settlement-change-badge.down { color: var(--red); }
