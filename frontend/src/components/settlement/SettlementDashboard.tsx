@@ -56,6 +56,23 @@ function won(n: number): string {
   return `${n.toLocaleString()}원`
 }
 
+/** 좁은 차트 막대 라벨용 - 큰 숫자를 "11만원"처럼 줄인다. 정확한 값은 won()과 hover/클릭 상세에 있다. */
+function wonCompact(n: number): string {
+  if (Math.abs(n) >= 10000) {
+    const man = n / 10000
+    const rounded = Math.round(man * 10) / 10
+    return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}만원`
+  }
+  return won(n)
+}
+
+const PREV_PERIOD_LABEL: Record<SettlementPeriodType, string> = {
+  DAY: '전일',
+  WEEK: '전주',
+  MONTH: '전월',
+  YEAR: '전년',
+}
+
 export default function SettlementDashboard() {
   const [period, setPeriod] = useState<SettlementPeriodType>('MONTH')
   const [anchor, setAnchor] = useState(todayStr())
@@ -127,7 +144,7 @@ export default function SettlementDashboard() {
         <p style={{ fontSize: 13, color: 'var(--sub)' }}>불러오는 중...</p>
       ) : data && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, marginBottom: 28 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, marginBottom: 6 }}>
             <StatTile label="매출" value={data.totalRevenue} prev={prevData?.totalRevenue} bg="var(--blue-l)" fg="var(--blue)" />
             <StatTile label="환불" value={data.totalRefund} prev={prevData?.totalRefund} bg="var(--red-l)" fg="var(--red)" />
             <StatTile label="순매출" value={data.netRevenue} prev={prevData?.netRevenue} bg="var(--green-l)" fg="var(--green)" />
@@ -139,6 +156,9 @@ export default function SettlementDashboard() {
               fg="var(--yellow)"
             />
           </div>
+          <p style={{ fontSize: 11, color: 'var(--sub)', marginBottom: 22 }}>
+            증감률은 {PREV_PERIOD_LABEL[period]} 대비입니다.
+          </p>
 
           {data.buckets.length > 1 && (
             <section style={{ marginBottom: 28 }}>
@@ -245,33 +265,56 @@ function TrendChart({ buckets, selected, onSelect }: {
   selected: string | null
   onSelect: (label: string) => void
 }) {
+  const [hovered, setHovered] = useState<string | null>(null)
   const width = 800
   const height = 176
-  const topPad = 24
+  const topPad = 28
   const max = Math.max(...buckets.map(b => b.revenue), 1)
   const barSlot = width / buckets.length
-  const barWidth = Math.max(barSlot * 0.6, 2)
+  const barWidth = Math.max(barSlot * 0.62, 2)
   const maxIdx = buckets.reduce((best, b, i) => (b.revenue > buckets[best].revenue ? i : best), 0)
 
   const labelIdx = new Set([0, buckets.length - 1, Math.floor((buckets.length - 1) / 2)])
+  // 막대가 많을수록(월간 최대 31개) 지금 보는 게 어디쯤인지 구분이 안 돼서, 몇 개마다 세로선을 그어 기준점을 준다.
+  const gridEvery = buckets.length > 15 ? 5 : buckets.length > 7 ? 3 : 0
+
+  const previewLabel = hovered ?? selected
+  const previewBucket = buckets.find(b => b.label === previewLabel)
 
   return (
     <div>
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto', display: 'block', cursor: 'pointer' }} preserveAspectRatio="xMidYMid meet">
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', minHeight: 18, marginBottom: 4 }}>
+        {previewBucket
+          ? `${previewBucket.label} · 매출 ${won(previewBucket.revenue)} · 환불 ${won(previewBucket.refund)} · 순매출 ${won(previewBucket.net)}`
+          : ' '}
+      </div>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        style={{ width: '100%', height: 'auto', display: 'block', cursor: 'pointer' }}
+        preserveAspectRatio="xMidYMid meet"
+        onMouseLeave={() => setHovered(null)}
+      >
+        {gridEvery > 0 && buckets.map((b, i) => (
+          i % gridEvery === 0 && i !== 0 ? (
+            <line key={`grid-${b.label}`} x1={i * barSlot} y1={0} x2={i * barSlot} y2={height - 16} stroke="var(--border)" strokeWidth={1} />
+          ) : null
+        ))}
         {buckets.map((b, i) => {
           const barHeight = (b.revenue / max) * (height - topPad)
           const x = i * barSlot + (barSlot - barWidth) / 2
           const y = height - barHeight
           const isSelected = selected === b.label
+          const isHovered = hovered === b.label
           return (
-            <g key={b.label} onClick={() => onSelect(b.label)}>
-              {/* 클릭 히트 영역은 막대 전체 높이 - 값이 작은 막대는 얇아서 막대만으론 누르기 어렵다 */}
+            <g key={b.label} onClick={() => onSelect(b.label)} onMouseEnter={() => setHovered(b.label)}>
+              {/* 클릭·hover 판정 영역은 막대 전체 높이 - 값이 작은 막대는 얇아서 막대만으론 누르기 어렵다 */}
               <rect x={i * barSlot} y={0} width={barSlot} height={height} fill="transparent" />
-              <rect x={x} y={y} width={barWidth} height={Math.max(barHeight, 1)} rx={Math.min(2, barWidth / 2)}
-                fill={isSelected ? 'var(--primary)' : 'var(--blue)'}>
-                <title>{`${b.label}\n매출 ${won(b.revenue)} · 환불 ${won(b.refund)} · 순매출 ${won(b.net)}`}</title>
-              </rect>
-              {(i === maxIdx || isSelected) && b.revenue > 0 && (
+              <rect
+                x={x} y={y} width={barWidth} height={Math.max(barHeight, 1)} rx={Math.min(2, barWidth / 2)}
+                fill={isSelected ? 'var(--primary)' : 'var(--blue)'}
+                opacity={isHovered && !isSelected ? 0.75 : 1}
+              />
+              {(i === maxIdx || isSelected || isHovered) && b.revenue > 0 && (
                 <text
                   x={x + barWidth / 2}
                   y={Math.max(y - 6, 12)}
@@ -279,7 +322,7 @@ function TrendChart({ buckets, selected, onSelect }: {
                   fontSize="11"
                   fill={isSelected ? 'var(--primary)' : 'var(--sub)'}
                 >
-                  {b.revenue.toLocaleString()}
+                  {wonCompact(b.revenue)}
                 </text>
               )}
             </g>
