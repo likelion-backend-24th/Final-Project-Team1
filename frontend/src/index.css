@@ -692,6 +692,48 @@ input, select, textarea { font-family: inherit; }
 .expo-card.recommended { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-l); }
 .expo-card.ended { opacity: .6; }
 
+/* ─── Settlement dashboard ─── */
+.settlement-section-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+.settlement-today-btn {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--sub);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  margin-left: 4px;
+}
+.settlement-today-btn:hover { color: var(--primary); border-color: var(--primary); }
+.settlement-change-badge { font-size: 11px; font-weight: 700; }
+.settlement-change-badge.up { color: var(--green); }
+.settlement-change-badge.down { color: var(--red); }
+.settlement-change-badge.flat { color: var(--sub); }
+.settlement-heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.settlement-heatmap-weekday {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sub);
+  padding-bottom: 4px;
+}
+.settlement-heatmap-cell {
+  aspect-ratio: 1;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--gray1);
+  font-size: 11px;
+  color: var(--text2);
+  cursor: pointer;
+  transition: box-shadow .1s;
+}
+.settlement-heatmap-cell:hover { box-shadow: inset 0 0 0 1px var(--primary); }
+.settlement-heatmap-cell.selected { box-shadow: inset 0 0 0 2px var(--primary); font-weight: 700; }
+
 /* ─── Category Filter ─── */
 .cat-bar {
   display: flex;
