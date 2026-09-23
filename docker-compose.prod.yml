@@ -148,6 +148,10 @@ services:
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
       RESERVATION_SERVICE_URL: http://reservation-service:8083
       EXPO_SERVICE_URL: http://expo-service:8082
+      # 정산 기간 AI 요약(GeminiSettlementSummaryService). 없으면 isAvailable() 이
+      # 항상 false 라 요약 없이 숫자만 보여준다(fail-open).
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
       JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms64m -Xmx200m -XX:MaxMetaspaceSize=150m -Xss512k -XX:+UseSerialGC -XX:TieredStopAtLevel=1}
 
   web:

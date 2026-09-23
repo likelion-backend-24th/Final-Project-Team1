@@ -20,5 +20,11 @@ expo-service:
   connect-timeout: 2s
   read-timeout: 3s
 
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  connect-timeout: 3s
+  read-timeout: 4s
+  max-attempts: 1
+
 jwt:
   secret: ${JWT_SECRET:dev-only-not-a-real-secret-0123456789abcdef}

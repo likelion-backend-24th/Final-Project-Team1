@@ -36,16 +36,23 @@ public class SettlementService {
     private final ReservationPaymentClient reservationPaymentClient;
     private final ExpoPromotionPaymentClient expoPromotionPaymentClient;
     private final ExpoDirectoryClient expoDirectoryClient;
+    private final SettlementInsightService settlementInsightService;
 
     public SettlementService(ReservationPaymentClient reservationPaymentClient,
                              ExpoPromotionPaymentClient expoPromotionPaymentClient,
-                             ExpoDirectoryClient expoDirectoryClient) {
+                             ExpoDirectoryClient expoDirectoryClient,
+                             SettlementInsightService settlementInsightService) {
         this.reservationPaymentClient = reservationPaymentClient;
         this.expoPromotionPaymentClient = expoPromotionPaymentClient;
         this.expoDirectoryClient = expoDirectoryClient;
+        this.settlementInsightService = settlementInsightService;
     }
 
-    public AdminSettlementResponse getSettlement(SettlementPeriod period, LocalDate date) {
+    /**
+     * includeSummary 는 화면이 실제로 보여줄 조회 1건에서만 true 로 둔다 - 전기간 비교용,
+     * 당일 모드의 달력용 같은 보조 호출까지 매번 요약을 만들면 Gemini 호출이 2~3배로 는다.
+     */
+    public AdminSettlementResponse getSettlement(SettlementPeriod period, LocalDate date, boolean includeSummary) {
         LocalDate start = rangeStart(period, date);
         LocalDate end = rangeEnd(period, start);
 
@@ -74,12 +81,17 @@ public class SettlementService {
         List<ExpoRanking> topExpos = buildTopExpos(reservationPayments, promotionPayments);
         List<CategoryRanking> topCategories = buildTopCategories(reservationPayments, promotionPayments);
 
+        String aiSummary = includeSummary
+                ? settlementInsightService.summarize(start + " ~ " + end, totalRevenue, totalRefund, netRevenue,
+                        topExpos, topCategories, buckets)
+                : null;
+
         return new AdminSettlementResponse(
                 period, start.toString(), end.toString(),
                 totalRevenue, totalRefund, netRevenue, platformFee, FEE_RATE,
                 reservationRevenue, reservationRefund, promotionRevenue, promotionRefund,
                 reservationPaidCount, reservationRefundCount, promotionPaidCount, promotionRefundCount,
-                buckets, topExpos, topCategories);
+                buckets, topExpos, topCategories, aiSummary);
     }
 
     private LocalDate rangeStart(SettlementPeriod period, LocalDate date) {
