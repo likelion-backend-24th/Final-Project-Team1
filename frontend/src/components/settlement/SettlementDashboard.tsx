@@ -82,6 +82,9 @@ export default function SettlementDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  // DAY 는 이전/다음만으로 원하는 날짜를 찾아가기 번거로워서, 달력(월간과 같은 모양)을
+  // 날짜 선택기로 빌려 쓴다. 그 달력을 채우려면 그 달 전체 buckets 가 필요해서 따로 받는다.
+  const [calendarMonth, setCalendarMonth] = useState<AdminSettlementResponse | null>(null)
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -91,16 +94,25 @@ export default function SettlementDashboard() {
     Promise.all([
       settlementApi.getSettlement(period, anchor),
       settlementApi.getSettlement(period, shiftAnchor(period, anchor, -1)),
+      period === 'DAY' ? settlementApi.getSettlement('MONTH', anchor) : Promise.resolve(null),
     ])
-      .then(([curr, prev]) => {
+      .then(([curr, prev, month]) => {
         setData(curr)
         setPrevData(prev)
+        setCalendarMonth(month)
       })
       .catch(() => setError('정산 데이터를 불러오지 못했습니다.'))
       .finally(() => setLoading(false))
   }, [period, anchor])
 
   const selectedBucket = selectedDay ? data?.buckets.find(b => b.label === selectedDay) ?? null : null
+
+  // DAY 모드에서는 달력이 "그날 상세를 훑어보기"가 아니라 "이 날짜로 이동하기" 역할이라,
+  // 클릭하면 selectedDay 대신 anchor 를 직접 바꾼다(=이전/다음과 같은 효과).
+  const calendarProps = period === 'DAY' && calendarMonth
+    ? { period: 'MONTH' as const, from: calendarMonth.from, buckets: calendarMonth.buckets, selected: anchor, onSelect: setAnchor }
+    : { period, from: data?.from ?? anchor, buckets: data?.buckets ?? [], selected: selectedDay, onSelect: setSelectedDay }
+  const calendarHint = period === 'DAY' ? '클릭하면 그 날짜로 이동합니다' : '클릭하면 그 구간 집계를 봅니다'
 
   const statTiles = data && (
     <>
@@ -164,8 +176,8 @@ export default function SettlementDashboard() {
                 </button>
               </div>
               <div>
-                <h3 className="settlement-section-title">날짜별 매출 (클릭하면 그 구간 집계를 봅니다)</h3>
-                <PeriodHeatmap period={period} from={data.from} buckets={data.buckets} selected={selectedDay} onSelect={setSelectedDay} />
+                <h3 className="settlement-section-title">날짜별 매출 ({calendarHint})</h3>
+                <PeriodHeatmap {...calendarProps} />
               </div>
             </div>
             <div>
