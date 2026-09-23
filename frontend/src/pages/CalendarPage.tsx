@@ -278,7 +278,7 @@ export default function CalendarPage() {
                 {selectedExpos.length === 0 ? (
                   <p className="calendar-day-empty">이 날에는 등록된 행사가 없습니다.</p>
                 ) : (
-                  <div className="expo-grid">
+                  <div className="expo-grid calendar-expo-grid">
                     {pagedExpos.map(({ expoId, rounds, ended, recommendedHere }) => {
                       const expo = expoDetails[expoId]
                       const colors = THUMB_COLORS[expoId % THUMB_COLORS.length]
