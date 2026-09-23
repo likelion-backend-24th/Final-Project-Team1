@@ -94,6 +94,10 @@ services:
       PORTONE_CHANNEL_KEY: ${PORTONE_CHANNEL_KEY}
       PORTONE_API_SECRET: ${PORTONE_API_SECRET}
       PORTONE_WEBHOOK_SECRET: ${PORTONE_WEBHOOK_SECRET}
+      # 캘린더 추천의 시간·카테고리 조건 해석(GeminiConstraintParser). 없으면 isAvailable() 이
+      # 항상 false 라 Gemini 경로를 안 타고 정규식 폴백(시간만, 카테고리는 못 읽음)으로만 동작한다.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
 
   ticket-service:
     <<: *backend
