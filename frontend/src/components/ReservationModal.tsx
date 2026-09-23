@@ -87,6 +87,11 @@ export default function ReservationModal({ round, onClose, onSuccess, onReleased
         currency: 'CURRENCY_KRW',
         payMethod: 'CARD',
         customer: { fullName: contactName.trim(), phoneNumber: contactPhone.trim() },
+        // windowType 을 안 정하면 PG 기본값을 따르는데, 일부 PG는 모바일에서 POPUP(새 탭처럼
+        // 화면 전체를 차지)으로 열려 "결제창이 너무 크다"는 원인이 된다. IFRAME 으로 고정해
+        // 지금 코드가 기대하는 Promise 응답 흐름(REDIRECTION 은 페이지가 이탈해 이 흐름이 깨진다)
+        // 을 그대로 유지하면서 크기를 예측 가능하게 만든다.
+        windowType: { pc: 'IFRAME', mobile: 'IFRAME' },
       })
     } catch (e) {
       // SDK 입력값 오류(storeId·channelKey 누락 등)는 여기로 온다. 예약은 이미 만들어졌다.

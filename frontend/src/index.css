@@ -123,7 +123,7 @@ input, select, textarea { font-family: inherit; }
 .gnb-links a.active { color: var(--primary); font-weight: 700; }
 .gnb-auth { display: flex; gap: 8px; align-items: center; margin-left: auto; }
 .gnb-divider { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
-.gnb-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.gnb-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; }
 .gnb-role-badge {
   font-size: 11px;
   font-weight: 600;
@@ -131,6 +131,7 @@ input, select, textarea { font-family: inherit; }
   border-radius: 20px;
   background: var(--primary-l);
   color: var(--primary);
+  white-space: nowrap;
 }
 
 .gnb-user-menu { position: relative; }
@@ -1181,6 +1182,11 @@ tbody tr:hover td { background: var(--gray1); }
   .section-header { flex-wrap: wrap; gap: 8px; }
   .gnb-mobile-nav { display: contents; }
   .gnb-dropdown-divider { display: block; }
+}
+/* 로그인 상태일 때 이름·역할 배지까지 붙으면 480px 보다 넓은 폭에서도 검색창(고정 160px)
+   때문에 gnb 한 줄이 넘친다 - 검색창은 덜 중요하니 먼저 숨긴다. */
+@media (max-width: 640px) {
+  .gnb-search-form { display: none; }
 }
 @media (max-width: 480px) {
   body { font-size: 13px; }
