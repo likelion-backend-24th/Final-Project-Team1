@@ -5,7 +5,7 @@ import { recommendationApi, type RecommendationItem } from '../api/recommendatio
 import { cdnImage } from '../lib/cloudinary'
 import type { ExpoSort, SearchCondition, SearchInterpretation } from '../api/expo'
 import { expoKey } from '../types'
-import type { ActivePromotion, Expo } from '../types'
+import type { ActivePromotion, Expo, PageMeta } from '../types'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { useAuth } from '../context/AuthContext'
 
@@ -42,15 +42,40 @@ export default function HomePage() {
   const [aiApplied, setAiApplied] = useState(false)
   const [errorStatus, setErrorStatus] = useState<number | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalElements, setTotalElements] = useState(0)
+  const prevFilters = useRef({ category, keyword, sort, query, ignored })
   const [promotions, setPromotions] = useState<ActivePromotion[]>([])
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([])
   const [tagMap, setTagMap] = useState<Record<string, string[]>>({})
   usePageTitle(query ? `'${query}' 검색` : category === '전체' ? '박람회 탐색' : `${category} 박람회`)
 
   useEffect(() => {
+    const prev = prevFilters.current
+    const filtersChanged =
+      prev.category !== category || prev.keyword !== keyword ||
+      prev.sort !== sort || prev.query !== query || prev.ignored !== ignored
+    prevFilters.current = { category, keyword, sort, query, ignored }
+
+    // 필터 변경 시 page > 1이면 1로 리셋만 하고 fetch는 page=1로 재실행된다
+    if (filtersChanged && page !== 1) {
+      setPage(1)
+      setTotalPages(1)
+      setTotalElements(0)
+      return
+    }
+
+    const effectivePage = filtersChanged ? 1 : page
     let cancelled = false
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
+    if (filtersChanged) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTotalPages(1)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTotalElements(0)
+    }
 
     // q 가 있으면 자연어 검색이다. 조건을 서버가 이미 걸어 내려주므로 카테고리·정렬은 쓰지 않는다.
     const fetching = query
@@ -66,9 +91,14 @@ export default function HomePage() {
           category: category === '전체' ? undefined : category,
           keyword: keyword || undefined,
           sort: sort === 'recommended' ? undefined : sort,
+          page: effectivePage,
         })
           .then(res => {
-            if (!cancelled) setInterpreted(null)
+            if (!cancelled) {
+              setInterpreted(null)
+              setTotalPages((res.meta as PageMeta | undefined)?.totalPages ?? 1)
+              setTotalElements((res.meta as PageMeta | undefined)?.totalElements ?? 0)
+            }
             return res.data ?? []
           })
 
@@ -92,7 +122,7 @@ export default function HomePage() {
       })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [category, keyword, sort, query, ignored, reloadKey])
+  }, [category, keyword, sort, query, ignored, reloadKey, page])
 
   /** 칩 지우기. 문장은 그대로 두고 조건만 빼야 결과가 넓어진다 - 그래서 서버에 다시 묻는다. */
   function dropCondition(condition: SearchCondition) {
@@ -222,7 +252,7 @@ export default function HomePage() {
             <div className="section-header">
               <span className="section-title">
                 {query ? '검색 결과' : category === '전체' ? '전체 박람회' : category}
-                <span className="section-count">{displayExpos.length}개</span>
+                <span className="section-count">{(totalElements || displayExpos.length)}개</span>
               </span>
             </div>
             <div className="expo-grid">
@@ -237,6 +267,44 @@ export default function HomePage() {
                 />
               ))}
             </div>
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button
+                  className="page-btn"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  ‹
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                  .reduce<(number | '...')[]>((acc, p, i, arr) => {
+                    if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('...')
+                    acc.push(p)
+                    return acc
+                  }, [])
+                  .map((p, i) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${i}`} className="page-ellipsis">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        className={`page-btn ${page === p ? 'active' : ''}`}
+                        onClick={() => setPage(p as number)}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                <button
+                  className="page-btn"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                >
+                  ›
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

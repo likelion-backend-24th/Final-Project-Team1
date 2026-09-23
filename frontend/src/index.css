@@ -369,6 +369,12 @@ input, select, textarea { font-family: inherit; }
 /* ─── Expo Card (event-us style) ─── */
 .expo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
 .calendar-expo-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.pagination { display: flex; justify-content: center; align-items: center; gap: 4px; margin-top: 32px; }
+.page-btn { min-width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text); font-size: 14px; cursor: pointer; transition: all 0.15s; }
+.page-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.page-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 700; }
+.page-btn:disabled { opacity: 0.35; cursor: default; }
+.page-ellipsis { color: var(--sub); font-size: 14px; padding: 0 4px; }
 .expo-card {
   background: var(--surface);
   border-radius: var(--r-lg);
@@ -800,6 +806,9 @@ input, select, textarea { font-family: inherit; }
 
 /* ─── Forms ─── */
 .form-group { margin-bottom: 20px; }
+.draft-box { display: flex; gap: 8px; margin-bottom: 10px; }
+.draft-box .form-input { flex: 1; }
+@media (max-width: 480px) { .draft-box { flex-direction: column; } }
 .form-label { display: block; font-size: 13px; font-weight: 700; color: var(--text2); margin-bottom: 6px; }
 .form-label .req { color: var(--primary); margin-left: 2px; }
 .form-input {

@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.lang.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -132,12 +133,20 @@ public class GeminiClient {
                     return null;
                 }
 
-            } catch (RuntimeException e) {
-                log.warn("gemini call failed feature={} attempt={} ms={} reason={}",
-                        feature, attempt, System.currentTimeMillis() - startedAt, e.getMessage());
+            } catch (HttpServerErrorException e) {
+                // 5xx 는 서버가 1초 안에 거절한 것이다. 다시 보내는 값이 크고 비용은 거의 없다.
+                log.warn("gemini call failed feature={} attempt={} status={} body={}",
+                        feature, attempt, e.getStatusCode(), e.getResponseBodyAsString());
                 if (!sleepBeforeRetry(attempt)) {
                     return null;
                 }
+
+            } catch (RuntimeException e) {
+                // 여기 오는 건 대개 read-timeout 이다. 이미 10초를 쓴 뒤라 다시 보내면
+                // 같은 답을 받으려고 사용자가 두 배로 기다린다. 한 번으로 끝내고 폴백에 맡긴다.
+                log.warn("gemini call timed out feature={} attempt={} ms={} reason={}",
+                        feature, attempt, System.currentTimeMillis() - startedAt, e.getMessage());
+                return null;
             }
         }
         return null;

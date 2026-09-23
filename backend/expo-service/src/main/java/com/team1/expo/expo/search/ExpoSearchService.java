@@ -10,6 +10,7 @@ import com.team1.expo.expo.service.ExpoQueryService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,8 +71,8 @@ public class ExpoSearchService {
 
         SearchFilter parsed = parser.parse(query);
         SearchFilter filter = parsed.without(ignore);
-        List<Expo> matched = expoQueryRepository.findAllPublished(
-                filter.region(), filter.category(), ExpoQueryService.normalizeKeyword(filter.keyword()));
+        List<Expo> matched = expoQueryRepository.findPublished(
+                filter.region(), filter.category(), ExpoQueryService.normalizeKeyword(filter.keyword()), Pageable.unpaged()).getContent();
 
         Map<Long, Boolean> paidByExpoId = expoQueryService.paidFlags(matched);
         List<Expo> byPaid = matched.stream()

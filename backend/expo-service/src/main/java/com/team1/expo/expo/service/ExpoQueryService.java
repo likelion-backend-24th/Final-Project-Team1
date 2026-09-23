@@ -6,6 +6,7 @@ import com.team1.expo.common.exception.ErrorCode;
 import com.team1.expo.domain.expo.Expo;
 import com.team1.expo.domain.expo.ExpoCategories;
 import com.team1.expo.domain.expo.ExpoStatus;
+import com.team1.expo.expo.dto.DeadlineSortResult;
 import com.team1.expo.expo.dto.ExpoDetailResponse;
 import com.team1.expo.expo.dto.ExpoFeeView;
 import com.team1.expo.expo.dto.ExpoSummaryResponse;
@@ -20,8 +21,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -51,18 +50,24 @@ public class ExpoQueryService {
         int pageSize = Math.min(Math.max(size, 1), MAX_SIZE);
 
         if ("deadline".equals(sort)) {
-            List<Expo> all = expoQueryRepository.findAllPublished(region, category, q);
-            List<Long> ids = all.stream().map(Expo::getId).toList();
-            Map<Long, Instant> deadlineMap = ids.isEmpty() ? Map.of() : roundClient.nearestDeadlines(ids);
-            List<Expo> sorted = all.stream()
-                    .sorted(Comparator.comparing(
-                            expo -> deadlineMap.get(expo.getId()),
-                            Comparator.nullsLast(Comparator.naturalOrder())))
+            List<Long> allIds = expoQueryRepository.findPublishedIds(region, category, q);
+            if (allIds.isEmpty()) {
+                return new PageImpl<>(List.of(), PageRequest.of(pageIndex, pageSize), 0);
+            }
+            DeadlineSortResult sorted = roundClient.deadlineSort(allIds, page, pageSize);
+            if (sorted.expoIds().isEmpty()) {
+                return new PageImpl<>(List.of(), PageRequest.of(pageIndex, pageSize), sorted.totalElements());
+            }
+            Map<Long, Expo> expoMap = expoQueryRepository.findByIdIn(sorted.expoIds()).stream()
+                    .collect(Collectors.toMap(Expo::getId, e -> e));
+            List<Expo> slice = sorted.expoIds().stream()
+                    .map(expoMap::get)
+                    .filter(e -> e != null)
                     .toList();
-            int from = pageIndex * pageSize;
-            int to = Math.min(from + pageSize, sorted.size());
-            List<Expo> slice = from >= sorted.size() ? List.of() : sorted.subList(from, to);
-            return new PageImpl<>(withFeeBadge(slice), PageRequest.of(pageIndex, pageSize), sorted.size());
+            Map<Long, Boolean> paidSlice = paidFlags(slice);
+            return new PageImpl<>(
+                    slice.stream().map(e -> ExpoSummaryResponse.from(e, paidSlice.get(e.getId()))).toList(),
+                    PageRequest.of(pageIndex, pageSize), sorted.totalElements());
         }
 
         Sort ordering = switch (sort == null ? "recommended" : sort) {
@@ -93,12 +98,6 @@ public class ExpoQueryService {
                 .replace("_", "!_");
     }
 
-    private List<ExpoSummaryResponse> withFeeBadge(List<Expo> expos) {
-        Map<Long, Boolean> paidByExpoId = paidFlags(expos);
-        return expos.stream()
-                .map(expo -> ExpoSummaryResponse.from(expo, paidByExpoId.get(expo.getId())))
-                .toList();
-    }
 
     /**
      * 목록 한 페이지의 유료/무료를 한 번에 받아온다. 박람회당 호출하면 페이지당 수십 번이 된다.

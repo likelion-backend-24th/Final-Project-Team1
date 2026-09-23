@@ -5,8 +5,10 @@ import com.team1.reservation.client.ExpoSummary;
 import com.team1.reservation.common.ApiException;
 import com.team1.reservation.common.ErrorCode;
 import com.team1.reservation.round.dto.CreateRoundRequest;
+import com.team1.reservation.round.dto.DeadlineSortResult;
 import com.team1.reservation.round.dto.ExpoFeeSummaryResponse;
 import com.team1.reservation.round.dto.InternalRoundResponse;
+import com.team1.reservation.round.dto.NearestDeadlineView;
 import com.team1.reservation.round.dto.UpdateRoundRequest;
 import com.team1.reservation.round.entity.Round;
 import com.team1.reservation.round.repository.RoundRepository;
@@ -253,6 +255,37 @@ public class RoundService {
         rounds.findNearestDeadlinesByExpoIds(expoIds, clock.instant())
                 .forEach(v -> result.put(v.expoId(), v.nearestEndsAt()));
         return result;
+    }
+
+    /**
+     * 마감일 기준 정렬 후 페이지 슬라이싱.
+     * 마감일 있는 박람회(오름차순) → 마감일 없는 박람회 순으로 반환한다.
+     */
+    @Transactional(readOnly = true)
+    public DeadlineSortResult deadlineSort(Collection<Long> expoIds, int page, int size) {
+        if (expoIds == null || expoIds.isEmpty()) {
+            return new DeadlineSortResult(List.of(), 0);
+        }
+        Map<Long, Instant> deadlineMap = new HashMap<>();
+        rounds.findNearestDeadlinesByExpoIds(expoIds, clock.instant())
+                .forEach(v -> deadlineMap.put(v.expoId(), v.nearestEndsAt()));
+
+        List<Long> withDeadline = expoIds.stream()
+                .filter(deadlineMap::containsKey)
+                .sorted(Comparator.comparing(deadlineMap::get))
+                .toList();
+        List<Long> noDeadline = expoIds.stream()
+                .filter(id -> !deadlineMap.containsKey(id))
+                .toList();
+
+        List<Long> sorted = new ArrayList<>(withDeadline);
+        sorted.addAll(noDeadline);
+
+        int from = (page - 1) * size;
+        int to = Math.min(from + size, sorted.size());
+        List<Long> slice = from >= sorted.size() ? List.of() : sorted.subList(from, to);
+
+        return new DeadlineSortResult(slice, sorted.size());
     }
 
     @Transactional(readOnly = true)

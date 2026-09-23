@@ -1,5 +1,6 @@
 package com.team1.expo.client;
 
+import com.team1.expo.expo.dto.DeadlineSortResult;
 import com.team1.expo.expo.dto.ExpoFeeView;
 import com.team1.expo.expo.dto.NearestDeadlineView;
 import com.team1.expo.expo.dto.RoundView;
@@ -29,6 +30,9 @@ public interface RoundClient {
 
     /** GET /internal/v1/rounds/nearest-deadlines?expoIds= — 모집마감일순 정렬용 일괄 조회. */
     Map<Long, Instant> nearestDeadlines(List<Long> expoIds);
+
+    /** GET /internal/v1/rounds/deadline-sort — 마감일 기준 정렬+페이지 슬라이싱. */
+    DeadlineSortResult deadlineSort(List<Long> expoIds, int page, int size);
 
     /**
      * GET /internal/v1/rounds/by-date — 기간에 걸치는 회차를 가진 박람회 id.

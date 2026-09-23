@@ -175,6 +175,13 @@ export interface Page<T> {
   size: number
 }
 
+export interface PageMeta {
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
 /** 전 서비스 공통 응답 봉투. 실패 시 data 는 { code } 만 담는다. */
 export interface ApiResponse<T> {
   success: boolean
