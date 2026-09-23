@@ -768,16 +768,22 @@ input, select, textarea { font-family: inherit; }
 .settlement-heatmap-cell:hover { box-shadow: inset 0 0 0 1px var(--primary); }
 .settlement-heatmap-cell.selected { box-shadow: inset 0 0 0 2px var(--primary); font-weight: 700; }
 .settlement-rank-label {
-  width: 220px;
+  flex: 0 1 220px;
+  min-width: 60px;
   font-size: 12px;
   color: var(--text2);
-  flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .settlement-rank-label.linkable { cursor: pointer; }
 .settlement-rank-label.linkable:hover { color: var(--primary); text-decoration: underline; }
+
+/* 좁은 화면에서는 달력·통계, 도넛·랭킹처럼 나란히 두던 2단 구성을 세로로 쌓는다 -
+   inline style 의 grid-template-columns 를 덮어써야 해서 !important 가 필요하다. */
+@media (max-width: 640px) {
+  .settlement-stack-mobile { grid-template-columns: 1fr !important; }
+}
 
 /* ─── Category Filter ─── */
 .cat-bar {

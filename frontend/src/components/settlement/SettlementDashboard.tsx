@@ -168,7 +168,7 @@ export default function SettlementDashboard() {
         <>
           {/* 날짜 이동 줄과 달력의 너비를 맞추려고 하나의 inline-flex 컬럼으로 묶는다 -
               둘 중 더 넓은 쪽 폭에 나머지가 맞춰져서, "오늘" 버튼 오른쪽 끝이 달력 오른쪽 끝과 나란해진다. */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 28, marginBottom: 8, alignItems: 'start' }}>
+          <div className="settlement-stack-mobile" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 28, marginBottom: 8, alignItems: 'start' }}>
             <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <button type="button" className="btn btn-outline btn-sm" onClick={() => setAnchor(a => shiftAnchor(period, a, -1))}>
@@ -198,7 +198,7 @@ export default function SettlementDashboard() {
               </div>
             </div>
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
                 {statTiles}
               </div>
               <p style={{ fontSize: 11, color: 'var(--sub)', marginTop: 8 }}>증감률은 {PREV_PERIOD_LABEL[period]} 대비입니다.</p>
@@ -252,7 +252,7 @@ export default function SettlementDashboard() {
             </section>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 320px) 1fr', gap: 32, marginBottom: 28 }}>
+          <div className="settlement-stack-mobile" style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 320px) 1fr', gap: 32, marginBottom: 28 }}>
             <section>
               <h3 className="settlement-section-title">매출 구성</h3>
               <RevenueDonut reservation={data.reservationRevenue} promotion={data.promotionRevenue} />
