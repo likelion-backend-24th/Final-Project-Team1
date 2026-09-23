@@ -141,8 +141,8 @@ export default function SettlementDashboard() {
 
           {data.buckets.length > 1 && (
             <section style={{ marginBottom: 28 }}>
-              <h3 className="settlement-section-title">매출 추이</h3>
-              <TrendChart buckets={data.buckets} />
+              <h3 className="settlement-section-title">매출 추이 (막대를 클릭하면 값을 봅니다)</h3>
+              <TrendChart buckets={data.buckets} selected={selectedDay} onSelect={setSelectedDay} />
             </section>
           )}
 
@@ -150,25 +150,26 @@ export default function SettlementDashboard() {
             <section style={{ marginBottom: 28 }}>
               <h3 className="settlement-section-title">날짜별 매출 (클릭하면 그 날 집계를 봅니다)</h3>
               <MonthHeatmap from={data.from} buckets={data.buckets} selected={selectedDay} onSelect={setSelectedDay} />
-              {selectedBucket && (
-                <div style={{ marginTop: 16 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
-                    {selectedBucket.label} 집계
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
-                    <StatTile label="매출" value={selectedBucket.revenue} bg="var(--blue-l)" fg="var(--blue)" compact />
-                    <StatTile label="환불" value={selectedBucket.refund} bg="var(--red-l)" fg="var(--red)" compact />
-                    <StatTile label="순매출" value={selectedBucket.net} bg="var(--green-l)" fg="var(--green)" compact />
-                    <StatTile
-                      label="수수료 수익"
-                      value={Math.round(selectedBucket.net * data.feeRate)}
-                      bg="var(--yellow-l)"
-                      fg="var(--yellow)"
-                      compact
-                    />
-                  </div>
-                </div>
-              )}
+            </section>
+          )}
+
+          {selectedBucket && (
+            <section style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+                {selectedBucket.label} 집계
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
+                <StatTile label="매출" value={selectedBucket.revenue} bg="var(--blue-l)" fg="var(--blue)" compact />
+                <StatTile label="환불" value={selectedBucket.refund} bg="var(--red-l)" fg="var(--red)" compact />
+                <StatTile label="순매출" value={selectedBucket.net} bg="var(--green-l)" fg="var(--green)" compact />
+                <StatTile
+                  label="수수료 수익"
+                  value={Math.round(selectedBucket.net * data.feeRate)}
+                  bg="var(--yellow-l)"
+                  fg="var(--yellow)"
+                  compact
+                />
+              </div>
             </section>
           )}
 
@@ -238,26 +239,49 @@ function ChangeBadge({ curr, prev }: { curr: number; prev: number }) {
   )
 }
 
-function TrendChart({ buckets }: { buckets: SettlementBucket[] }) {
+function TrendChart({ buckets, selected, onSelect }: {
+  buckets: SettlementBucket[]
+  selected: string | null
+  onSelect: (label: string) => void
+}) {
   const width = 800
-  const height = 160
+  const height = 176
+  const topPad = 24
   const max = Math.max(...buckets.map(b => b.revenue), 1)
   const barSlot = width / buckets.length
   const barWidth = Math.max(barSlot * 0.6, 2)
+  const maxIdx = buckets.reduce((best, b, i) => (b.revenue > buckets[best].revenue ? i : best), 0)
 
   const labelIdx = new Set([0, buckets.length - 1, Math.floor((buckets.length - 1) / 2)])
 
   return (
     <div>
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto', display: 'block' }} preserveAspectRatio="xMidYMid meet">
+      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto', display: 'block', cursor: 'pointer' }} preserveAspectRatio="xMidYMid meet">
         {buckets.map((b, i) => {
-          const barHeight = (b.revenue / max) * (height - 8)
+          const barHeight = (b.revenue / max) * (height - topPad)
           const x = i * barSlot + (barSlot - barWidth) / 2
           const y = height - barHeight
+          const isSelected = selected === b.label
           return (
-            <rect key={b.label} x={x} y={y} width={barWidth} height={Math.max(barHeight, 1)} rx={Math.min(2, barWidth / 2)} fill="var(--blue)">
-              <title>{`${b.label}\n매출 ${won(b.revenue)} · 환불 ${won(b.refund)} · 순매출 ${won(b.net)}`}</title>
-            </rect>
+            <g key={b.label} onClick={() => onSelect(b.label)}>
+              {/* 클릭 히트 영역은 막대 전체 높이 - 값이 작은 막대는 얇아서 막대만으론 누르기 어렵다 */}
+              <rect x={i * barSlot} y={0} width={barSlot} height={height} fill="transparent" />
+              <rect x={x} y={y} width={barWidth} height={Math.max(barHeight, 1)} rx={Math.min(2, barWidth / 2)}
+                fill={isSelected ? 'var(--primary)' : 'var(--blue)'}>
+                <title>{`${b.label}\n매출 ${won(b.revenue)} · 환불 ${won(b.refund)} · 순매출 ${won(b.net)}`}</title>
+              </rect>
+              {(i === maxIdx || isSelected) && b.revenue > 0 && (
+                <text
+                  x={x + barWidth / 2}
+                  y={Math.max(y - 6, 12)}
+                  textAnchor="middle"
+                  fontSize="11"
+                  fill={isSelected ? 'var(--primary)' : 'var(--sub)'}
+                >
+                  {b.revenue.toLocaleString()}
+                </text>
+              )}
+            </g>
           )
         })}
       </svg>
