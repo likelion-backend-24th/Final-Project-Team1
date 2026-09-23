@@ -66,6 +66,7 @@ export default function SettlementDashboard() {
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     setError('')
     setSelectedDay(null)
