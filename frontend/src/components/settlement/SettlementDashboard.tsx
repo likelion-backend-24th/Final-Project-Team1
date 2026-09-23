@@ -101,7 +101,7 @@ export default function SettlementDashboard() {
     setError('')
     setSelectedDay(null)
     Promise.all([
-      settlementApi.getSettlement(period, anchor),
+      settlementApi.getSettlement(period, anchor, true),
       settlementApi.getSettlement(period, shiftAnchor(period, anchor, -1)),
       period === 'DAY' ? settlementApi.getSettlement('MONTH', anchor) : Promise.resolve(null),
     ])
@@ -204,6 +204,26 @@ export default function SettlementDashboard() {
               <p style={{ fontSize: 11, color: 'var(--sub)', marginTop: 8 }}>증감률은 {PREV_PERIOD_LABEL[period]} 대비입니다.</p>
             </div>
           </div>
+
+          {data.aiSummary && (
+            <div
+              style={{
+                display: 'flex',
+                gap: 10,
+                alignItems: 'flex-start',
+                padding: '12px 16px',
+                marginBottom: 20,
+                background: '#F5F0FF',
+                borderLeft: '3px solid #7C3AED',
+                borderRadius: 8,
+                fontSize: 13,
+                color: 'var(--text)',
+              }}
+            >
+              <span style={{ flexShrink: 0 }}>✨</span>
+              <span>{data.aiSummary}</span>
+            </div>
+          )}
 
           {data.buckets.length > 1 && (
             <section style={{ marginBottom: 28 }}>

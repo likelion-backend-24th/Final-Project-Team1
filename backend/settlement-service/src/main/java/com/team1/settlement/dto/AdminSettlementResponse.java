@@ -21,6 +21,8 @@ public record AdminSettlementResponse(
         int promotionRefundCount,
         List<SettlementBucket> buckets,
         List<ExpoRanking> topExpos,
-        List<CategoryRanking> topCategories
+        List<CategoryRanking> topCategories,
+        /** Gemini 가 만든 한글 요약. 호출 안 했거나(summary=false) 실패/한도초과면 null - fail-open. */
+        String aiSummary
 ) {
 }

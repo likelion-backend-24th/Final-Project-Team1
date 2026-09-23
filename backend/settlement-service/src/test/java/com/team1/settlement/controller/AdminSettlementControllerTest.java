@@ -46,13 +46,13 @@ class AdminSettlementControllerTest {
     @DisplayName("SUPER_ADMIN이면 월간 정산 데이터를 조회한다")
     void superAdminCanViewMonthlySettlement() throws Exception {
         AuthContext.set(new AuthenticatedUser(1L, "SUPER_ADMIN"));
-        when(settlementService.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 15))).thenReturn(
+        when(settlementService.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 15), false)).thenReturn(
                 new AdminSettlementResponse(
                         SettlementPeriod.MONTH, "2026-09-01", "2026-09-30",
                         4500000, 150000, 4350000, 435000, 0.10,
                         4000000, 100000, 500000, 50000,
                         12, 1, 3, 1,
-                        List.of(), List.of(), List.of()));
+                        List.of(), List.of(), List.of(), null));
 
         mockMvc.perform(get("/api/v1/admin/settlement")
                         .param("period", "MONTH").param("date", "2026-09-15"))
@@ -69,13 +69,13 @@ class AdminSettlementControllerTest {
     @DisplayName("period=YEAR면 연간 정산 데이터를 조회한다")
     void superAdminCanViewYearlySettlement() throws Exception {
         AuthContext.set(new AuthenticatedUser(1L, "SUPER_ADMIN"));
-        when(settlementService.getSettlement(SettlementPeriod.YEAR, LocalDate.of(2026, 1, 1))).thenReturn(
+        when(settlementService.getSettlement(SettlementPeriod.YEAR, LocalDate.of(2026, 1, 1), false)).thenReturn(
                 new AdminSettlementResponse(
                         SettlementPeriod.YEAR, "2026-01-01", "2026-12-31",
                         54000000, 1800000, 52200000, 5220000, 0.10,
                         48000000, 1600000, 6000000, 200000,
                         120, 10, 30, 5,
-                        List.of(), List.of(), List.of()));
+                        List.of(), List.of(), List.of(), null));
 
         mockMvc.perform(get("/api/v1/admin/settlement")
                         .param("period", "YEAR").param("date", "2026-01-01"))

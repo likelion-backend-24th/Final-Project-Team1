@@ -42,12 +42,14 @@ class SettlementServiceTest {
     private ExpoPromotionPaymentClient expoPromotionPaymentClient;
     @Mock
     private ExpoDirectoryClient expoDirectoryClient;
+    @Mock
+    private SettlementInsightService settlementInsightService;
 
     private SettlementService service;
 
     @BeforeEach
     void setUp() {
-        service = new SettlementService(reservationPaymentClient, expoPromotionPaymentClient, expoDirectoryClient);
+        service = new SettlementService(reservationPaymentClient, expoPromotionPaymentClient, expoDirectoryClient, settlementInsightService);
         // 매출이 없는 테스트에서는 랭킹 집계가 조회 자체를 건너뛰어(비어있으면 호출 안 함) 이 기본값들이
         // 안 쓰일 수 있다 - lenient 로 안전한 기본값 취급한다.
         org.mockito.Mockito.lenient().when(expoPromotionPaymentClient.getPayments(any(), any())).thenReturn(List.of());
@@ -73,7 +75,7 @@ class SettlementServiceTest {
                 paid("2026-09-15", 20000, 1L),
                 cancelled("2026-09-15", 5000, 1L)));
 
-        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 20));
+        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 20), false);
 
         assertThat(result.from()).isEqualTo("2026-09-01");
         assertThat(result.to()).isEqualTo("2026-09-30");
@@ -93,7 +95,7 @@ class SettlementServiceTest {
                 paid("2026-03-10", 30000, 1L),
                 paid("2026-11-05", 70000, 1L)));
 
-        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.YEAR, LocalDate.of(2026, 6, 1));
+        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.YEAR, LocalDate.of(2026, 6, 1), false);
 
         assertThat(result.buckets()).hasSize(12);
         assertThat(findBucket(result.buckets(), "2026-03").revenue()).isEqualTo(30000);
@@ -107,7 +109,7 @@ class SettlementServiceTest {
         when(reservationPaymentClient.getPayments(any(), any())).thenReturn(List.of());
 
         // 2026-09-23 은 수요일
-        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.WEEK, LocalDate.of(2026, 9, 23));
+        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.WEEK, LocalDate.of(2026, 9, 23), false);
 
         assertThat(result.from()).isEqualTo("2026-09-21"); // 월
         assertThat(result.to()).isEqualTo("2026-09-27");   // 일
@@ -119,7 +121,7 @@ class SettlementServiceTest {
     void dayRangeIsSingleDay() {
         when(reservationPaymentClient.getPayments(any(), any())).thenReturn(List.of());
 
-        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.DAY, LocalDate.of(2026, 9, 23));
+        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.DAY, LocalDate.of(2026, 9, 23), false);
 
         assertThat(result.from()).isEqualTo("2026-09-23");
         assertThat(result.to()).isEqualTo("2026-09-23");
@@ -137,7 +139,7 @@ class SettlementServiceTest {
                 new ExpoPromotionPaymentItem("promo-1", 20000, Instant.parse("2026-09-04T00:00:00Z"), "PAID", 2L)));
         when(expoDirectoryClient.titles(any())).thenReturn(Map.of(1L, "IT 박람회", 2L, "뷰티 박람회"));
 
-        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 1));
+        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 1), false);
 
         // expo 2: 8000(예약) + 20000(프로모션) = 28000, expo 1: 10000+5000 = 15000
         assertThat(result.topExpos()).extracting(ExpoRanking::expoId).containsExactly(2L, 1L);
@@ -153,7 +155,7 @@ class SettlementServiceTest {
                 paid("2026-09-02", 20000, 2L)));
         when(expoDirectoryClient.categories(any())).thenReturn(Map.of(1L, "IT·전자"));
 
-        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 1));
+        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 1), false);
 
         assertThat(result.topCategories()).extracting(CategoryRanking::category)
                 .containsExactlyInAnyOrder("IT·전자", "기타");
@@ -171,7 +173,7 @@ class SettlementServiceTest {
                 paid("2026-09-02", 20000, 1L),
                 cancelled("2026-09-03", 5000, 1L)));
 
-        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 1));
+        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 1), false);
 
         assertThat(result.reservationPaidCount()).isEqualTo(2);
         assertThat(result.reservationRefundCount()).isEqualTo(1);
@@ -182,7 +184,7 @@ class SettlementServiceTest {
     void queriesUseKstDayBoundaries() {
         when(reservationPaymentClient.getPayments(any(), any())).thenReturn(List.of());
 
-        service.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 1));
+        service.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 1), false);
 
         ArgumentCaptor<Instant> from = ArgumentCaptor.forClass(Instant.class);
         ArgumentCaptor<Instant> to = ArgumentCaptor.forClass(Instant.class);
@@ -191,6 +193,32 @@ class SettlementServiceTest {
         assertThat(from.getValue()).isEqualTo(Instant.parse("2026-08-31T15:00:00Z"));
         // KST 2026-10-01 00:00(다음날 시작, exclusive) = UTC 2026-09-30T15:00:00Z
         assertThat(to.getValue()).isEqualTo(Instant.parse("2026-09-30T15:00:00Z"));
+    }
+
+    @Test
+    @DisplayName("includeSummary=false면 요약 서비스를 아예 안 부른다 - 보조 호출에서 Gemini 낭비 방지")
+    void skipsInsightServiceWhenSummaryNotRequested() {
+        when(reservationPaymentClient.getPayments(any(), any())).thenReturn(List.of());
+
+        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 1), false);
+
+        assertThat(result.aiSummary()).isNull();
+        org.mockito.Mockito.verifyNoInteractions(settlementInsightService);
+    }
+
+    @Test
+    @DisplayName("includeSummary=true면 요약 서비스 결과를 aiSummary에 담는다")
+    void includesSummaryWhenRequested() {
+        when(reservationPaymentClient.getPayments(any(), any())).thenReturn(List.of(
+                paid("2026-09-01", 10000, 1L)));
+        when(settlementInsightService.summarize(any(), org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(),
+                any(), any(), any()))
+                .thenReturn("이번 달 매출은 10,000원입니다.");
+
+        AdminSettlementResponse result = service.getSettlement(SettlementPeriod.MONTH, LocalDate.of(2026, 9, 1), true);
+
+        assertThat(result.aiSummary()).isEqualTo("이번 달 매출은 10,000원입니다.");
     }
 
     private SettlementBucket findBucket(List<SettlementBucket> buckets, String label) {

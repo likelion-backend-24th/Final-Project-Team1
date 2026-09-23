@@ -44,11 +44,16 @@ export interface AdminSettlementResponse {
   buckets: SettlementBucket[]
   topExpos: ExpoRanking[]
   topCategories: CategoryRanking[]
+  aiSummary: string | null
 }
 
 export const settlementApi = {
-  // GET /api/v1/admin/settlement?period=&date=  (SUPER_ADMIN 전용)
+  // GET /api/v1/admin/settlement?period=&date=&summary=  (SUPER_ADMIN 전용)
   // date 는 "YYYY-MM-DD" - 그 기간(day/week/month/year)을 잡는 기준일이다.
-  getSettlement: (period: SettlementPeriodType, date: string) =>
-    api.get<AdminSettlementResponse>(`/admin/settlement?period=${period}&date=${date}`),
+  // includeSummary 는 화면에 실제로 보여줄 조회 1건에서만 true 로 보낸다 - 비교용·보조 호출까지
+  // 켜면 Gemini 호출이 불필요하게 늘어난다.
+  getSettlement: (period: SettlementPeriodType, date: string, includeSummary = false) =>
+    api.get<AdminSettlementResponse>(
+      `/admin/settlement?period=${period}&date=${date}&summary=${includeSummary}`,
+    ),
 }
