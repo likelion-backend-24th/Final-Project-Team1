@@ -139,48 +139,42 @@ export default function SettlementDashboard() {
         ))}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-        <button type="button" className="btn btn-outline btn-sm" onClick={() => setAnchor(a => shiftAnchor(period, a, -1))}>
-          이전
-        </button>
-        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', minWidth: 160, textAlign: 'center' }}>
-          {data ? formatPeriodLabel(data.period, data.from, data.to) : ' '}
-        </span>
-        <button type="button" className="btn btn-outline btn-sm" onClick={() => setAnchor(a => shiftAnchor(period, a, 1))}>
-          다음
-        </button>
-        <button type="button" className="settlement-today-btn" onClick={() => setAnchor(todayStr())}>
-          오늘
-        </button>
-      </div>
-
       {error && <div className="alert alert-danger"><span>⚠</span><span>{error}</span></div>}
 
       {loading ? (
         <p style={{ fontSize: 13, color: 'var(--sub)' }}>불러오는 중...</p>
       ) : data && (
         <>
-          {period === 'MONTH' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 28, marginBottom: 28, alignItems: 'start' }}>
-              <section>
-                <h3 className="settlement-section-title">날짜별 매출 (클릭하면 그 날 집계를 봅니다)</h3>
-                <MonthHeatmap from={data.from} buckets={data.buckets} selected={selectedDay} onSelect={setSelectedDay} />
-              </section>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {statTiles}
-                <p style={{ fontSize: 11, color: 'var(--sub)' }}>증감률은 {PREV_PERIOD_LABEL[period]} 대비입니다.</p>
+          {/* 날짜 이동 줄과 달력의 너비를 맞추려고 하나의 inline-flex 컬럼으로 묶는다 -
+              둘 중 더 넓은 쪽 폭에 나머지가 맞춰져서, "오늘" 버튼 오른쪽 끝이 달력 오른쪽 끝과 나란해진다. */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 28, marginBottom: 8, alignItems: 'start' }}>
+            <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => setAnchor(a => shiftAnchor(period, a, -1))}>
+                  이전
+                </button>
+                <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: 'var(--text)', textAlign: 'center' }}>
+                  {formatPeriodLabel(data.period, data.from, data.to)}
+                </span>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => setAnchor(a => shiftAnchor(period, a, 1))}>
+                  다음
+                </button>
+                <button type="button" className="settlement-today-btn" onClick={() => setAnchor(todayStr())}>
+                  오늘
+                </button>
+              </div>
+              <div>
+                <h3 className="settlement-section-title">날짜별 매출 (클릭하면 그 구간 집계를 봅니다)</h3>
+                <PeriodHeatmap period={period} from={data.from} buckets={data.buckets} selected={selectedDay} onSelect={setSelectedDay} />
               </div>
             </div>
-          ) : (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, marginBottom: 6 }}>
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {statTiles}
               </div>
-              <p style={{ fontSize: 11, color: 'var(--sub)', marginBottom: 22 }}>
-                증감률은 {PREV_PERIOD_LABEL[period]} 대비입니다.
-              </p>
-            </>
-          )}
+              <p style={{ fontSize: 11, color: 'var(--sub)', marginTop: 8 }}>증감률은 {PREV_PERIOD_LABEL[period]} 대비입니다.</p>
+            </div>
+          </div>
 
           {data.buckets.length > 1 && (
             <section style={{ marginBottom: 28 }}>
@@ -356,43 +350,102 @@ function TrendChart({ buckets, selected, onSelect }: {
   )
 }
 
-function MonthHeatmap({ from, buckets, selected, onSelect }: {
+/**
+ * 기간별 날짜 상자 - 전부 같은 buckets 배열로 그린다(추가 API 호출 없음).
+ * MONTH 만 진짜 달력(요일 정렬) 모양이고, 나머지는 요일 정렬이 의미가 없어서
+ * (WEEK 는 월~일이라 일요일이 첫 칸에 와 순서가 헷갈리고, YEAR 는 달 단위라 요일 자체가 없다)
+ * 칸 안에 라벨을 직접 적는 단순한 가로 배치로 통일한다.
+ */
+function PeriodHeatmap({ period, from, buckets, selected, onSelect }: {
+  period: SettlementPeriodType
   from: string
   buckets: SettlementBucket[]
   selected: string | null
   onSelect: (label: string) => void
 }) {
-  const [y, m] = from.split('-').map(Number)
-  const firstWeekday = new Date(y, m - 1, 1).getDay()
-  const daysInMonth = new Date(y, m, 0).getDate()
-  const byLabel = new Map(buckets.map(b => [b.label, b]))
   const max = Math.max(...buckets.map(b => b.revenue), 1)
 
-  const cells: Array<{ day: number; label: string } | null> = []
-  for (let i = 0; i < firstWeekday; i++) cells.push(null)
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push({ day: d, label: `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` })
+  function cellBg(revenue: number): string | undefined {
+    if (revenue <= 0) return undefined
+    const opacity = 0.12 + 0.78 * (revenue / max)
+    return `rgba(232,56,13,${opacity.toFixed(2)})`
   }
 
+  if (period === 'MONTH') {
+    const [y, m] = from.split('-').map(Number)
+    const firstWeekday = new Date(y, m - 1, 1).getDay()
+    const daysInMonth = new Date(y, m, 0).getDate()
+    const byLabel = new Map(buckets.map(b => [b.label, b]))
+
+    const cells: Array<{ day: number; label: string } | null> = []
+    for (let i = 0; i < firstWeekday; i++) cells.push(null)
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push({ day: d, label: `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` })
+    }
+
+    return (
+      <div className="settlement-heatmap-grid">
+        {WEEKDAYS.map(w => (
+          <div key={w} className="settlement-heatmap-weekday">{w}</div>
+        ))}
+        {cells.map((cell, i) => {
+          if (!cell) return <div key={`empty-${i}`} />
+          const revenue = byLabel.get(cell.label)?.revenue ?? 0
+          return (
+            <button
+              key={cell.label}
+              type="button"
+              className={`settlement-heatmap-cell${selected === cell.label ? ' selected' : ''}`}
+              style={{ background: cellBg(revenue) }}
+              onClick={() => onSelect(cell.label)}
+              title={`${cell.day}일 매출 ${won(revenue)}`}
+            >
+              {cell.day}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  if (period === 'YEAR') {
+    return (
+      <div className="settlement-heatmap-grid" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
+        {buckets.map(b => {
+          const monthNum = Number(b.label.slice(5))
+          return (
+            <button
+              key={b.label}
+              type="button"
+              className={`settlement-heatmap-cell flat${selected === b.label ? ' selected' : ''}`}
+              style={{ background: cellBg(b.revenue) }}
+              onClick={() => onSelect(b.label)}
+              title={`${monthNum}월 매출 ${won(b.revenue)}`}
+            >
+              {monthNum}월
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // DAY · WEEK - 요일을 칸 안에 같이 적는다(공유 헤더에 맞춰 정렬하면 월~일 범위라 일요일이 맨 앞으로 와 헷갈린다).
   return (
-    <div className="settlement-heatmap-grid">
-      {WEEKDAYS.map(w => (
-        <div key={w} className="settlement-heatmap-weekday">{w}</div>
-      ))}
-      {cells.map((cell, i) => {
-        if (!cell) return <div key={`empty-${i}`} />
-        const revenue = byLabel.get(cell.label)?.revenue ?? 0
-        const opacity = revenue > 0 ? 0.12 + 0.78 * (revenue / max) : 0
+    <div className="settlement-heatmap-grid" style={{ gridTemplateColumns: `repeat(${buckets.length}, 1fr)` }}>
+      {buckets.map(b => {
+        const d = parseDateStr(b.label)
         return (
           <button
-            key={cell.label}
+            key={b.label}
             type="button"
-            className={`settlement-heatmap-cell${selected === cell.label ? ' selected' : ''}`}
-            style={{ background: revenue > 0 ? `rgba(232,56,13,${opacity.toFixed(2)})` : undefined }}
-            onClick={() => onSelect(cell.label)}
-            title={`${cell.day}일 매출 ${won(revenue)}`}
+            className={`settlement-heatmap-cell flat${selected === b.label ? ' selected' : ''}`}
+            style={{ background: cellBg(b.revenue) }}
+            onClick={() => onSelect(b.label)}
+            title={`${b.label} 매출 ${won(b.revenue)}`}
           >
-            {cell.day}
+            <div style={{ fontSize: 9, opacity: 0.7 }}>{WEEKDAYS[d.getDay()]}</div>
+            <div>{d.getDate()}</div>
           </button>
         )
       })}
