@@ -79,6 +79,9 @@ export default function HostChannelPage() {
         totalAmount: 9900,
         currency: 'CURRENCY_KRW',
         payMethod: 'CARD',
+        // ReservationModal 과 동일한 이유로 IFRAME 고정 - PG 기본값에 맡기면 모바일에서
+        // POPUP(화면 전체를 차지)으로 열릴 수 있다.
+        windowType: { pc: 'IFRAME', mobile: 'IFRAME' },
       })
 
       if (response?.code) {
