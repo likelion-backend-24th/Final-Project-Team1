@@ -65,6 +65,22 @@ public class ExpoInternalController {
                 .toList();
     }
 
+    /**
+     * 카테고리 일괄 조회. 캘린더 추천이 카테고리 조건으로 후보를 거르는 데 쓴다
+     * (회차는 reservation-service 소유라 카테고리를 모른다).
+     */
+    @GetMapping("/categories")
+    public List<Map<String, Object>> categories(@RequestParam List<Long> expoIds) {
+        if (expoIds.isEmpty() || expoIds.size() > MAX_TITLE_IDS) {
+            return List.of();
+        }
+        return expoRepository.findAllById(expoIds).stream()
+                .map(e -> Map.<String, Object>of(
+                        "expoId", e.getId(),
+                        "category", e.getCategory() != null ? e.getCategory() : ""))
+                .toList();
+    }
+
     @GetMapping
     public List<Map<String, Object>> listPublished() {
         return expoRepository.findAll().stream()

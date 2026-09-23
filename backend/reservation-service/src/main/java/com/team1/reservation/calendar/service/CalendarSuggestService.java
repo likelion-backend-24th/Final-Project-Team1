@@ -72,9 +72,10 @@ public class CalendarSuggestService {
         List<InternalRoundResponse> candidates = joinCandidates(candidatesFuture);
         ResolvedConstraint resolved = constraintFuture.join();
 
-        List<InternalRoundResponse> picked = ScheduleGreedyPicker.pick(candidates, resolved.constraint());
+        List<InternalRoundResponse> pool = filterByCategory(candidates, resolved.constraint().category());
+        List<InternalRoundResponse> picked = ScheduleGreedyPicker.pick(pool, resolved.constraint());
 
-        return new Result(toViews(picked), new CalendarSuggestMeta(resolved.source(), candidates.size()));
+        return new Result(toViews(picked), new CalendarSuggestMeta(resolved.source(), pool.size()));
     }
 
     /**
@@ -99,6 +100,22 @@ public class CalendarSuggestService {
             return List.of();
         }
         return roundService.roundsByDate(expoIds, from, to, bookableOnly);
+    }
+
+    /**
+     * 카테고리 조건은 사용자가 명시적으로 요청한 필터라, 카테고리를 모르면 후보에서 뺀다(fail-closed).
+     * 조회에 실패해서 다 못 걸러도 조건 없는 것처럼 전부 보여주면, 지금 고치려는 문제(카테고리를
+     * 말해도 무시되고 아무 분야나 추천되는 것)가 그대로 재현된다.
+     */
+    private List<InternalRoundResponse> filterByCategory(List<InternalRoundResponse> candidates, String category) {
+        if (category == null || candidates.isEmpty()) {
+            return candidates;
+        }
+        List<Long> expoIds = candidates.stream().map(InternalRoundResponse::expoId).distinct().toList();
+        Map<Long, String> categoriesByExpoId = expoClient.categories(expoIds);
+        return candidates.stream()
+                .filter(r -> category.equals(categoriesByExpoId.get(r.expoId())))
+                .toList();
     }
 
     /** roundsByDate가 검증 실패로 던진 ApiException(기간 상한 등)은 그대로 살려서 올린다. */

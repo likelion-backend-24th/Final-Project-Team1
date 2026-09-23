@@ -26,7 +26,7 @@ public final class RegexConstraintParser {
         if (hour<1 || hour > 12){
             return null;
         }
-        return new ScheduleConstraint(toHour24(period,hour));
+        return new ScheduleConstraint(toHour24(period,hour), null);
     }
 
     private static int toHour24(String period,int hour){
